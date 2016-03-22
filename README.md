@@ -1,5 +1,5 @@
-# marathon-lb [![Build Status](https://travis-ci.org/mesosphere/marathon-lb.svg?branch=master)](https://travis-ci.org/mesosphere/marathon-lb)
-Marathon-lb is a tool for managing HAProxy, by consuming [Marathon's](https://github.com/mesosphere/marathon) app state.
+# f5-marathon-lb
+f5-marathon-lb is a tool for managing F5 BIG-IP, by consuming [Marathon's](https://github.com/mesosphere/marathon) app state.
 
 ### Features
 
@@ -13,10 +13,9 @@ Marathon-lb is a tool for managing HAProxy, by consuming [Marathon's](https://gi
  * Global HAProxy templates which can be supplied at launch
 
 ## Architecture
-The marathon-lb script `marathon_lb.py` connects to the marathon API
-to retrieve all running apps, generates a HAProxy config and reloads HAProxy.
-By default, marathon-lb binds to the service port of every application and
-sends incoming requests to the application instances.
+The f5-marathon-lb script `f5_marathon_lb.py` connects to the marathon API
+to retrieve all running apps, and updates the configuration of a F5 BIG-IP 
+accordingly.
 
 Services are exposed on their service port (see
 [Service Discovery & Load Balancing](https://mesosphere.github.io/marathon/docs/service-discovery-load-balancing)
