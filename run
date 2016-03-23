@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-HAPROXY_SERVICE="/marathon-lb/service/haproxy"
-mkdir -p $HAPROXY_SERVICE/env
+#HAPROXY_SERVICE="/marathon-lb/service/haproxy"
+#mkdir -p $HAPROXY_SERVICE/env
 
-if [ -n "${PORTS-}" ]; then
-  echo $PORTS > $HAPROXY_SERVICE/env/PORTS
-else
-  echo "Define $PORTS with a comma-separated list of ports to which HAProxy binds" >&2
-  exit 1
-fi
+#if [ -n "${PORTS-}" ]; then
+#  echo $PORTS > $HAPROXY_SERVICE/env/PORTS
+#else
+#  echo "Define $PORTS with a comma-separated list of ports to which HAProxy binds" >&2
+#  exit 1
+#fi
 
 # Iterate through the arguments to see if any SSL certificate is provided.
 for key in "$@"
@@ -44,11 +44,11 @@ if [ -n "${MESOS_SANDBOX-}" ] && [ -d "$MESOS_SANDBOX/templates" ]; then
   cp -v "$MESOS_SANDBOX/templates/"* templates/
 fi
 
-/usr/bin/runsv "$HAPROXY_SERVICE" &
-RUNSV=$!
+#/usr/bin/runsv "$HAPROXY_SERVICE" &
+#RUNSV=$!
 ARGS=""
 
-trap "kill $RUNSV; wait $RUNSV; exit 0" TERM INT
+#trap "kill $RUNSV; wait $RUNSV; exit 0" TERM INT
 
 MODE=$1; shift
 case "$MODE" in
@@ -79,10 +79,10 @@ if [ -n "${HAPROXY_SYSCTL_PARAMS-}" ]; then
 fi
 
 while true; do
-  /marathon-lb/marathon_lb.py \
+  /f5-marathon-lb/f5_marathon_lb.py \
     --syslog-socket /dev/null \
-    --haproxy-config /marathon-lb/haproxy.cfg \
-    -c "sv reload $HAPROXY_SERVICE" \
+    #--haproxy-config /f5-marathon-lb/haproxy.cfg \
+    #-c "sv reload $HAPROXY_SERVICE" \
     $ARGS "$@" &
   wait $! || exit $? # Needed for the traps to work
   if [ "$MODE" != "poll" ]; then
