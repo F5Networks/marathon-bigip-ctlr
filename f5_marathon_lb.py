@@ -1655,7 +1655,13 @@ class MarathonEventProcessor(object):
                     start_time = time.time()
 
                     self.__apps = get_apps(self.__marathon)
-                    regenerate_config(self.__apps,
+                    #regenerate_config(self.__apps,
+                    #                  self.__config_file,
+                    #                  self.__groups,
+                    #                  self.__bind_http_https,
+                    #                  self.__ssl_certs,
+                    #                  self.__templater)
+                    regenerate_config_f5(self.__apps,
                                       self.__config_file,
                                       self.__groups,
                                       self.__bind_http_https,
