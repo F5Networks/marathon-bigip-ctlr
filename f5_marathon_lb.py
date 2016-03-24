@@ -936,14 +936,6 @@ def writeConfigAndValidate(config, config_file):
         perms = stat.S_IMODE(os.lstat(config_file).st_mode)
     os.chmod(haproxyTempConfigFile, perms)
 
-    # If skip validation flag is provided, don't check.
-    if args.skip_validation:
-        logger.debug("skipping validation. moving temp file %s to %s",
-                     haproxyTempConfigFile,
-                     config_file)
-        move(haproxyTempConfigFile, config_file)
-        return True
-
     # Check that config is valid
     cmd = ['haproxy', '-f', haproxyTempConfigFile, '-c']
     logger.debug("checking config with command: " + str(cmd))
@@ -1734,9 +1726,6 @@ def get_arg_parser():
                              "for frontend marathon_https_in"
                              "Ex: /etc/ssl/site1.co.pem,/etc/ssl/site2.co.pem",
                         default="/etc/ssl/mesosphere.com.pem")
-    parser.add_argument("--skip-validation",
-                        help="Skip haproxy config file validation",
-                        action="store_true")
     parser.add_argument("--dry", "-d",
                         help="Only print configuration to console",
                         action="store_true")
