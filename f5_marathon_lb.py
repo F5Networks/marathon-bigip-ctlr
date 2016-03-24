@@ -997,6 +997,10 @@ def f5_go(config, config_file):
             n = "%s_%s" % (v, config[v]['health']['protocol'])
             marathon_healthcheck_list.append(n)
 
+    # a throw-away big-ip query.  this is to workaround a bug
+    # https://bldr-git.int.lineratesystems.com/talley/f5-marathon-lb/issues/1
+    _trash = get_pool_list(bigip, partition)
+
     f5_pool_list = get_pool_list(bigip, partition)
     f5_virtual_list = get_virtual_list(bigip, partition)
     f5_healthcheck_list = get_healthcheck_list(bigip, partition)
