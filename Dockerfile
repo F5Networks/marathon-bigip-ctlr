@@ -1,7 +1,6 @@
 FROM debian:jessie
 
 ENTRYPOINT [ "/f5-marathon-lb/run" ]
-CMD        [ "sse", "-m", "http://10.190.20.27:8080", "--group", "*", "--haproxy-config", "f5_config.json" ]
 
 COPY  . /f5-marathon-lb
 
