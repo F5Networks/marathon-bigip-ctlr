@@ -464,7 +464,7 @@ class MarathonService(object):
         self.bindAddr = '*'
         self.groups = frozenset()
         self.mode = 'tcp'
-        self.balance = 'roundrobin'
+        self.balance = 'round-robin'
         self.healthCheck = healthCheck
         self.labels = {}
         if healthCheck:
@@ -672,7 +672,8 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
             'name': frontend_name,
             'destination': app.bindAddr,
             'port': app.servicePort,
-            'protocol': app.mode
+            'protocol': app.mode,
+            'balance': app.balance,
             })
 
         if app.redirectHttpToHttps:
