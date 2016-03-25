@@ -1010,6 +1010,7 @@ def f5_go(config, config_file):
     # the type to correctly reference the resource.  i.e. monitor types are different
     # resources in the f5-sdk
     f5_healthcheck_dict = get_healthcheck_list(bigip, partition)
+    print f5_healthcheck_dict
     # and then we need just the list to identify differences from the list 
     # returned from marathon
     f5_healthcheck_list = f5_healthcheck_dict.keys()
@@ -1149,13 +1150,13 @@ def get_virtual_list(bigip, partition):
 def get_healthcheck_list(bigip, partition):
     # will need to handle HTTP and TCP
 
-    healthchecks = {}
+    healthcheck_dict = {}
 
     # HTTP
     healthchecks = bigip.ltm.monitor.https.get_collection()
     for hc in healthchecks:
         if hc.partition == partition:
-            healthchecks.update(
+            healthcheck_dict.update(
                     {hc.name: {'type': 'http'}}
                     )
    
@@ -1163,11 +1164,11 @@ def get_healthcheck_list(bigip, partition):
     healthchecks = bigip.ltm.monitor.tcps.get_collection()
     for hc in healthchecks:
         if hc.partition == partition:
-            healthchecks.update(
+            healthcheck_dict.update(
                     {hc.name: {'type': 'tcp'}}
                     )
 
-    return healthchecks
+    return healthcheck_dict
 
 def pool_create(bigip, partition, pool, data):
     # TODO: do we even need 'data' here?
