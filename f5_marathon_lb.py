@@ -1004,7 +1004,15 @@ def f5_go(config, config_file):
 
     f5_pool_list = get_pool_list(bigip, partition)
     f5_virtual_list = get_virtual_list(bigip, partition)
-    f5_healthcheck_list = get_healthcheck_list(bigip, partition)
+
+    # get_healthcheck_list() returns a dict with healthcheck names for keys and
+    # a subkey of "type" with a value of "tcp", "http", etc.  We need to know 
+    # the type to correctly reference the resource.  i.e. monitor types are different
+    # resources in the f5-sdk
+    f5_healthcheck_dict = get_healthcheck_list(bigip, partition)
+    # and then we need just the list to identify differences from the list 
+    # returned from marathon
+    f5_healthcheck_list = f5_healthcheck_dict.keys()
 
     logger.debug("f5_pool_list = %s" % (','.join(f5_pool_list)))
     logger.debug("f5_virtual_list = %s" % (','.join(f5_virtual_list)))
@@ -1031,7 +1039,7 @@ def f5_go(config, config_file):
     health_delete = list(set(f5_healthcheck_list) - set(marathon_virtual_list))
     logger.debug("healthchecks to delete = %s" % (','.join(health_delete)))
     for hc in health_delete:
-        healthcheck_delete(bigip, partition, hc, config[hc]['health']['protocol'])
+        healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
 
     # pool add
     pool_add = list(set(marathon_pool_list) - set(f5_pool_list))
@@ -1141,21 +1149,25 @@ def get_virtual_list(bigip, partition):
 def get_healthcheck_list(bigip, partition):
     # will need to handle HTTP and TCP
 
-    healthcheck_list = []
+    healthchecks = {}
 
     # HTTP
     healthchecks = bigip.ltm.monitor.https.get_collection()
     for hc in healthchecks:
         if hc.partition == partition:
-            healthcheck_list.append(hc.name)
+            healthchecks.update(
+                    {hc.name: {'type': 'http'}}
+                    )
    
     # TCP
     healthchecks = bigip.ltm.monitor.tcps.get_collection()
     for hc in healthchecks:
         if hc.partition == partition:
-            healthcheck_list.append(hc.name)
+            healthchecks.update(
+                    {hc.name: {'type': 'tcp'}}
+                    )
 
-    return healthcheck_list
+    return healthchecks
 
 def pool_create(bigip, partition, pool, data):
     # TODO: do we even need 'data' here?
@@ -1218,9 +1230,9 @@ class Healthcheck(object):
         return timeout
 
 
-def healthcheck_delete(bigip, partition, hc, type):
+def healthcheck_delete(bigip, partition, hc, hc_type):
     print("deleting healthcheck %s" % hc)
-    hc = get_healthcheck(bigip, partition, hc, type)
+    hc = get_healthcheck(bigip, partition, hc, hc_type)
     hc.delete()
 
 def healthcheck_timeout_calculate(data):
@@ -1346,14 +1358,14 @@ def get_pool(bigip, partition, pool):
             )
     return p
 
-def get_healthcheck(bigip, partition, hc, type):
+def get_healthcheck(bigip, partition, hc, hc_type):
     # return hc object
-    if type == 'HTTP':
+    if hc_type.lower() == 'http':
         hc = bigip.ltm.monitor.https.http.load(
                 name=hc,
                 partition=partition
                 )
-    elif type == 'TCP':
+    elif hc_type.lower() == 'tcp':
         hc = bigip.ltm.monitor.tcps.tcp.load(
                 name=hc,
                 partition=partition
