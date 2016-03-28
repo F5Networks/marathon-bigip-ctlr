@@ -648,7 +648,7 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
         logger.debug("configuring app %s", app.appId)
         backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
 
-        frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), app.bindAddr, app.servicePort)
+        frontend_name = "%s" % (app.appId).lstrip('/')
         logger.debug("frontend at %s:%d with backend %s",
                      app.bindAddr, app.servicePort, backend)
 
@@ -725,6 +725,11 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
             print app.healthCheck
             f5_service['health'] = app.healthCheck
             f5_service['health']['name'] = "%s_%s" % (frontend_name, app.healthCheck['protocol'])
+
+            # normalize healtcheck protocol name to lowercase
+            if 'protocol' in f5_service['health']:
+                f5_service['health']['protocol'] = (f5_service['health']['protocol']).lower()
+
             print "______ /HEALTHCHECK VIRT _________"
 
             health_check_options = None
@@ -1263,14 +1268,14 @@ def healthcheck_update(bigip, partition, hc, data):
         # fragile
         send_string = 'GET %s' % data['path']
 
-    if data['protocol'] == "HTTP":
+    if (data['protocol']).lower() == "http":
         hc.update(
                 interval=data['intervalSeconds'],
                 timeout=timeout,
                 sendString=send_string,
                 )
 
-    if data['protocol'] == "TCP":
+    if (data['protocol']).lower() == "tcp":
         hc.update(
                 interval=data['intervalSeconds'],
                 timeout=timeout,
@@ -1295,7 +1300,7 @@ def healthcheck_create(bigip, partition, hc, data):
         # fragile
         send_string = 'GET %s' % data['path']
 
-    if data['protocol'] == "HTTP":
+    if (data['protocol']).lower() == "http":
         h = bigip.ltm.monitor.https
         http1 = h.http
         print http1
@@ -1307,7 +1312,7 @@ def healthcheck_create(bigip, partition, hc, data):
                 sendString=send_string,
                 )
 
-    if data['protocol'] == "TCP":
+    if (data['protocol']).lower() == "tcp":
         h = bigip.ltm.monitor.tcps
         tcp1 = h.tcp
         print tcp1
@@ -1546,9 +1551,9 @@ def get_apps(marathon):
 
         marathon_app = MarathonApp(marathon, appId, app)
 
-        if 'HAPROXY_GROUP' in marathon_app.app['labels']:
+        if 'F5_GROUP' in marathon_app.app['labels']:
             marathon_app.groups = \
-                marathon_app.app['labels']['HAPROXY_GROUP'].split(',')
+                marathon_app.app['labels']['F5_GROUP'].split(',')
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
