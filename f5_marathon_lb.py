@@ -1179,9 +1179,8 @@ def get_arg_parser():
                         help="The HTTP address that Marathon can call this " +
                              "script back at (http://lb1:8080)"
                         )
-    parser.add_argument("--haproxy-config",
-                        help="Location of haproxy configuration",
-                        default="/etc/haproxy/haproxy.cfg"
+    parser.add_argument("--f5-config",
+                        help="Location of F5 configuration"
                         )
     parser.add_argument("--partition",
                         help="[required] Only generate config for apps which"
@@ -1300,6 +1299,9 @@ if __name__ == '__main__':
         if len(args.partition) == 0:
             arg_parser.error('argument --partition is required: please' +
                              'specify at least one partition name')
+        if not args.f5_config:
+            arg_parser.error('argument --f5-config is required: please' +
+                             'specify')
 
     # Set request retries
     s = requests.Session()
@@ -1320,7 +1322,7 @@ if __name__ == '__main__':
         callback_url = args.callback_url or args.listening
         try:
             run_server(marathon, args.listening, callback_url,
-                       args.haproxy_config, args.partition,
+                       args.f5_config, args.partition,
                        not args.dont_bind_http_https, args.ssl_certs)
         finally:
             clear_callbacks(marathon, callback_url)
@@ -1328,7 +1330,7 @@ if __name__ == '__main__':
         while True:
             try:
                 process_sse_events(marathon,
-                                   args.haproxy_config,
+                                   args.f5_config,
                                    args.partition,
                                    not args.dont_bind_http_https,
                                    args.ssl_certs)
@@ -1338,6 +1340,6 @@ if __name__ == '__main__':
             time.sleep(1)
     else:
         # Generate base config
-        regenerate_config_f5(get_apps(marathon), args.haproxy_config, args.partition,
+        regenerate_config_f5(get_apps(marathon), args.f5_config, args.partition,
                           not args.dont_bind_http_https,
                           args.ssl_certs)
