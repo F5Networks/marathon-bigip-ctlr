@@ -53,7 +53,6 @@ from six.moves.urllib import parse
 from itertools import cycle
 from common import *
 from f5.bigip import BigIP
-import icontrol
 
 import argparse
 import json
