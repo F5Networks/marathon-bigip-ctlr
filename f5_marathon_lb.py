@@ -725,6 +725,11 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
             print app.healthCheck
             f5_service['health'] = app.healthCheck
             f5_service['health']['name'] = "%s_%s" % (frontend_name, app.healthCheck['protocol'])
+
+            # normalize healtcheck protocol name to lowercase
+            if 'protocol' in f5_service['health']:
+                f5_service['health']['protocol'] = (f5_service['health']['protocol']).lower()
+
             print "______ /HEALTHCHECK VIRT _________"
 
             health_check_options = None
@@ -1263,14 +1268,14 @@ def healthcheck_update(bigip, partition, hc, data):
         # fragile
         send_string = 'GET %s' % data['path']
 
-    if data['protocol'] == "HTTP":
+    if (data['protocol']).lower() == "http":
         hc.update(
                 interval=data['intervalSeconds'],
                 timeout=timeout,
                 sendString=send_string,
                 )
 
-    if data['protocol'] == "TCP":
+    if (data['protocol']).lower() == "tcp":
         hc.update(
                 interval=data['intervalSeconds'],
                 timeout=timeout,
@@ -1295,7 +1300,7 @@ def healthcheck_create(bigip, partition, hc, data):
         # fragile
         send_string = 'GET %s' % data['path']
 
-    if data['protocol'] == "HTTP":
+    if (data['protocol']).lower() == "http":
         h = bigip.ltm.monitor.https
         http1 = h.http
         print http1
@@ -1307,7 +1312,7 @@ def healthcheck_create(bigip, partition, hc, data):
                 sendString=send_string,
                 )
 
-    if data['protocol'] == "TCP":
+    if (data['protocol']).lower() == "tcp":
         h = bigip.ltm.monitor.tcps
         tcp1 = h.tcp
         print tcp1
