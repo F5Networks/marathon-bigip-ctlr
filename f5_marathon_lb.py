@@ -1546,9 +1546,9 @@ def get_apps(marathon):
 
         marathon_app = MarathonApp(marathon, appId, app)
 
-        if 'HAPROXY_GROUP' in marathon_app.app['labels']:
+        if 'F5_GROUP' in marathon_app.app['labels']:
             marathon_app.groups = \
-                marathon_app.app['labels']['HAPROXY_GROUP'].split(',')
+                marathon_app.app['labels']['F5_GROUP'].split(',')
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
