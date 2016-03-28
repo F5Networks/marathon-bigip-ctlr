@@ -994,7 +994,7 @@ def f5_go(config, config_file):
     # to get "marathon_healthcheck_list"
     marathon_healthcheck_list = []
     for v in marathon_virtual_list:
-        if 'health' in config[v]:
+        if 'protocol' in config[v]['health']:
             n = "%s_%s" % (v, config[v]['health']['protocol'])
             marathon_healthcheck_list.append(n)
 
