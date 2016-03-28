@@ -462,7 +462,7 @@ class MarathonService(object):
         self.sslCert = None
         self.bindOptions = None
         self.bindAddr = '*'
-        self.groups = frozenset()
+        self.partitions = frozenset()
         self.mode = 'tcp'
         self.balance = 'round-robin'
         self.healthCheck = healthCheck
@@ -488,7 +488,7 @@ class MarathonApp(object):
 
     def __init__(self, marathon, appId, app):
         self.app = app
-        self.groups = frozenset()
+        self.partitions = frozenset()
         self.appId = appId
 
         # port -> MarathonService
@@ -583,17 +583,17 @@ class Marathon(object):
         return next(self.__cycle_hosts)
 
 
-def has_group(groups, app_groups):
-    # All groups / wildcard match
-    if '*' in groups:
+def has_partition(partitions, app_partitions):
+    # All partitions / wildcard match
+    if '*' in partitions:
         return True
 
-    # empty group only
-    if len(groups) == 0 and len(app_groups) == 0:
-        raise Exception("No groups specified")
+    # empty partition only
+    if len(partitions) == 0 and len(app_partitions) == 0:
+        raise Exception("No partitions specified")
 
-    # Contains matching groups
-    if (len(frozenset(app_groups) & groups)):
+    # Contains matching partitions
+    if (len(frozenset(app_partitions) & partitions)):
         return True
 
     return False
@@ -615,11 +615,11 @@ def resolve_ip(host):
             return None
 
 
-def config(apps, groups, bind_http_https, ssl_certs, templater):
+def config(apps, partitions, bind_http_https, ssl_certs, templater):
     logger.info("generating config")
     f5 = {}
     config = templater.haproxy_head
-    groups = frozenset(groups)
+    partitions = frozenset(partitions)
     _ssl_certs = ssl_certs or "/etc/ssl/mesosphere.com.pem"
     _ssl_certs = _ssl_certs.split(",")
 
@@ -640,9 +640,9 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
                 'nodes': {},
                 'health': {}
                 }
-        # App only applies if we have it's group
-        if not has_group(groups, app.groups):
-            print("doesn't have group")
+        # App only applies if we have it's partition
+        if not has_partition(partitions, app.partitions):
+            print("doesn't have partition")
             continue
 
         logger.debug("configuring app %s", app.appId)
@@ -1551,9 +1551,9 @@ def get_apps(marathon):
 
         marathon_app = MarathonApp(marathon, appId, app)
 
-        if 'F5_GROUP' in marathon_app.app['labels']:
-            marathon_app.groups = \
-                marathon_app.app['labels']['F5_GROUP'].split(',')
+        if 'F5_PARTITION' in marathon_app.app['labels']:
+            marathon_app.partitions = \
+                marathon_app.app['labels']['F5_PARTITION'].split(',')
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
@@ -1608,7 +1608,7 @@ def get_apps(marathon):
                 service_port = service_ports[i]
                 service = marathon_app.services.get(service_port, None)
                 if service:
-                    service.groups = marathon_app.groups
+                    service.partitions = marathon_app.partitions
                     service.add_backend(task['host'],
                                         task_port,
                                         draining)
@@ -1627,24 +1627,24 @@ def get_apps(marathon):
 
 
 
-def regenerate_config_f5(apps, config_file, groups, bind_http_https,
+def regenerate_config_f5(apps, config_file, partitions, bind_http_https,
                       ssl_certs, templater):
     logger.info("in regenerate_config_f5()")
     print(apps)
     for app in apps:
         print(app.__hash__())
-    f5_go(config(apps, groups, bind_http_https,
+    f5_go(config(apps, partitions, bind_http_https,
                                 ssl_certs, templater), config_file)
 
 class MarathonEventProcessor(object):
 
-    def __init__(self, marathon, config_file, groups,
+    def __init__(self, marathon, config_file, partitions,
                  bind_http_https, ssl_certs):
         self.__marathon = marathon
         # appId -> MarathonApp
         self.__apps = dict()
         self.__config_file = config_file
-        self.__groups = groups
+        self.__partitions = partitions
         self.__templater = ConfigTemplater()
         self.__bind_http_https = bind_http_https
         self.__ssl_certs = ssl_certs
@@ -1672,7 +1672,7 @@ class MarathonEventProcessor(object):
                     self.__apps = get_apps(self.__marathon)
                     regenerate_config_f5(self.__apps,
                                       self.__config_file,
-                                      self.__groups,
+                                      self.__partitions,
                                       self.__bind_http_https,
                                       self.__ssl_certs,
                                       self.__templater)
@@ -1723,10 +1723,11 @@ def get_arg_parser():
                         help="Location of haproxy configuration",
                         default="/etc/haproxy/haproxy.cfg"
                         )
-    parser.add_argument("--group",
+    parser.add_argument("--partition",
                         help="[required] Only generate config for apps which"
-                        " list the specified names. Use '*' to match all"
-                        " groups",
+                        " list the specified partition. Use '*' to match all"
+                        " partitions.  Can use a comma-separated list to specify"
+                        " multiple partitions",
                         action="append",
                         default=list())
     parser.add_argument("--command", "-c",
@@ -1757,11 +1758,11 @@ def get_arg_parser():
     return parser
 
 
-def run_server(marathon, listen_addr, callback_url, config_file, groups,
+def run_server(marathon, listen_addr, callback_url, config_file, partitions,
                bind_http_https, ssl_certs):
     processor = MarathonEventProcessor(marathon,
                                        config_file,
-                                       groups,
+                                       partitions,
                                        bind_http_https,
                                        ssl_certs)
     marathon.add_subscriber(callback_url)
@@ -1788,11 +1789,11 @@ def clear_callbacks(marathon, callback_url):
     marathon.remove_subscriber(callback_url)
 
 
-def process_sse_events(marathon, config_file, groups,
+def process_sse_events(marathon, config_file, partitions,
                        bind_http_https, ssl_certs):
     processor = MarathonEventProcessor(marathon,
                                        config_file,
-                                       groups,
+                                       partitions,
                                        bind_http_https,
                                        ssl_certs)
     events = marathon.get_event_stream()
@@ -1836,9 +1837,9 @@ if __name__ == '__main__':
         if args.sse and args.listening:
             arg_parser.error(
                 'cannot use --listening and --sse at the same time')
-        if len(args.group) == 0:
-            arg_parser.error('argument --group is required: please' +
-                             'specify at least one group name')
+        if len(args.partition) == 0:
+            arg_parser.error('argument --partition is required: please' +
+                             'specify at least one partition name')
 
     # Set request retries
     s = requests.Session()
@@ -1859,7 +1860,7 @@ if __name__ == '__main__':
         callback_url = args.callback_url or args.listening
         try:
             run_server(marathon, args.listening, callback_url,
-                       args.haproxy_config, args.group,
+                       args.haproxy_config, args.partition,
                        not args.dont_bind_http_https, args.ssl_certs)
         finally:
             clear_callbacks(marathon, callback_url)
@@ -1868,7 +1869,7 @@ if __name__ == '__main__':
             try:
                 process_sse_events(marathon,
                                    args.haproxy_config,
-                                   args.group,
+                                   args.partition,
                                    not args.dont_bind_http_https,
                                    args.ssl_certs)
             except:
@@ -1877,6 +1878,6 @@ if __name__ == '__main__':
             time.sleep(1)
     else:
         # Generate base config
-        regenerate_config_f5(get_apps(marathon), args.haproxy_config, args.group,
+        regenerate_config_f5(get_apps(marathon), args.haproxy_config, args.partition,
                           not args.dont_bind_http_https,
                           args.ssl_certs, ConfigTemplater())
