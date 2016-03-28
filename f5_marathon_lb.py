@@ -648,7 +648,7 @@ def config(apps, groups, bind_http_https, ssl_certs, templater):
         logger.debug("configuring app %s", app.appId)
         backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
 
-        frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), app.bindAddr, app.servicePort)
+        frontend_name = "%s" % (app.appId).lstrip('/')
         logger.debug("frontend at %s:%d with backend %s",
                      app.bindAddr, app.servicePort, backend)
 
