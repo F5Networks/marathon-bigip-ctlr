@@ -509,6 +509,15 @@ def f5_go(config, config_file):
     for hc in health_delete:
         healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
 
+    # healthcheck config needs to happen before pool config because the pool
+    # is where we add the healthcheck
+    # healthcheck add
+    # use the name of the virt for the healthcheck
+    healthcheck_add = list(set(marathon_virtual_list) - set(f5_healthcheck_list))
+    logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
+    for hc in healthcheck_add:
+        healthcheck_create(bigip, partition, hc, config[hc]['health'])
+
     # pool add
     pool_add = list(set(marathon_pool_list) - set(f5_pool_list))
     logger.debug("pools to add = %s" % (','.join(pool_add)))
@@ -522,14 +531,6 @@ def f5_go(config, config_file):
     for virt in virt_add:
         virtual_create(bigip, partition, virt, config[virt])
 
-    # healthcheck config needs to happen before pool config because the pool
-    # is where we add the healthcheck
-    # healthcheck add
-    # use the name of the virt for the healthcheck
-    healthcheck_add = list(set(marathon_virtual_list) - set(f5_healthcheck_list))
-    logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
-    for hc in healthcheck_add:
-        healthcheck_create(bigip, partition, hc, config[hc]['health'])
     
 
     # healthcheck intersection
