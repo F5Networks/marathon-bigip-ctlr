@@ -642,10 +642,16 @@ def pool_create(bigip, partition, pool, data):
     # TODO: do we even need 'data' here?
     print("creating pool %s" % pool)
     p = bigip.ltm.pools.pool
+
     p.create(
         name=pool,
         partition=partition
         )
+    
+    if 'health' in data:
+        print "adding healthcheck '%s' to pool" % (pool)
+        p.monitor = pool
+        p.update()
 
 def pool_delete(bigip, partition, pool):
     print("deleting pool %s" % pool)
@@ -668,11 +674,10 @@ def pool_update(bigip, partition, pool, data):
     #   ratio-node
     #   ...
 
-    print data
     virtual = data['virtual']
-    print virtual
     pool = get_pool(bigip, partition, pool)
     if 'health' in data:
+        print "adding healthcheck '%s' to pool" % (virtual['name'])
         pool.monitor = virtual['name']
     pool.update(
             state=None
@@ -860,7 +865,8 @@ def virtual_create(bigip, partition, virtual, data):
             data['port']
             )
     pool = "/%s/%s" % (partition, virtual)
-    v.create(
+
+    a = v.create(
             name=virtual,
             partition=partition,
             ipProtocol=get_protocol(data['protocol']),
@@ -869,6 +875,14 @@ def virtual_create(bigip, partition, virtual, data):
             pool=pool,
             sourceAddressTranslation={'type': 'automap'}
             )
+
+    # if this is an http virt, add the default /Common/http profile
+    v.profiles_s.profiles.create(
+            name='http',
+            partition='Common'
+            )
+
+    print a.raw
 
 def virtual_delete(bigip, partition, virtual):
     print("deleting virtual %s" % virtual)
@@ -893,7 +907,18 @@ def virtual_update(bigip, partition, virtual, data):
             pool=pool,
             sourceAddressTranslation={'type': 'automap'}
             )
-
+    
+    try:
+        v.profiles_s.profiles.load(
+                    name='http',
+                    partition='Common'
+                    )
+    except:
+        v.profiles_s.profiles.create(
+                        name='http',
+                        partition='Common'
+                        )
+    
 
 def get_protocol(protocol):
     if str(protocol).lower() == 'tcp':
