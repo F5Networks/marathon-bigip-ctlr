@@ -789,7 +789,7 @@ def healthcheck_create(bigip, partition, hc, data):
 def member_create(bigip, partition, pool, member, data):
     # getting 'data' here, but not used currently
     p = get_pool(bigip, partition, pool)
-    member = p.members_s.member.create(
+    member = p.members_s.members.create(
             name=member,
             partition=partition
             )
@@ -843,7 +843,7 @@ def get_healthcheck(bigip, partition, hc, hc_type):
 
 def get_member(bigip, partition, pool, member):
     p = get_pool(bigip, partition, pool)
-    m = p.members_s.member.load(
+    m = p.members_s.members.load(
             name=member,
             partition=partition
             )
