@@ -423,24 +423,27 @@ def f5_go(config, config_file):
     logger.debug(config)
     
     # get f5 config
-    f5_config = str()
-    try:
-        logger.debug("reading config from %s", config_file)
-        with open(config_file, "r") as f:
-            f5_config = f.read()
-    except IOError:
-        logger.warning("couldn't open config file for reading")
+    #f5_config = str()
+    #try:
+    #    logger.debug("reading config from %s", config_file)
+    #    with open(config_file, "r") as f:
+    #        f5_config = f.read()
+    #except IOError:
+    #    logger.warning("couldn't open config file for reading")
 
-    try:
-        f5_config = json.loads(f5_config)
-    except:
-        logger.error("config file not json")
+    #try:
+    #    f5_config = json.loads(f5_config)
+    #except:
+    #    logger.error("config file not json")
 
-    # set partition if none defined
-    if 'partition' in f5_config:
-        partition = f5_config['partition']
-    else:
-        partition = 'mesos'
+    ## set partition if none defined
+    #if 'partition' in f5_config:
+    #    partition = f5_config['partition']
+    #else:
+    #    partition = 'mesos'
+
+    f5_config = config_file
+    partition = f5_config['partition']
 
     # get f5 connection
     try:
@@ -1208,6 +1211,15 @@ def get_arg_parser():
     parser.add_argument("--f5-config",
                         help="Location of F5 configuration"
                         )
+    parser.add_argument("--hostname",
+                        help="F5 BIG-IP hostname"
+                        )
+    parser.add_argument("--username",
+                        help="F5 BIG-IP username"
+                        )
+    parser.add_argument("--password",
+                        help="F5 BIG-IP password"
+                        )
     parser.add_argument("--partition",
                         help="[required] Only generate config for apps which"
                         " list the specified partition. Use '*' to match all"
@@ -1325,9 +1337,24 @@ if __name__ == '__main__':
         if len(args.partition) == 0:
             arg_parser.error('argument --partition is required: please' +
                              'specify at least one partition name')
-        if not args.f5_config:
-            arg_parser.error('argument --f5-config is required: please' +
+        #if not args.f5_config:
+        #    arg_parser.error('argument --f5-config is required: please' +
+        #                     'specify')
+        if not args.hostname:
+            arg_parser.error('argument --hostname is required: please' +
                              'specify')
+        if not args.username:
+            arg_parser.error('argument --username is required: please' +
+                             'specify')
+        if not args.password:
+            arg_parser.error('argument --password is required: please' +
+                             'specify')
+
+    f5_config = {
+            "host": args.hostname,
+            "username": args.username,
+            "password": args.password
+            }
 
     # Set request retries
     s = requests.Session()
@@ -1348,7 +1375,7 @@ if __name__ == '__main__':
         callback_url = args.callback_url or args.listening
         try:
             run_server(marathon, args.listening, callback_url,
-                       args.f5_config, args.partition,
+                       f5_config, args.partition,
                        not args.dont_bind_http_https, args.ssl_certs)
         finally:
             clear_callbacks(marathon, callback_url)
@@ -1356,7 +1383,7 @@ if __name__ == '__main__':
         while True:
             try:
                 process_sse_events(marathon,
-                                   args.f5_config,
+                                   f5_config,
                                    args.partition,
                                    not args.dont_bind_http_https,
                                    args.ssl_certs)
@@ -1366,6 +1393,6 @@ if __name__ == '__main__':
             time.sleep(1)
     else:
         # Generate base config
-        regenerate_config_f5(get_apps(marathon), args.f5_config, args.partition,
+        regenerate_config_f5(get_apps(marathon), f5_config, args.partition,
                           not args.dont_bind_http_https,
                           args.ssl_certs)
