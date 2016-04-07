@@ -139,11 +139,6 @@ label_keys = {
 }
 print(label_keys)
 
-
-#logging.basicConfig(
-#        level=logging.DEBUG,
-#        format="%(levelname) -8s %(asctime)s m:%(module)s f:%(funcName)s l:%(lineno)d: %(message)s"
-#        )
 logger = logging.getLogger('marathon_lb')
 
 
@@ -349,7 +344,7 @@ def config(apps, partitions, bind_http_https, ssl_certs):
                 }
         # App only applies if we have it's partition
         if not has_partition(partitions, app.partitions):
-            print("doesn't have partition")
+            print("App '%s' not in target partition (%s); ignoring." % (app.appId, repr(partitions)))
             continue
 
         logger.debug("configuring app %s", app.appId)
@@ -1031,8 +1026,7 @@ def get_apps(marathon):
     processed_apps.extend(deployment_groups.values())
 
     for app in processed_apps:
-        print(">>>> in processed_apps")
-        print(">>>> appid = %s" % app['id'])
+        logger.debug("In processed_apps; working on appid '%s'" % app['id'])
         appId = app['id']
         if appId[1:] == os.environ.get("FRAMEWORK_NAME"):
             continue
@@ -1045,7 +1039,7 @@ def get_apps(marathon):
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
-        print(service_ports)
+        logger.debug("Application service ports = %s" % (repr(service_ports)))
         for i in range(len(service_ports)):
             servicePort = service_ports[i]
             service = MarathonService(
@@ -1053,10 +1047,9 @@ def get_apps(marathon):
 
             for key_unformatted in label_keys:
                 key = key_unformatted.format(i)
-                print(">>> key = %s" % key)
-                print(marathon_app.app['labels'])
+                logger.debug("App key = %s" % (key))
                 if key in marathon_app.app['labels']:
-                    print("xxxxx here")
+                    print(marathon_app.app['labels'])
                     func = label_keys[key_unformatted]
                     func(service,
                          key_unformatted,
@@ -1108,8 +1101,7 @@ def get_apps(marathon):
             if service.backends:
                 apps_list.append(service)
 
-    print("apps list...")
-    print(apps_list)
+    logger.debug("Final Marathon app list = %s" % repr(apps_list))
 
     return apps_list
 
