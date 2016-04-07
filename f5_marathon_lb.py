@@ -173,7 +173,7 @@ class MarathonService(object):
         self.sslCert = None
         self.bindOptions = None
         self.bindAddr = '*'
-        self.partitions = frozenset()
+        self.partition = None
         self.mode = 'tcp'
         self.balance = 'round-robin'
         self.healthCheck = healthCheck
@@ -199,7 +199,7 @@ class MarathonApp(object):
 
     def __init__(self, marathon, appId, app):
         self.app = app
-        self.partitions = frozenset()
+        self.partition = None
         self.appId = appId
 
         # port -> MarathonService
@@ -348,8 +348,8 @@ def config(apps, partitions, bind_http_https, ssl_certs):
                 'health': {}
                 }
         # App only applies if we have it's partition
-        if not has_partition(partitions, app.partitions):
-            print("doesn't have partition")
+        if not has_partition(partitions, app.partition):
+            print("App (%s) has a partition for which we are not responsible (%s)" % (app.appId, app.partition))
             continue
 
         logger.debug("configuring app %s", app.appId)
@@ -419,7 +419,7 @@ def config(apps, partitions, bind_http_https, ssl_certs):
     return f5
 
 
-def f5_go(config, config_file):
+def f5_go(config, f5_config):
     logger.debug(config)
     
     # get f5 config
@@ -442,7 +442,6 @@ def f5_go(config, config_file):
     #else:
     #    partition = 'mesos'
 
-    f5_config = config_file
     partition = f5_config['partition']
 
     # get f5 connection
@@ -1043,8 +1042,8 @@ def get_apps(marathon):
         marathon_app = MarathonApp(marathon, appId, app)
 
         if 'F5_PARTITION' in marathon_app.app['labels']:
-            marathon_app.partitions = \
-                marathon_app.app['labels']['F5_PARTITION'].split(',')
+            marathon_app.partition = \
+                marathon_app.app['labels']['F5_PARTITION']
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
@@ -1099,7 +1098,7 @@ def get_apps(marathon):
                 service_port = service_ports[i]
                 service = marathon_app.services.get(service_port, None)
                 if service:
-                    service.partitions = marathon_app.partitions
+                    service.partition = marathon_app.partition
                     service.add_backend(task['host'],
                                         task_port,
                                         draining)
@@ -1353,7 +1352,8 @@ if __name__ == '__main__':
     f5_config = {
             "host": args.hostname,
             "username": args.username,
-            "password": args.password
+            "password": args.password,
+            "partitions": args.partition
             }
 
     # Set request retries
