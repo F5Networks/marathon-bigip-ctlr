@@ -1,5 +1,6 @@
 before_script:
   - docker info
+  - env
 
 build_image:
   script:
