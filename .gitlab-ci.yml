@@ -1,6 +1,8 @@
 before_script:
   - docker info
   - env
+  - dig security.debian.org
+  - ping -c2 security.debian.org
 
 build_image:
   script:
