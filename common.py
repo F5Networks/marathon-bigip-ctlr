@@ -9,11 +9,17 @@ import logging
 def setup_logging(logger, syslog_socket, log_format):
     logger.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter(log_format)
+    #if log_format:
+    #    print log_format
+    #    formatter = logging.Formatter(log_format)
+    #else:
+    formatter = logging.Formatter(
+            "%(levelname) -8s %(asctime)s m:%(module)s f:%(funcName)s l:%(lineno)d: %(message)s"
+            )
 
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(formatter)
-    logger.addHandler(consoleHandler)
+    #logger.addHandler(consoleHandler)
 
     if syslog_socket != '/dev/null':
         syslogHandler = SysLogHandler(syslog_socket)
