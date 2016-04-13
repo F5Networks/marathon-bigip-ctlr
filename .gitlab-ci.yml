@@ -1,0 +1,13 @@
+before_script:
+  - docker info
+  - env
+  - dig security.debian.org
+  - ping -c2 security.debian.org
+  - cat /etc/resolv.conf
+
+build_image:
+  script:
+    - docker build -t bldr-docker-registry.lab.lineratesystems.com:5000/talley/f5-service-router:build$CI_BUILD_ID .
+    - docker push bldr-docker-registry.lab.lineratesystems.com:5000/talley/f5-service-router:build$CI_BUILD_ID
+  tags: 
+    - docker-build
