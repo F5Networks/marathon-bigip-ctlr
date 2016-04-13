@@ -3,6 +3,7 @@ before_script:
   - env
   - dig security.debian.org
   - ping -c2 security.debian.org
+  - cat /etc/resolv.conf
 
 build_image:
   script:
