@@ -168,7 +168,7 @@ class MarathonService(object):
         self.sslCert = None
         self.bindOptions = None
         self.bindAddr = '*'
-        self.partitions = frozenset()
+        self.partition = None
         self.mode = 'tcp'
         self.balance = 'round-robin'
         self.healthCheck = healthCheck
@@ -194,7 +194,7 @@ class MarathonApp(object):
 
     def __init__(self, marathon, appId, app):
         self.app = app
-        self.partitions = frozenset()
+        self.partition = None
         self.appId = appId
 
         # port -> MarathonService
@@ -289,17 +289,17 @@ class Marathon(object):
         return next(self.__cycle_hosts)
 
 
-def has_partition(partitions, app_partitions):
+def has_partition(partitions, app_partition):
     # All partitions / wildcard match
     if '*' in partitions:
         return True
 
     # empty partition only
-    if len(partitions) == 0 and len(app_partitions) == 0:
+    if len(partitions) == 0 and not app_partition:
         raise Exception("No partitions specified")
 
     # Contains matching partitions
-    if (len(frozenset(app_partitions) & partitions)):
+    if app_partition in partitions:
         return True
 
     return False
@@ -324,6 +324,7 @@ def resolve_ip(host):
 def config(apps, partitions, bind_http_https, ssl_certs):
     logger.info("generating config")
     f5 = {}
+    # partitions this script is responsible for:
     partitions = frozenset(partitions)
     _ssl_certs = ssl_certs or "/etc/ssl/mesosphere.com.pem"
     _ssl_certs = _ssl_certs.split(",")
@@ -340,17 +341,23 @@ def config(apps, partitions, bind_http_https, ssl_certs):
         f5_service = {
                 'virtual': {},
                 'nodes': {},
-                'health': {}
+                'health': {},
+                'partition': '',
+                'name': ''
                 }
-        # App only applies if we have it's partition
-        if not has_partition(partitions, app.partitions):
-            print("App '%s' not in target partition (%s); ignoring." % (app.appId, repr(partitions)))
+        # Only handle application if it's partition is one that this script is
+        # responsible for
+        if not has_partition(partitions, app.partition):
+            logger.info("App (%s) has a partition for which we are not responsible (%s)" % (app.appId, app.partition))
             continue
 
-        logger.debug("configuring app %s", app.appId)
+        f5_service['partition'] = app.partition
+
+        logger.debug("Configuring app '%s', partition '%s'" % (app.appId, app.partition))
         backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
 
         frontend_name = "%s" % (app.appId).lstrip('/')
+        f5_service['name'] = frontend_name
         logger.debug("frontend at %s:%d with backend %s",
                      app.bindAddr, app.servicePort, backend)
 
@@ -413,29 +420,39 @@ def config(apps, partitions, bind_http_https, ssl_certs):
 
     return f5
 
+def unique(l):
+    return list(set(l))
 
-def f5_go(config, config_file):
+def list_diff(list1, list2):
+    return  list(set(list1) - set(list2))
+
+def list_intersect(list1, list2):
+    return list(set.intersection(set(list1), set(list2)))
+
+def f5_go(config, f5_config):
     logger.debug(config)
     
     # get f5 config
-    f5_config = str()
-    try:
-        logger.debug("reading config from %s", config_file)
-        with open(config_file, "r") as f:
-            f5_config = f.read()
-    except IOError:
-        logger.warning("couldn't open config file for reading")
+    #f5_config = str()
+    #try:
+    #    logger.debug("reading config from %s", config_file)
+    #    with open(config_file, "r") as f:
+    #        f5_config = f.read()
+    #except IOError:
+    #    logger.warning("couldn't open config file for reading")
 
-    try:
-        f5_config = json.loads(f5_config)
-    except:
-        logger.error("config file not json")
+    #try:
+    #    f5_config = json.loads(f5_config)
+    #except:
+    #    logger.error("config file not json")
 
-    # set partition if none defined
-    if 'partition' in f5_config:
-        partition = f5_config['partition']
-    else:
-        partition = 'mesos'
+    ## set partition if none defined
+    #if 'partition' in f5_config:
+    #    partition = f5_config['partition']
+    #else:
+    #    partition = 'mesos'
+
+    #partition = f5_config['partition']
 
     # get f5 connection
     try:
@@ -449,132 +466,138 @@ def f5_go(config, config_file):
 
     logger.debug(bigip)
 
-    marathon_virtual_list = [x for x in config.keys() if '*' not in x]
-    marathon_pool_list = [x for x in config.keys() if '*' not in x]
+    unique_partitions = unique([config[x]['partition'] for x in config.keys()])
+    print "unique_partitions = %s" % (unique_partitions)
 
-    # this is kinda kludgey, but just iterate over virt name and append protocol
-    # to get "marathon_healthcheck_list"
-    marathon_healthcheck_list = []
-    for v in marathon_virtual_list:
-        if 'protocol' in config[v]['health']:
-            n = "%s_%s" % (v, config[v]['health']['protocol'])
-            marathon_healthcheck_list.append(n)
+    for partition in unique_partitions:
 
-    # a throw-away big-ip query.  this is to workaround a bug
-    # https://bldr-git.int.lineratesystems.com/talley/f5-marathon-lb/issues/1
-    _trash = get_pool_list(bigip, partition)
+        marathon_virtual_list = [x for x in config.keys() if '*' not in x]
+        marathon_pool_list = [x for x in config.keys() if '*' not in x]
 
-    f5_pool_list = get_pool_list(bigip, partition)
-    f5_virtual_list = get_virtual_list(bigip, partition)
+        # this is kinda kludgey, but just iterate over virt name and append protocol
+        # to get "marathon_healthcheck_list"
+        marathon_healthcheck_list = []
+        for v in marathon_virtual_list:
+            if 'protocol' in config[v]['health']:
+                n = "%s_%s" % (v, config[v]['health']['protocol'])
+                marathon_healthcheck_list.append(n)
 
-    # get_healthcheck_list() returns a dict with healthcheck names for keys and
-    # a subkey of "type" with a value of "tcp", "http", etc.  We need to know 
-    # the type to correctly reference the resource.  i.e. monitor types are different
-    # resources in the f5-sdk
-    f5_healthcheck_dict = get_healthcheck_list(bigip, partition)
-    print f5_healthcheck_dict
-    # and then we need just the list to identify differences from the list 
-    # returned from marathon
-    f5_healthcheck_list = f5_healthcheck_dict.keys()
+        # a throw-away big-ip query.  this is to workaround a bug
+        # https://bldr-git.int.lineratesystems.com/talley/f5-marathon-lb/issues/1
+        _trash = get_pool_list(bigip, partition)
 
-    logger.debug("f5_pool_list = %s" % (','.join(f5_pool_list)))
-    logger.debug("f5_virtual_list = %s" % (','.join(f5_virtual_list)))
-    logger.debug("f5_healthcheck_list = %s" % (','.join(f5_healthcheck_list)))
-    logger.debug("marathon_pool_list = %s" % (','.join(marathon_pool_list)))
-    logger.debug("marathon_virtual_list = %s" % (','.join(marathon_virtual_list)))
+        f5_pool_list = get_pool_list(bigip, partition)
+        f5_virtual_list = get_virtual_list(bigip, partition)
 
-    # virtual delete
-    virt_delete = list(set(f5_virtual_list) - set(marathon_virtual_list))
-    logger.debug("virts to delete = %s" % (','.join(virt_delete)))
-    for virt in virt_delete:
-        virtual_delete(bigip, partition, virt)
+        # get_healthcheck_list() returns a dict with healthcheck names for keys and
+        # a subkey of "type" with a value of "tcp", "http", etc.  We need to know 
+        # the type to correctly reference the resource.  i.e. monitor types are different
+        # resources in the f5-sdk
+        f5_healthcheck_dict = get_healthcheck_list(bigip, partition)
+        print f5_healthcheck_dict
+        # and then we need just the list to identify differences from the list 
+        # returned from marathon
+        f5_healthcheck_list = f5_healthcheck_dict.keys()
 
-    # pool delete
-    pool_delete_list = list(set(f5_pool_list) - set(marathon_pool_list))
-    logger.debug("pools to delete = %s" % (','.join(pool_delete_list)))
-    for pool in pool_delete_list:
-        print "++++++++++++"
-        print pool
-        print "++++++++++++"
-        pool_delete(bigip, partition, pool)
-    
-    # healthcheck delete
-    health_delete = list(set(f5_healthcheck_list) - set(marathon_virtual_list))
-    logger.debug("healthchecks to delete = %s" % (','.join(health_delete)))
-    for hc in health_delete:
-        healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
+        logger.debug("f5_pool_list = %s" % (','.join(f5_pool_list)))
+        logger.debug("f5_virtual_list = %s" % (','.join(f5_virtual_list)))
+        logger.debug("f5_healthcheck_list = %s" % (','.join(f5_healthcheck_list)))
+        logger.debug("marathon_pool_list = %s" % (','.join(marathon_pool_list)))
+        logger.debug("marathon_virtual_list = %s" % (','.join(marathon_virtual_list)))
 
-    # healthcheck config needs to happen before pool config because the pool
-    # is where we add the healthcheck
-    # healthcheck add
-    # use the name of the virt for the healthcheck
-    healthcheck_add = list(set(marathon_virtual_list) - set(f5_healthcheck_list))
-    logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
-    for hc in healthcheck_add:
-        healthcheck_create(bigip, partition, hc, config[hc]['health'])
+        # virtual delete
+        virt_delete = list_diff(f5_virtual_list, marathon_virtual_list)
+        logger.debug("virts to delete = %s" % (','.join(virt_delete)))
+        for virt in virt_delete:
+            virtual_delete(bigip, partition, virt)
 
-    # pool add
-    pool_add = list(set(marathon_pool_list) - set(f5_pool_list))
-    logger.debug("pools to add = %s" % (','.join(pool_add)))
-    for pool in pool_add:
-        pool_create(bigip, partition, pool, config[pool])
+        # pool delete
+        pool_delete_list = list_diff(f5_pool_list, marathon_pool_list)
+        logger.debug("pools to delete = %s" % (','.join(pool_delete_list)))
+        for pool in pool_delete_list:
+            print "++++++++++++"
+            print pool
+            print "++++++++++++"
+            pool_delete(bigip, partition, pool)
+        
+        # healthcheck delete
+        health_delete = list_diff(f5_healthcheck_list, marathon_virtual_list)
+        logger.debug("healthchecks to delete = %s" % (','.join(health_delete)))
+        for hc in health_delete:
+            healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
 
-    
-    # virtual add
-    virt_add = list(set(marathon_virtual_list) - set(f5_virtual_list))
-    logger.debug("virts to add = %s" % (','.join(virt_add)))
-    for virt in virt_add:
-        virtual_create(bigip, partition, virt, config[virt])
+        # healthcheck config needs to happen before pool config because the pool
+        # is where we add the healthcheck
+        # healthcheck add
+        # use the name of the virt for the healthcheck
+        healthcheck_add = list_diff(marathon_virtual_list, f5_healthcheck_list)
+        logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
+        for hc in healthcheck_add:
+            healthcheck_create(bigip, partition, hc, config[hc]['health'])
 
-    
+        # pool add
+        pool_add = list_diff(marathon_pool_list, f5_pool_list)
+        logger.debug("pools to add = %s" % (','.join(pool_add)))
+        for pool in pool_add:
+            pool_create(bigip, partition, pool, config[pool])
 
-    # healthcheck intersection
-    healthcheck_intersect = list(set.intersection(set(marathon_virtual_list), set(f5_healthcheck_list)))
-    logger.debug("healthchecks to update = %s" % (','.join(healthcheck_intersect)))
-    for hc in healthcheck_intersect:
-        healthcheck_update(bigip, partition, hc, config[hc]['health'])
+        
+        # virtual add
+        virt_add = list_diff(marathon_virtual_list, f5_virtual_list)
+        logger.debug("virts to add = %s" % (','.join(virt_add)))
+        for virt in virt_add:
+            virtual_create(bigip, partition, virt, config[virt])
 
-    # pool intersection
-    pool_intersect = list(set.intersection(set(marathon_pool_list), set(f5_pool_list)))
-    logger.debug("pools to update = %s" % (','.join(pool_intersect)))
-    for pool in pool_intersect:
-        pool_update(bigip, partition, pool, config[pool])
-    
-    # virt intersection
-    virt_intersect = list(set.intersection(set(marathon_virtual_list), set(f5_virtual_list)))
-    logger.debug("virts to update = %s" % (','.join(virt_intersect)))
-    for virt in virt_intersect:
-        virtual_update(bigip, partition, virt, config[virt])
+        
+
+        # healthcheck intersection
+
+        healthcheck_intersect = list_intersect(marathon_virtual_list, f5_healthcheck_list)
+        logger.debug("healthchecks to update = %s" % (','.join(healthcheck_intersect)))
+        for hc in healthcheck_intersect:
+            healthcheck_update(bigip, partition, hc, config[hc]['health'])
+
+        # pool intersection
+        pool_intersect = list_intersect(marathon_pool_list, f5_pool_list)
+        logger.debug("pools to update = %s" % (','.join(pool_intersect)))
+        for pool in pool_intersect:
+            pool_update(bigip, partition, pool, config[pool])
+        
+        # virt intersection
+        virt_intersect = list_intersect(marathon_virtual_list, f5_virtual_list)
+        logger.debug("virts to update = %s" % (','.join(virt_intersect)))
+        for virt in virt_intersect:
+            virtual_update(bigip, partition, virt, config[virt])
 
 
-    # add/update/remove pool members
-    # need to iterate over pool_add and pool_intersect
-    # (note that remove a pool also removes members, so don't have to worry
-    # about those)
-    for pool in list(set(pool_add + pool_intersect)):
-        #print pool
+        # add/update/remove pool members
+        # need to iterate over pool_add and pool_intersect
+        # (note that remove a pool also removes members, so don't have to worry
+        # about those)
+        for pool in list(set(pool_add + pool_intersect)):
+            #print pool
 
-        f5_member_list = get_pool_member_list(bigip, partition, pool)
-        marathon_member_list = (config[pool]['nodes']).keys()
+            f5_member_list = get_pool_member_list(bigip, partition, pool)
+            marathon_member_list = (config[pool]['nodes']).keys()
 
-        member_delete_list = list(set(f5_member_list) - set(marathon_member_list))
-        logger.debug("members to delete = %s" % (','.join(member_delete_list)))
-        for member in member_delete_list:
-            member_delete(bigip, partition, pool, member)
+            member_delete_list = list_diff(f5_member_list, marathon_member_list)
+            logger.debug("members to delete = %s" % (','.join(member_delete_list)))
+            for member in member_delete_list:
+                member_delete(bigip, partition, pool, member)
 
-        member_add = list(set(marathon_member_list) - set(f5_member_list))
-        logger.debug("members to add = %s" % (','.join(member_add)))
-        for member in member_add:
-            member_create(bigip, partition, pool, member, config[pool]['nodes'][member])
+            member_add = list_diff(marathon_member_list, f5_member_list)
+            logger.debug("members to add = %s" % (','.join(member_add)))
+            for member in member_add:
+                member_create(bigip, partition, pool, member, config[pool]['nodes'][member])
 
-        # since we're only specifying hostname and port for members, 'member_update' will never
-        # actually get called.  changing either of these properties will result in a new
-        # member being created and the old one being deleted.
-        # i'm leaving this here though in case we add other properties to members
-        member_update_list = list(set.intersection(set(marathon_member_list), set(f5_member_list)))
-        logger.debug("members to update = %s" % (','.join(member_update_list)))
-        for member in member_update_list:
-            member_update(bigip, partition, pool, member, config[pool]['nodes'][member])
+            # since we're only specifying hostname and port for members, 'member_update' will never
+            # actually get called.  changing either of these properties will result in a new
+            # member being created and the old one being deleted.
+            # i'm leaving this here though in case we add other properties to members
+            member_update_list = list_intersect(marathon_member_list, f5_member_list)
+            logger.debug("members to update = %s" % (','.join(member_update_list)))
+            for member in member_update_list:
+                member_update(bigip, partition, pool, member, config[pool]['nodes'][member])
         
 
 def get_pool_member_list(bigip, partition, pool):
@@ -1034,8 +1057,8 @@ def get_apps(marathon):
         marathon_app = MarathonApp(marathon, appId, app)
 
         if 'F5_PARTITION' in marathon_app.app['labels']:
-            marathon_app.partitions = \
-                marathon_app.app['labels']['F5_PARTITION'].split(',')
+            marathon_app.partition = \
+                marathon_app.app['labels']['F5_PARTITION']
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
@@ -1089,7 +1112,7 @@ def get_apps(marathon):
                 service_port = service_ports[i]
                 service = marathon_app.services.get(service_port, None)
                 if service:
-                    service.partitions = marathon_app.partitions
+                    service.partition = marathon_app.partition
                     service.add_backend(task['host'],
                                         task_port,
                                         draining)
@@ -1199,6 +1222,15 @@ def get_arg_parser():
                         )
     parser.add_argument("--f5-config",
                         help="Location of F5 configuration"
+                        )
+    parser.add_argument("--hostname",
+                        help="F5 BIG-IP hostname"
+                        )
+    parser.add_argument("--username",
+                        help="F5 BIG-IP username"
+                        )
+    parser.add_argument("--password",
+                        help="F5 BIG-IP password"
                         )
     parser.add_argument("--partition",
                         help="[required] Only generate config for apps which"
@@ -1317,9 +1349,25 @@ if __name__ == '__main__':
         if len(args.partition) == 0:
             arg_parser.error('argument --partition is required: please' +
                              'specify at least one partition name')
-        if not args.f5_config:
-            arg_parser.error('argument --f5-config is required: please' +
+        #if not args.f5_config:
+        #    arg_parser.error('argument --f5-config is required: please' +
+        #                     'specify')
+        if not args.hostname:
+            arg_parser.error('argument --hostname is required: please' +
                              'specify')
+        if not args.username:
+            arg_parser.error('argument --username is required: please' +
+                             'specify')
+        if not args.password:
+            arg_parser.error('argument --password is required: please' +
+                             'specify')
+
+    f5_config = {
+            "host": args.hostname,
+            "username": args.username,
+            "password": args.password,
+            "partitions": args.partition
+            }
 
     # Set request retries
     s = requests.Session()
@@ -1340,7 +1388,7 @@ if __name__ == '__main__':
         callback_url = args.callback_url or args.listening
         try:
             run_server(marathon, args.listening, callback_url,
-                       args.f5_config, args.partition,
+                       f5_config, args.partition,
                        not args.dont_bind_http_https, args.ssl_certs)
         finally:
             clear_callbacks(marathon, callback_url)
@@ -1348,7 +1396,7 @@ if __name__ == '__main__':
         while True:
             try:
                 process_sse_events(marathon,
-                                   args.f5_config,
+                                   f5_config,
                                    args.partition,
                                    not args.dont_bind_http_https,
                                    args.ssl_certs)
@@ -1358,6 +1406,6 @@ if __name__ == '__main__':
             time.sleep(1)
     else:
         # Generate base config
-        regenerate_config_f5(get_apps(marathon), args.f5_config, args.partition,
+        regenerate_config_f5(get_apps(marathon), f5_config, args.partition,
                           not args.dont_bind_http_https,
                           args.ssl_certs)
