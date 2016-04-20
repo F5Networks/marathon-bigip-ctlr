@@ -1230,9 +1230,6 @@ def get_arg_parser():
                              "for frontend marathon_https_in"
                              "Ex: /etc/ssl/site1.co.pem,/etc/ssl/site2.co.pem",
                         default="/etc/ssl/mesosphere.com.pem")
-    parser.add_argument("--dry", "-d",
-                        help="Only print configuration to console",
-                        action="store_true")
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
     return parser
