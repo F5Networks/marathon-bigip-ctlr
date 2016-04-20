@@ -1194,9 +1194,6 @@ def get_arg_parser():
                         help="The HTTP address that Marathon can call this " +
                              "script back at (http://lb1:8080)"
                         )
-    parser.add_argument("--f5-config",
-                        help="Location of F5 configuration"
-                        )
     parser.add_argument("--hostname",
                         help="F5 BIG-IP hostname"
                         )
@@ -1323,9 +1320,6 @@ if __name__ == '__main__':
         if len(args.partition) == 0:
             arg_parser.error('argument --partition is required: please' +
                              'specify at least one partition name')
-        #if not args.f5_config:
-        #    arg_parser.error('argument --f5-config is required: please' +
-        #                     'specify')
         if not args.hostname:
             arg_parser.error('argument --hostname is required: please' +
                              'specify')
