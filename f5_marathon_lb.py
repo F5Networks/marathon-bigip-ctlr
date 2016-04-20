@@ -60,8 +60,6 @@ import os.path
 import stat
 import re
 import requests
-import shlex
-import subprocess
 import sys
 import socket
 import time
