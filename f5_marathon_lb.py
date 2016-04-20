@@ -418,15 +418,6 @@ def config(apps, partitions, bind_http_https, ssl_certs):
 
     return f5
 
-def unique(l):
-    return list(set(l))
-
-def list_diff(list1, list2):
-    return  list(set(list1) - set(list2))
-
-def list_intersect(list1, list2):
-    return list(set.intersection(set(list1), set(list2)))
-
 def f5_go(config, f5_config):
     logger.debug(config)
     

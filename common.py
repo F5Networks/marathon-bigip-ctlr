@@ -66,3 +66,13 @@ def set_logging_args(parser):
                         default="%(name)s: %(message)s"
                         )
     return parser
+
+
+def unique(l):
+    return list(set(l))
+
+def list_diff(list1, list2):
+    return  list(set(list1) - set(list2))
+
+def list_intersect(list1, list2):
+    return list(set.intersection(set(list1), set(list2)))
