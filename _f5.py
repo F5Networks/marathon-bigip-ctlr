@@ -325,3 +325,15 @@ def healthcheck_create(bigip, partition, hc, data):
                 timeout=timeout,
                 )
 
+
+# common
+
+def get_protocol(protocol):
+    if str(protocol).lower() == 'tcp':
+        return 'tcp'
+    if str(protocol).lower() == 'http':
+        return 'tcp'
+    if str(protocol).lower() == 'udp':
+        return 'udp'
+    else:
+        return 'tcp'
