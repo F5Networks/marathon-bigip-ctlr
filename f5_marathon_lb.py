@@ -587,18 +587,6 @@ class Healthcheck(object):
         timeout = ((self.maxConsecutiveFailures - 1) * self.intervalSeconds) + self.timeoutSeconds + 1
         return timeout
 
-
-def get_protocol(protocol):
-    if str(protocol).lower() == 'tcp':
-        return 'tcp'
-    if str(protocol).lower() == 'http':
-        return 'tcp'
-    if str(protocol).lower() == 'udp':
-        return 'udp'
-    else:
-        return 'tcp'
-
-
 def get_health_check(app, portIndex):
     for check in app['healthChecks']:
         if check.get('port'):
