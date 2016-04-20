@@ -288,7 +288,6 @@ class Marathon(object):
     def host(self):
         return next(self.__cycle_hosts)
 
-
 def has_partition(partitions, app_partition):
     # All partitions / wildcard match
     if '*' in partitions:
@@ -466,10 +465,7 @@ def f5_go(config, f5_config):
 
     logger.debug(bigip)
 
-    unique_partitions = unique([config[x]['partition'] for x in config.keys()])
-    logger.debug("unique_partitions = %s" % unique_partitions)
-
-    for partition in unique_partitions:
+    for partition in f5_config['partitions']:
         logger.debug("Doing config for partition '%s'" % partition)
 
         marathon_virtual_list = [x for x in config.keys() if '*' not in x]
