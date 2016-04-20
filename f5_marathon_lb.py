@@ -137,7 +137,6 @@ label_keys = {
     'F5_{0}_BACKEND_SERVER_HTTP_HEALTHCHECK_OPTIONS': set_label,
     'F5_{0}_BACKEND_SERVER_OPTIONS': set_label,
 }
-print(label_keys)
 
 logger = logging.getLogger('marathon_lb')
 
@@ -431,28 +430,6 @@ def list_intersect(list1, list2):
 def f5_go(config, f5_config):
     logger.debug(config)
     
-    # get f5 config
-    #f5_config = str()
-    #try:
-    #    logger.debug("reading config from %s", config_file)
-    #    with open(config_file, "r") as f:
-    #        f5_config = f.read()
-    #except IOError:
-    #    logger.warning("couldn't open config file for reading")
-
-    #try:
-    #    f5_config = json.loads(f5_config)
-    #except:
-    #    logger.error("config file not json")
-
-    ## set partition if none defined
-    #if 'partition' in f5_config:
-    #    partition = f5_config['partition']
-    #else:
-    #    partition = 'mesos'
-
-    #partition = f5_config['partition']
-
     # get f5 connection
     try:
         bigip = BigIP(
