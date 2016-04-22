@@ -7,7 +7,7 @@ before_script:
 
 build_image:
   script:
-    - docker build -t bldr-docker-registry.lab.lineratesystems.com:5000/talley/f5-service-router:build$CI_BUILD_ID .
-    - docker push bldr-docker-registry.lab.lineratesystems.com:5000/talley/f5-service-router:build$CI_BUILD_ID
+    - docker build -t bldr-docker-registry.lab.lineratesystems.com:5000/andrewj/f5-service-router:build$CI_BUILD_ID .
+    - docker push bldr-docker-registry.lab.lineratesystems.com:5000/andrewj/f5-service-router:build$CI_BUILD_ID
   tags: 
     - docker-build
