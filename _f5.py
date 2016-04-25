@@ -63,7 +63,7 @@ def pool_update(bigip, partition, pool, data):
 
     virtual = data['virtual']
     pool = get_pool(bigip, partition, pool)
-    if 'health' in data:
+    if 'health' in data and data['health'] != {}:
         print "adding healthcheck '%s' to pool" % (virtual['name'])
         pool.monitor = virtual['name']
     pool.update(
