@@ -353,7 +353,8 @@ def config(apps, partitions, bind_http_https, ssl_certs):
         logger.debug("Configuring app '%s', partition '%s'" % (app.appId, app.partition))
         backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
 
-        frontend_name = "%s" % (app.appId).lstrip('/')
+        frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), app.bindAddr,
+                                      app.servicePort)
         f5_service['name'] = frontend_name
         logger.debug("frontend at %s:%d with backend %s",
                      app.bindAddr, app.servicePort, backend)
@@ -438,13 +439,12 @@ def f5_go(config, f5_config):
         marathon_virtual_list = [x for x in config.keys() if '*' not in x]
         marathon_pool_list = [x for x in config.keys() if '*' not in x]
 
-        # this is kinda kludgey, but just iterate over virt name and append protocol
-        # to get "marathon_healthcheck_list"
+        # this is kinda kludgey: health monitor has the same name as the
+        # virtual, and there is no more than 1 monitor per virtual.
         marathon_healthcheck_list = []
         for v in marathon_virtual_list:
             if 'protocol' in config[v]['health']:
-                n = "%s_%s" % (v, config[v]['health']['protocol'])
-                marathon_healthcheck_list.append(n)
+                marathon_healthcheck_list.append(v)
 
         # a throw-away big-ip query.  this is to workaround a bug
         # https://bldr-git.int.lineratesystems.com/talley/f5-marathon-lb/issues/1
@@ -484,8 +484,10 @@ def f5_go(config, f5_config):
             print "++++++++++++"
             pool_delete(bigip, partition, pool)
         
+
         # healthcheck delete
-        health_delete = list_diff(f5_healthcheck_list, marathon_virtual_list)
+        health_delete = list_diff(f5_healthcheck_list,
+                                  marathon_healthcheck_list)
         logger.debug("healthchecks to delete = %s" % (','.join(health_delete)))
         for hc in health_delete:
             healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
@@ -494,7 +496,8 @@ def f5_go(config, f5_config):
         # is where we add the healthcheck
         # healthcheck add
         # use the name of the virt for the healthcheck
-        healthcheck_add = list_diff(marathon_virtual_list, f5_healthcheck_list)
+        healthcheck_add = list_diff(marathon_healthcheck_list,
+                                    f5_healthcheck_list)
         logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
         for hc in healthcheck_add:
             healthcheck_create(bigip, partition, hc, config[hc]['health'])
@@ -589,6 +592,8 @@ class Healthcheck(object):
 
 def get_health_check(app, portIndex):
     for check in app['healthChecks']:
+        # FIXME: There may be more than one health check for a given port or
+        # portIndex, but we currently only take the first.
         if check.get('port'):
             return check
         if check.get('portIndex') == portIndex:
