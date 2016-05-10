@@ -4,22 +4,17 @@ from logging.handlers import SysLogHandler
 
 import sys
 import logging
+import socket
 
 
 def setup_logging(logger, syslog_socket, log_format):
     logger.setLevel(logging.DEBUG)
 
-    #if log_format:
-    #    print log_format
-    #    formatter = logging.Formatter(log_format)
-    #else:
-    formatter = logging.Formatter(
-            "%(levelname) -8s %(asctime)s m:%(module)s f:%(funcName)s l:%(lineno)d: %(message)s"
-            )
+    formatter = logging.Formatter(log_format)
 
-    consoleHandler = logging.StreamHandler()
+    consoleHandler = logging.StreamHandler(sys.stdout)
     consoleHandler.setFormatter(formatter)
-    #logger.addHandler(consoleHandler)
+    logger.addHandler(consoleHandler)
 
     if syslog_socket != '/dev/null':
         syslogHandler = SysLogHandler(syslog_socket)
@@ -63,7 +58,7 @@ def set_logging_args(parser):
                         )
     parser.add_argument("--log-format",
                         help="Set log message format",
-                        default="%(name)s: %(message)s"
+                        default="%(asctime)s %(name)s: %(levelname) -8s: %(message)s"
                         )
     return parser
 
@@ -71,8 +66,27 @@ def set_logging_args(parser):
 def unique(l):
     return list(set(l))
 
+
 def list_diff(list1, list2):
     return  list(set(list1) - set(list2))
 
+
 def list_intersect(list1, list2):
     return list(set.intersection(set(list1), set(list2)))
+
+
+ip_cache = dict()
+
+
+def resolve_ip(host):
+    cached_ip = ip_cache.get(host, None)
+    if cached_ip:
+        return cached_ip
+    else:
+        try:
+            #logger.debug("trying to resolve ip address for host %s", host)
+            ip = socket.gethostbyname(host)
+            ip_cache[host] = ip
+            return ip
+        except socket.gaierror:
+            return None

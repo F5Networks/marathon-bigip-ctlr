@@ -1,56 +1,31 @@
 #!/usr/bin/env python
 
+
 """Overview:
-  The marathon-lb is a replacement for the haproxy-marathon-bridge.
-  It reads the Marathon task information and dynamically generates
-  haproxy configuration details.
+### Overview
+The f5-marathon-lb is a service discovery and load balancing tool
+for Marathon to configure an F5 BIG-IP. It reads the Marathon task information
+and dynamically generates BIG-IP configuration details.
 
-  To gather the task information, the marathon-lb needs to know where
-  to find Marathon. The service configuration details are stored in labels.
+To gather the task information, marathon-lb needs to know where
+to find Marathon. The service configuration details are stored in labels.
 
-  Every service port in Marathon can be configured independently.
+Every service port in Marathon can be configured independently.
 
-
-Features:
-  - Virtual host aliases for services
-  - Soft restart of haproxy
-  - SSL Termination
-  - (Optional): real-time update from Marathon events
-
-
-Configuration:
-  Service configuration lives in Marathon via labels.
-  The marathon-lb just needs to know where to find marathon.
-  To run in listening mode you must also specify the address + port at
-  which the marathon-lb can be reached by marathon.
-
-
-Usage:
-  $ marathon-lb.py --marathon http://marathon1:8080 \
-        --haproxy-config /etc/haproxy/haproxy.cfg
-
-  The user that executes marathon-lb must have the permission to reload
-  haproxy.
-
-
-Operational Notes:
-  - When a node in listening mode fails, remove the callback url for that
-    node in marathon.
-  - If run in listening mode, DNS isn't re-resolved. Restart the process
-    periodically to force re-resolution if desired.
-  - To avoid configuring itself as a backend when run via Marathon,
-    services with appID matching FRAMEWORK_NAME env var will be skipped.
+### Configuration
+Service configuration lives in Marathon via labels.
+f5-marathon-lb just needs to know where to find Marathon.
+To run in listening mode you must also specify the address + port at
+which f5-marathon-lb can be reached by Marathon.
 """
 
 from logging.handlers import SysLogHandler
-from operator import attrgetter
 from wsgiref.simple_server import make_server
 from sseclient import SSEClient
 from six.moves.urllib import parse
 from itertools import cycle
 from common import *
 from _f5 import *
-from f5.bigip import BigIP
 
 import argparse
 import json
@@ -61,7 +36,6 @@ import stat
 import re
 import requests
 import sys
-import socket
 import time
 import dateutil.parser
 import math
@@ -286,288 +260,6 @@ class Marathon(object):
     def host(self):
         return next(self.__cycle_hosts)
 
-def has_partition(partitions, app_partition):
-    # All partitions / wildcard match
-    if '*' in partitions:
-        return True
-
-    # empty partition only
-    if len(partitions) == 0 and not app_partition:
-        raise Exception("No partitions specified")
-
-    # Contains matching partitions
-    if app_partition in partitions:
-        return True
-
-    return False
-
-ip_cache = dict()
-
-
-def resolve_ip(host):
-    cached_ip = ip_cache.get(host, None)
-    if cached_ip:
-        return cached_ip
-    else:
-        try:
-            logger.debug("trying to resolve ip address for host %s", host)
-            ip = socket.gethostbyname(host)
-            ip_cache[host] = ip
-            return ip
-        except socket.gaierror:
-            return None
-
-
-def config(apps, partitions, bind_http_https, ssl_certs):
-    logger.info("generating config")
-    f5 = {}
-    # partitions this script is responsible for:
-    partitions = frozenset(partitions)
-    _ssl_certs = ssl_certs or "/etc/ssl/mesosphere.com.pem"
-    _ssl_certs = _ssl_certs.split(",")
-
-    if bind_http_https:
-        # just passing on this in case this is something we want to use... TBD
-        pass
-
-    frontends = str()
-    backends = str()
-    apps_with_http_appid_backend = []
-
-    for app in sorted(apps, key=attrgetter('appId', 'servicePort')):
-        f5_service = {
-                'virtual': {},
-                'nodes': {},
-                'health': {},
-                'partition': '',
-                'name': ''
-                }
-        # Only handle application if it's partition is one that this script is
-        # responsible for
-        if not has_partition(partitions, app.partition):
-            logger.info("App (%s) has a partition for which we are not responsible (%s)" % (app.appId, app.partition))
-            continue
-
-        f5_service['partition'] = app.partition
-
-        logger.debug("Configuring app '%s', partition '%s'" % (app.appId, app.partition))
-        backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
-
-        frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), app.bindAddr,
-                                      app.servicePort)
-        f5_service['name'] = frontend_name
-        logger.debug("frontend at %s:%d with backend %s",
-                     app.bindAddr, app.servicePort, backend)
-
-        # if the app has a hostname set force mode to http
-        # otherwise recent versions of haproxy refuse to start
-        if app.hostname:
-            app.mode = 'http'
-
-        f5_service['virtual'].update({
-            'id': (app.appId).lstrip('/'),
-            'name': frontend_name,
-            'destination': app.bindAddr,
-            'port': app.servicePort,
-            'protocol': app.mode,
-            'balance': app.balance,
-            })
-
-        if app.healthCheck:
-            print "______ HEALTHCHECK VIRT _________"
-            print app.healthCheck
-            f5_service['health'] = app.healthCheck
-            f5_service['health']['name'] = "%s_%s" % (frontend_name, app.healthCheck['protocol'])
-
-            # normalize healtcheck protocol name to lowercase
-            if 'protocol' in f5_service['health']:
-                f5_service['health']['protocol'] = (f5_service['health']['protocol']).lower()
-
-            print "______ /HEALTHCHECK VIRT _________"
-
-        if app.sticky:
-            logger.debug("turning on sticky sessions")
-
-        key_func = attrgetter('host', 'port')
-        for backendServer in sorted(app.backends, key=key_func):
-            logger.debug(
-                "backend server at %s:%d",
-                backendServer.host,
-                backendServer.port)
-            
-            f5_node_name = backendServer.host + ':' + str(backendServer.port)
-            f5_service['nodes'].update({f5_node_name: {
-                'name': backendServer.host + ':' + str(backendServer.port),
-                'host': backendServer.host,
-                'port': backendServer.port
-                }})
-
-            ipv4 = resolve_ip(backendServer.host)
-
-            if ipv4 is not None:
-                # TODO:?  Handle hostnames instead of IPs
-                pass
-            else:
-                logger.warning("Could not resolve ip for host %s, "
-                               "ignoring this backend",
-                               backendServer.host)
-
-        f5.update({frontend_name: f5_service})
-
-    print(json.dumps(f5))
-
-    return f5
-
-def f5_go(config, f5_config):
-    logger.debug(config)
-    
-    # get f5 connection
-    try:
-        bigip = BigIP(
-                f5_config['host'], 
-                f5_config['username'],
-                f5_config['password']
-                )
-    except:
-        logger.error('exception')
-
-    logger.debug(bigip)
-
-    for partition in f5_config['partitions']:
-        logger.debug("Doing config for partition '%s'" % partition)
-
-        marathon_virtual_list = [x for x in config.keys() if '*' not in x]
-        marathon_pool_list = [x for x in config.keys() if '*' not in x]
-
-        # this is kinda kludgey: health monitor has the same name as the
-        # virtual, and there is no more than 1 monitor per virtual.
-        marathon_healthcheck_list = []
-        for v in marathon_virtual_list:
-            if 'protocol' in config[v]['health']:
-                marathon_healthcheck_list.append(v)
-
-        # a throw-away big-ip query.  this is to workaround a bug
-        # https://bldr-git.int.lineratesystems.com/talley/f5-marathon-lb/issues/1
-        _trash = get_pool_list(bigip, partition)
-
-        f5_pool_list = get_pool_list(bigip, partition)
-        f5_virtual_list = get_virtual_list(bigip, partition)
-
-        # get_healthcheck_list() returns a dict with healthcheck names for keys and
-        # a subkey of "type" with a value of "tcp", "http", etc.  We need to know 
-        # the type to correctly reference the resource.  i.e. monitor types are different
-        # resources in the f5-sdk
-        f5_healthcheck_dict = get_healthcheck_list(bigip, partition)
-        print f5_healthcheck_dict
-        # and then we need just the list to identify differences from the list 
-        # returned from marathon
-        f5_healthcheck_list = f5_healthcheck_dict.keys()
-
-        logger.debug("f5_pool_list = %s" % (','.join(f5_pool_list)))
-        logger.debug("f5_virtual_list = %s" % (','.join(f5_virtual_list)))
-        logger.debug("f5_healthcheck_list = %s" % (','.join(f5_healthcheck_list)))
-        logger.debug("marathon_pool_list = %s" % (','.join(marathon_pool_list)))
-        logger.debug("marathon_virtual_list = %s" % (','.join(marathon_virtual_list)))
-
-        # virtual delete
-        virt_delete = list_diff(f5_virtual_list, marathon_virtual_list)
-        logger.debug("virts to delete = %s" % (','.join(virt_delete)))
-        for virt in virt_delete:
-            virtual_delete(bigip, partition, virt)
-
-        # pool delete
-        pool_delete_list = list_diff(f5_pool_list, marathon_pool_list)
-        logger.debug("pools to delete = %s" % (','.join(pool_delete_list)))
-        for pool in pool_delete_list:
-            print "++++++++++++"
-            print pool
-            print "++++++++++++"
-            pool_delete(bigip, partition, pool)
-        
-
-        # healthcheck delete
-        health_delete = list_diff(f5_healthcheck_list,
-                                  marathon_healthcheck_list)
-        logger.debug("healthchecks to delete = %s" % (','.join(health_delete)))
-        for hc in health_delete:
-            healthcheck_delete(bigip, partition, hc, f5_healthcheck_dict[hc]['type'])
-
-        # healthcheck config needs to happen before pool config because the pool
-        # is where we add the healthcheck
-        # healthcheck add
-        # use the name of the virt for the healthcheck
-        healthcheck_add = list_diff(marathon_healthcheck_list,
-                                    f5_healthcheck_list)
-        logger.debug("healthchecks to add = %s" % (','.join(healthcheck_add)))
-        for hc in healthcheck_add:
-            healthcheck_create(bigip, partition, hc, config[hc]['health'])
-
-        # pool add
-        pool_add = list_diff(marathon_pool_list, f5_pool_list)
-        logger.debug("pools to add = %s" % (','.join(pool_add)))
-        for pool in pool_add:
-            pool_create(bigip, partition, pool, config[pool])
-
-        
-        # virtual add
-        virt_add = list_diff(marathon_virtual_list, f5_virtual_list)
-        logger.debug("virts to add = %s" % (','.join(virt_add)))
-        for virt in virt_add:
-            virtual_create(bigip, partition, virt, config[virt])
-
-        
-
-        # healthcheck intersection
-
-        healthcheck_intersect = list_intersect(marathon_virtual_list, f5_healthcheck_list)
-        logger.debug("healthchecks to update = %s" % (','.join(healthcheck_intersect)))
-        for hc in healthcheck_intersect:
-            healthcheck_update(bigip, partition, hc, config[hc]['health'])
-
-        # pool intersection
-        pool_intersect = list_intersect(marathon_pool_list, f5_pool_list)
-        logger.debug("pools to update = %s" % (','.join(pool_intersect)))
-        for pool in pool_intersect:
-            pool_update(bigip, partition, pool, config[pool])
-        
-        # virt intersection
-        virt_intersect = list_intersect(marathon_virtual_list, f5_virtual_list)
-        logger.debug("virts to update = %s" % (','.join(virt_intersect)))
-        for virt in virt_intersect:
-            virtual_update(bigip, partition, virt, config[virt])
-
-
-        # add/update/remove pool members
-        # need to iterate over pool_add and pool_intersect
-        # (note that remove a pool also removes members, so don't have to worry
-        # about those)
-        for pool in list(set(pool_add + pool_intersect)):
-            #print pool
-
-            f5_member_list = get_pool_member_list(bigip, partition, pool)
-            marathon_member_list = (config[pool]['nodes']).keys()
-
-            member_delete_list = list_diff(f5_member_list, marathon_member_list)
-            logger.debug("members to delete = %s" % (','.join(member_delete_list)))
-            for member in member_delete_list:
-                member_delete(bigip, partition, pool, member)
-
-            member_add = list_diff(marathon_member_list, f5_member_list)
-            logger.debug("members to add = %s" % (','.join(member_add)))
-            for member in member_add:
-                member_create(bigip, partition, pool, member, config[pool]['nodes'][member])
-
-            # since we're only specifying hostname and port for members, 'member_update' will never
-            # actually get called.  changing either of these properties will result in a new
-            # member being created and the old one being deleted.
-            # i'm leaving this here though in case we add other properties to members
-            member_update_list = list_intersect(marathon_member_list, f5_member_list)
-            logger.debug("members to update = %s" % (','.join(member_update_list)))
-            for member in member_update_list:
-                member_update(bigip, partition, pool, member, config[pool]['nodes'][member])
-        
-
-
 
 
 class Healthcheck(object):
@@ -587,7 +279,8 @@ class Healthcheck(object):
 
     @property
     def get_timeout(self):
-        timeout = ((self.maxConsecutiveFailures - 1) * self.intervalSeconds) + self.timeoutSeconds + 1
+        timeout = (((self.maxConsecutiveFailures - 1) * self.intervalSeconds)
+                   + self.timeoutSeconds + 1)
         return timeout
 
 def get_health_check(app, portIndex):
@@ -603,95 +296,11 @@ def get_health_check(app, portIndex):
 
 def get_apps(marathon):
     apps = marathon.list()
-    logger.debug("got apps %s", [app["id"] for app in apps])
-
     marathon_apps = []
-    # This process requires 2 passes: the first is to gather apps belonging
-    # to a deployment group.
-    processed_apps = []
-    deployment_groups = {}
+    logger.debug("Marathon apps: %s", [app["id"] for app in apps])
+
     for app in apps:
-        deployment_group = None
-        if 'HAPROXY_DEPLOYMENT_GROUP' in app['labels']:
-            deployment_group = app['labels']['HAPROXY_DEPLOYMENT_GROUP']
-            # mutate the app id to match deployment group
-            if deployment_group[0] != '/':
-                deployment_group = '/' + deployment_group
-            app['id'] = deployment_group
-        else:
-            processed_apps.append(app)
-            continue
-        if deployment_group in deployment_groups:
-            # merge the groups, with the oldest taking precedence
-            prev = deployment_groups[deployment_group]
-            cur = app
-
-            # TODO(brenden): do something more intelligent when the label is
-            # missing.
-            if 'HAPROXY_DEPLOYMENT_STARTED_AT' in prev['labels']:
-                prev_date = dateutil.parser.parse(
-                    prev['labels']['HAPROXY_DEPLOYMENT_STARTED_AT'])
-            else:
-                prev_date = ''
-            if 'HAPROXY_DEPLOYMENT_STARTED_AT' in cur['labels']:
-                cur_date = dateutil.parser.parse(
-                    cur['labels']['HAPROXY_DEPLOYMENT_STARTED_AT'])
-            else:
-                cur_date = ''
-
-            old = new = None
-            if prev_date < cur_date:
-                old = prev
-                new = cur
-            else:
-                new = prev
-                old = cur
-
-            target_instances = \
-                int(new['labels']['HAPROXY_DEPLOYMENT_TARGET_INSTANCES'])
-
-            # mark N tasks from old app as draining, where N is the
-            # number of instances in the new app
-            old_tasks = sorted(old['tasks'],
-                               key=lambda task: task['host'] +
-                               ":" + str(task['ports']))
-
-            healthy_new_instances = 0
-            if len(app['healthChecks']) > 0:
-                for task in new['tasks']:
-                    if 'healthCheckResults' not in task:
-                        continue
-                    alive = True
-                    for result in task['healthCheckResults']:
-                        if not result['alive']:
-                            alive = False
-                    if alive:
-                        healthy_new_instances += 1
-            else:
-                healthy_new_instances = new['instances']
-
-            maximum_drainable = \
-                max(0, (healthy_new_instances + old['instances']) -
-                    target_instances)
-
-            for i in range(0, min(len(old_tasks),
-                                  healthy_new_instances,
-                                  maximum_drainable)):
-                old_tasks[i]['draining'] = True
-
-            # merge tasks from new app into old app
-            merged = old
-            old_tasks.extend(new['tasks'])
-            merged['tasks'] = old_tasks
-
-            deployment_groups[deployment_group] = merged
-        else:
-            deployment_groups[deployment_group] = app
-
-    processed_apps.extend(deployment_groups.values())
-
-    for app in processed_apps:
-        logger.debug("In processed_apps; working on appid '%s'" % app['id'])
+        logger.info("Working on app %s", app['id'])
         appId = app['id']
         if appId[1:] == os.environ.get("FRAMEWORK_NAME"):
             continue
@@ -705,6 +314,9 @@ def get_apps(marathon):
 
         service_ports = app['ports']
         logger.debug("Application service ports = %s" % (repr(service_ports)))
+        logger.debug("Labels for app %s: %s", app['id'],
+                     marathon_app.app['labels'])
+
         for i in range(len(service_ports)):
             servicePort = service_ports[i]
             service = MarathonService(
@@ -712,9 +324,7 @@ def get_apps(marathon):
 
             for key_unformatted in label_keys:
                 key = key_unformatted.format(i)
-                logger.debug("App key = %s" % (key))
                 if key in marathon_app.app['labels']:
-                    print(marathon_app.app['labels'])
                     func = label_keys[key_unformatted]
                     func(service,
                          key_unformatted,
@@ -766,30 +376,20 @@ def get_apps(marathon):
             if service.backends:
                 apps_list.append(service)
 
-    logger.debug("Final Marathon app list = %s" % repr(apps_list))
+    logger.debug("Marathon app list: %s", repr(apps_list))
 
     return apps_list
 
 
 
-def regenerate_config_f5(apps, config_file, partitions, bind_http_https,
-                      ssl_certs):
-    logger.info("in regenerate_config_f5()")
-    print(apps)
-    for app in apps:
-        print(app.__hash__())
-    f5_go(config(apps, partitions, bind_http_https,
-                                ssl_certs), config_file)
-
 class MarathonEventProcessor(object):
 
-    def __init__(self, marathon, config_file, partitions,
+    def __init__(self, marathon, bigip,
                  bind_http_https, ssl_certs):
         self.__marathon = marathon
         # appId -> MarathonApp
         self.__apps = dict()
-        self.__config_file = config_file
-        self.__partitions = partitions
+        self.__bigip = bigip
         self.__bind_http_https = bind_http_https
         self.__ssl_certs = ssl_certs
 
@@ -814,11 +414,9 @@ class MarathonEventProcessor(object):
                     start_time = time.time()
 
                     self.__apps = get_apps(self.__marathon)
-                    regenerate_config_f5(self.__apps,
-                                      self.__config_file,
-                                      self.__partitions,
-                                      self.__bind_http_https,
-                                      self.__ssl_certs)
+                    self.__bigip.regenerate_config_f5(self.__apps,
+                                                      self.__bind_http_https,
+                                                      self.__ssl_certs)
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
@@ -826,7 +424,7 @@ class MarathonEventProcessor(object):
                     logger.error("Connection error({0}): {1}".format(
                         e.errno, e.strerror))
                 except:
-                    print("Unexpected error:", sys.exc_info()[0])
+                    logger.exception("Unexpected error!")
 
     def reset_from_tasks(self):
         self.__condition.acquire()
@@ -903,11 +501,10 @@ def get_arg_parser():
     return parser
 
 
-def run_server(marathon, listen_addr, callback_url, config_file, partitions,
+def run_server(marathon, listen_addr, callback_url, bigip,
                bind_http_https, ssl_certs):
     processor = MarathonEventProcessor(marathon,
-                                       config_file,
-                                       partitions,
+                                       bigip,
                                        bind_http_https,
                                        ssl_certs)
     marathon.add_subscriber(callback_url)
@@ -934,11 +531,10 @@ def clear_callbacks(marathon, callback_url):
     marathon.remove_subscriber(callback_url)
 
 
-def process_sse_events(marathon, config_file, partitions,
+def process_sse_events(marathon, bigip,
                        bind_http_https, ssl_certs):
     processor = MarathonEventProcessor(marathon,
-                                       config_file,
-                                       partitions,
+                                       bigip,
                                        bind_http_https,
                                        ssl_certs)
     events = marathon.get_event_stream()
@@ -961,8 +557,9 @@ def process_sse_events(marathon, config_file, partitions,
             else:
                 logger.info("skipping empty message")
         except:
-            print(event.data)
-            print("Unexpected error:", sys.exc_info()[0])
+            logger.error("Event data: %s", event.data)
+            logger.exception("Unexpected error!")
+
             raise
 
 
@@ -995,12 +592,8 @@ if __name__ == '__main__':
             arg_parser.error('argument --password is required: please' +
                              'specify')
 
-    f5_config = {
-            "host": args.hostname,
-            "username": args.username,
-            "password": args.password,
-            "partitions": args.partition
-            }
+    bigip = MarathonBigIP(args.hostname, args.username, args.password,
+                          args.partition)
 
     # Set request retries
     s = requests.Session()
@@ -1021,16 +614,14 @@ if __name__ == '__main__':
         callback_url = args.callback_url or args.listening
         try:
             run_server(marathon, args.listening, callback_url,
-                       f5_config, args.partition,
-                       not args.dont_bind_http_https, args.ssl_certs)
+                       bigip, not args.dont_bind_http_https, args.ssl_certs)
         finally:
             clear_callbacks(marathon, callback_url)
     elif args.sse:
         while True:
             try:
                 process_sse_events(marathon,
-                                   f5_config,
-                                   args.partition,
+                                   bigip,
                                    not args.dont_bind_http_https,
                                    args.ssl_certs)
             except:
@@ -1039,6 +630,6 @@ if __name__ == '__main__':
             time.sleep(1)
     else:
         # Generate base config
-        regenerate_config_f5(get_apps(marathon), f5_config, args.partition,
+        bigip.regenerate_config_f5(get_apps(marathon),
                           not args.dont_bind_http_https,
                           args.ssl_certs)
