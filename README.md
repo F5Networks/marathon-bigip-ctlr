@@ -33,7 +33,7 @@ usage: f5_marathon_lb.py [-h] [--longhelp]
 
 _The **marathon**, **hostname**, **username**, **password**, and **partition** arguments are mandatory_
 
-###Labels
+### Labels
 
 Some labels are specified _per service port_. These are denoted with the `{n}` parameter in the label key, where `{n}` corresponds to the service port index, beginning at `0`.
 
@@ -86,7 +86,8 @@ The full list of labels which can be specified are:
     Ex: F5_0_BALANCE = 'leastconn'
 ```
 
-###Building and Running
+### Building and Running
+
 The following shows how to build and launch f5-marathon-lb as a Docker container. 
 
 Build a Docker container:
