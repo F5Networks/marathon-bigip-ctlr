@@ -7,7 +7,7 @@ The f5-marathon-lb is a service discovery and load balancing tool for Marathon t
 f5-marathon-lb listens to the Marathon event stream and automatically updates the configuration of the BIG-IP and does the following: 
 
  - Matches Marathon apps by the specified BIG-IP partition
- - Creates a Virtual Server and pool for each app type in MArathon that matches the BIG-IP partition
+ - Creates a Virtual Server and pool for each app type in Marathon that matches the BIG-IP partition
  - For each task, creates a pool member and adds the member to the server pool 
  - If the app has a Marathon Health Monitor configured, creates a corresponding health monitor for each BIG-IP pool member 
 
@@ -33,9 +33,9 @@ usage: f5_marathon_lb.py [-h] [--longhelp]
 
 _The **marathon**, **hostname**, **username**, **password**, and **partition** arguments are mandatory_
 
-### Labels
+### Application Labels
 
-Some labels are specified _per service port_. These are denoted with the `{n}` parameter in the label key, where `{n}` corresponds to the service port index, beginning at `0`.
+Applications to be managed by f5-marathon-lb are identified and configured via their _Marathon Labels_. Some labels are specified _per service port_. These are denoted with the `{n}` parameter in the label key, where `{n}` corresponds to the service port index, beginning at `0`.
 
 The full list of labels which can be specified are:
 
