@@ -42,32 +42,9 @@ import math
 import threading
 
 
-def string_to_bool(s):
-    return s.lower() in ["true", "t", "yes", "y"]
-
-
-def set_hostname(x, k, v):
-    x.hostname = v
-
-
-def set_sticky(x, k, v):
-    x.sticky = string_to_bool(v)
-
-
-def set_redirect_http_to_https(x, k, v):
-    x.redirectHttpToHttps = string_to_bool(v)
-
-
-def set_sslCert(x, k, v):
-    x.sslCert = v
-
-
-def set_bindOptions(x, k, v):
-    x.bindOptions = v
-
-
 def set_bindAddr(x, k, v):
     x.bindAddr = v
+
 
 def set_port(x, k, v):
     x.servicePort = int(v)
@@ -86,29 +63,10 @@ def set_label(x, k, v):
 
 
 label_keys = {
-    'F5_{0}_VHOST': set_hostname,
-    'F5_{0}_STICKY': set_sticky,
-    'F5_{0}_REDIRECT_TO_HTTPS': set_redirect_http_to_https,
-    'F5_{0}_SSL_CERT': set_sslCert,
-    'F5_{0}_BIND_OPTIONS': set_bindOptions,
     'F5_{0}_BIND_ADDR': set_bindAddr,
     'F5_{0}_PORT': set_port,
     'F5_{0}_MODE': set_mode,
     'F5_{0}_BALANCE': set_balance,
-    'F5_{0}_FRONTEND_HEAD': set_label,
-    'F5_{0}_BACKEND_REDIRECT_HTTP_TO_HTTPS': set_label,
-    'F5_{0}_BACKEND_HEAD': set_label,
-    'F5_{0}_HTTP_FRONTEND_ACL': set_label,
-    'F5_{0}_HTTPS_FRONTEND_ACL': set_label,
-    'F5_{0}_HTTP_FRONTEND_APPID_ACL': set_label,
-    'F5_{0}_BACKEND_HTTP_OPTIONS': set_label,
-    'F5_{0}_BACKEND_TCP_HEALTHCHECK_OPTIONS': set_label,
-    'F5_{0}_BACKEND_HTTP_HEALTHCHECK_OPTIONS': set_label,
-    'F5_{0}_BACKEND_STICKY_OPTIONS': set_label,
-    'F5_{0}_FRONTEND_BACKEND_GLUE': set_label,
-    'F5_{0}_BACKEND_SERVER_TCP_HEALTHCHECK_OPTIONS': set_label,
-    'F5_{0}_BACKEND_SERVER_HTTP_HEALTHCHECK_OPTIONS': set_label,
-    'F5_{0}_BACKEND_SERVER_OPTIONS': set_label,
 }
 
 logger = logging.getLogger('marathon_lb')
@@ -164,7 +122,7 @@ class MarathonService(object):
 
 class MarathonApp(object):
 
-    def __init__(self, marathon, appId, app):
+    def __init__(self, appId, app):
         self.app = app
         self.partition = None
         self.appId = appId
@@ -294,8 +252,8 @@ def get_health_check(app, portIndex):
     return None
 
 
-def get_apps(marathon):
-    apps = marathon.list()
+def get_apps(apps, health_check):
+    #apps = marathon.list()
     marathon_apps = []
     logger.debug("Marathon apps: %s", [app["id"] for app in apps])
 
@@ -305,7 +263,7 @@ def get_apps(marathon):
         if appId[1:] == os.environ.get("FRAMEWORK_NAME"):
             continue
 
-        marathon_app = MarathonApp(marathon, appId, app)
+        marathon_app = MarathonApp(appId, app)
 
         if 'F5_PARTITION' in marathon_app.app['labels']:
             marathon_app.partition = \
@@ -339,7 +297,7 @@ def get_apps(marathon):
                                task['id'])
                 continue
 
-            if marathon.health_check() and 'healthChecks' in app and \
+            if health_check and 'healthChecks' in app and \
                len(app['healthChecks']) > 0:
                 if 'healthCheckResults' not in task:
                     continue
@@ -384,14 +342,11 @@ def get_apps(marathon):
 
 class MarathonEventProcessor(object):
 
-    def __init__(self, marathon, bigip,
-                 bind_http_https, ssl_certs):
+    def __init__(self, marathon, bigip):
         self.__marathon = marathon
         # appId -> MarathonApp
         self.__apps = dict()
         self.__bigip = bigip
-        self.__bind_http_https = bind_http_https
-        self.__ssl_certs = ssl_certs
 
         self.__condition = threading.Condition()
         self.__thread = threading.Thread(target=self.do_reset)
@@ -413,10 +368,8 @@ class MarathonEventProcessor(object):
                 try:
                     start_time = time.time()
 
-                    self.__apps = get_apps(self.__marathon)
-                    self.__bigip.regenerate_config_f5(self.__apps,
-                                                      self.__bind_http_https,
-                                                      self.__ssl_certs)
+                    self.__apps = get_apps(self.__marathon.list(), marathon.health_check())
+                    self.__bigip.regenerate_config_f5(self.__apps)
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
@@ -441,7 +394,7 @@ class MarathonEventProcessor(object):
 
 def get_arg_parser():
     parser = argparse.ArgumentParser(
-        description="Marathon HAProxy Load Balancer",
+        description="Marathon F5 BIG-IP Load Balancer",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--longhelp",
                         help="Print out configuration details",
@@ -476,9 +429,6 @@ def get_arg_parser():
                         " multiple partitions",
                         action="append",
                         default=list())
-    parser.add_argument("--command", "-c",
-                        help="If set, run this command to reload haproxy.",
-                        default=None)
     parser.add_argument("--sse", "-s",
                         help="Use Server Sent Events instead of HTTP "
                         "Callbacks",
@@ -488,25 +438,13 @@ def get_arg_parser():
                         "statuses before adding the app instance into "
                         "the backend pool.",
                         action="store_true")
-    parser.add_argument("--dont-bind-http-https",
-                        help="Don't bind to HTTP and HTTPS frontends.",
-                        action="store_true")
-    parser.add_argument("--ssl-certs",
-                        help="List of SSL certificates separated by comma"
-                             "for frontend marathon_https_in"
-                             "Ex: /etc/ssl/site1.co.pem,/etc/ssl/site2.co.pem",
-                        default="/etc/ssl/mesosphere.com.pem")
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
     return parser
 
 
-def run_server(marathon, listen_addr, callback_url, bigip,
-               bind_http_https, ssl_certs):
-    processor = MarathonEventProcessor(marathon,
-                                       bigip,
-                                       bind_http_https,
-                                       ssl_certs)
+def run_server(marathon, listen_addr, callback_url, bigip):
+    processor = MarathonEventProcessor(marathon, bigip)
     marathon.add_subscriber(callback_url)
 
     # TODO(cmaloney): Switch to a sane http server
@@ -531,12 +469,8 @@ def clear_callbacks(marathon, callback_url):
     marathon.remove_subscriber(callback_url)
 
 
-def process_sse_events(marathon, bigip,
-                       bind_http_https, ssl_certs):
-    processor = MarathonEventProcessor(marathon,
-                                       bigip,
-                                       bind_http_https,
-                                       ssl_certs)
+def process_sse_events(marathon, bigip):
+    processor = MarathonEventProcessor(marathon, bigip)
     events = marathon.get_event_stream()
     for event in events:
         try:
@@ -562,8 +496,7 @@ def process_sse_events(marathon, bigip,
 
             raise
 
-
-if __name__ == '__main__':
+def parse_args():
     # Process arguments
     arg_parser = get_arg_parser()
     args = arg_parser.parse_args()
@@ -592,6 +525,13 @@ if __name__ == '__main__':
             arg_parser.error('argument --password is required: please' +
                              'specify')
 
+    return args
+
+
+if __name__ == '__main__':
+    # parse args
+    args = parse_args()
+
     bigip = MarathonBigIP(args.hostname, args.username, args.password,
                           args.partition)
 
@@ -613,23 +553,18 @@ if __name__ == '__main__':
     if args.listening:
         callback_url = args.callback_url or args.listening
         try:
-            run_server(marathon, args.listening, callback_url,
-                       bigip, not args.dont_bind_http_https, args.ssl_certs)
+            run_server(marathon, args.listening, callback_url, bigip)
         finally:
             clear_callbacks(marathon, callback_url)
     elif args.sse:
         while True:
             try:
-                process_sse_events(marathon,
-                                   bigip,
-                                   not args.dont_bind_http_https,
-                                   args.ssl_certs)
+                process_sse_events(marathon, bigip)
             except:
                 logger.exception("Caught exception")
                 logger.error("Reconnecting...")
             time.sleep(1)
     else:
         # Generate base config
-        bigip.regenerate_config_f5(get_apps(marathon),
-                          not args.dont_bind_http_https,
-                          args.ssl_certs)
+        bigip.regenerate_config_f5(get_apps(marathon.list(),
+                                   marathon.health_check()))

@@ -23,10 +23,8 @@ usage: f5_marathon_lb.py [-h] [--longhelp]
                          [--marathon MARATHON [MARATHON ...]]
                          [--listening LISTENING] [--callback-url CALLBACK_URL]
                          [--hostname HOSTNAME] [--username USERNAME]
-                         [--password PASSWORD] [--partition PARTITION]
-                         [--command COMMAND] [--sse] [--health-check]
-                         [--dont-bind-http-https] [--ssl-certs SSL_CERTS]
-                         [--syslog-socket SYSLOG_SOCKET]
+                         [--password PASSWORD] [--partition PARTITION] [--sse]
+                         [--health-check] [--syslog-socket SYSLOG_SOCKET]
                          [--log-format LOG_FORMAT]
                          [--marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE]
 ```
@@ -44,32 +42,12 @@ The full list of labels which can be specified are:
 
     The BIG-IP partition to be configured
 
- F5_{n}_STICKY
-
-    Enable sticky request routing for the service
-    Ex: F5_0_STICKY = true
-
- F5_{n}_REDIRECT_TO_HTTPS
-
-    Redirect HTTP traffic to HTTPS
-    Ex: F5_0_REDIRECT_TO_HTTPS = true
-
- F5_{n}_SSL_CERT
-
-    Enable the given SSL certificate for TLS/SSL traffic
-    Ex: F5_0_SSL_CERT = '/etc/ssl/certs/marathon.mesosphere.com'
-
- F5_{n}_BIND_OPTIONS
-
-    Set additional bind options
-    Ex: F5_0_BIND_OPTIONS = 'ciphers AES128+EECDH:AES128+EDH force-tlsv12 no-sslv3'
-
  F5_{n}_BIND_ADDR
 
     Bind to the specific address for the service
     Ex: F5_0_BIND_ADDR = '10.0.0.42'
 
- F5_{n}_POR
+ F5_{n}_PORT
 
     Bind to the specific port for the service
     This overrides the servicePort which has to be unique
@@ -159,7 +137,8 @@ The following is an example for an application deployment in Marathon, with the 
     "F5_PARTITION": "mesos_1",
     "F5_0_BIND_ADDR": "10.128.10.240",
     "F5_0_PORT": "80",
-    "F5_0_MODE": "http"
+    "F5_0_MODE": "http",
+    "F5_0_BALANCE": "round-robin"
   },
   "healthChecks": [
     {
