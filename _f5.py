@@ -1,4 +1,5 @@
 import logging
+import json
 from operator import attrgetter
 from common import *
 from f5.bigip import BigIP
@@ -52,25 +53,18 @@ class MarathonBigIP(BigIP):
         self._password = password
         self._partitions = partitions
 
-    def regenerate_config_f5(self, apps, bind_http_https, ssl_certs):
+    def regenerate_config_f5(self, apps):
         logger.info("In regenerate_config_f5()")
         logger.debug(apps)
         for app in apps:
             logger.debug(app.__hash__())
-        self._apply_config_f5(self._create_config_f5(apps, bind_http_https,
-                              ssl_certs))
+        self._apply_config_f5(self._create_config_f5(apps))
 
-    def _create_config_f5(self, apps, bind_http_https, ssl_certs):
+    def _create_config_f5(self, apps):
         logger.info("Generating config for BIG-IP")
         f5 = {}
         # partitions this script is responsible for:
         partitions = frozenset(self._partitions)
-        _ssl_certs = ssl_certs or "/etc/ssl/mesosphere.com.pem"
-        _ssl_certs = _ssl_certs.split(",")
-
-        if bind_http_https:
-            # just passing on this in case this is something we want to use... TBD
-            pass
 
         frontends = str()
         backends = str()
@@ -103,11 +97,6 @@ class MarathonBigIP(BigIP):
             logger.debug("Frontend at %s:%d with backend %s",
                          app.bindAddr, app.servicePort, backend)
 
-            # if the app has a hostname set force mode to http
-            # otherwise recent versions of haproxy refuse to start
-            if app.hostname:
-                app.mode = 'http'
-
             f5_service['virtual'].update({
                 'id': (app.appId).lstrip('/'),
                 'name': frontend_name,
@@ -128,9 +117,6 @@ class MarathonBigIP(BigIP):
                 if 'protocol' in f5_service['health']:
                     f5_service['health']['protocol'] = \
                         (f5_service['health']['protocol']).lower()
-
-            if app.sticky:
-                logger.debug("turning on sticky sessions")
 
             key_func = attrgetter('host', 'port')
             for backendServer in sorted(app.backends, key=key_func):
@@ -158,7 +144,7 @@ class MarathonBigIP(BigIP):
 
             f5.update({frontend_name: f5_service})
 
-        logger.debug("F5 config: %s", f5)
+        logger.debug("F5 json config: %s", json.dumps(f5))
 
         return f5
 
@@ -541,7 +527,6 @@ class MarathonBigIP(BigIP):
         return timeout
 
     def healthcheck_update(self, partition, hc, data):
-
         # get healthcheck object
         hc = self.get_healthcheck(partition, hc, data['protocol'])
     
