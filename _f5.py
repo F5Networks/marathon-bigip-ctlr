@@ -1,8 +1,11 @@
 import logging
 import json
+import requests
+import f5
 from operator import attrgetter
 from common import *
 from f5.bigip import BigIP
+import icontrol.session
 
 logger = logging.getLogger('marathon_lb')
 
@@ -19,6 +22,10 @@ def get_protocol(protocol):
         return 'tcp'
 
 def has_partition(partitions, app_partition):
+    # App has no partition specified
+    if not app_partition:
+        return False
+
     # All partitions / wildcard match
     if '*' in partitions:
         return True
@@ -58,7 +65,24 @@ class MarathonBigIP(BigIP):
         logger.debug(apps)
         for app in apps:
             logger.debug(app.__hash__())
-        self._apply_config_f5(self._create_config_f5(apps))
+
+        try:
+            self._apply_config_f5(self._create_config_f5(apps))
+
+        # Handle F5/BIG-IP exceptions here
+        except requests.exceptions.ConnectionError as e:
+            logger.error("Connection error: {}".format(e))
+            # Indicate that we need to retry
+            return True
+        except f5.sdk_exception.F5SDKError as e:
+            logger.error("Resource Error: {}".format(e))
+        except icontrol.session.BigIPInvalidURL as e:
+            logger.error("Invalid URL: {}".format(e))
+        except icontrol.session.iControlUnexpectedHTTPError as e:
+            logger.error("HTTP Error: {}".format(e))
+        except Exception as e: raise
+
+        return False
 
     def _create_config_f5(self, apps):
         logger.info("Generating config for BIG-IP")
@@ -151,11 +175,17 @@ class MarathonBigIP(BigIP):
 
     def _apply_config_f5(self, config):
 
-        for partition in self._partitions:
+        unique_partitions = \
+            unique([config[x]['partition'] for x in config.keys()])
+
+        for partition in unique_partitions:
             logger.debug("Doing config for partition '%s'" % partition)
 
-            marathon_virtual_list = [x for x in config.keys() if '*' not in x]
-            marathon_pool_list = [x for x in config.keys() if '*' not in x]
+            #marathon_virtual_list = [x for x in config.keys() if '*' not in x]
+            marathon_virtual_list = \
+                [x for x in config.keys() if config[x]['partition'] == partition]
+            marathon_pool_list = \
+                [x for x in config.keys() if config[x]['partition'] == partition]
 
             # this is kinda kludgey: health monitor has the same name as the
             # virtual, and there is no more than 1 monitor per virtual.
