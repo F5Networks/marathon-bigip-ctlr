@@ -41,6 +41,7 @@ The full list of labels which can be specified are:
  F5_PARTITION
 
     The BIG-IP partition to be configured
+    Resources like virtual servers and pool members are configured in this partition on BIG-IP.  It must be one of the partitions that f5-marathon-lb owns (via the "--partition" argument to f5-marathon-lb).
 
  F5_{n}_BIND_ADDR
 
