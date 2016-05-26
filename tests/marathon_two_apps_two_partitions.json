@@ -1,0 +1,365 @@
+[
+    {
+        "acceptedResourceRoles": null,
+        "args": [
+            "sse",
+            "--marathon",
+            "http://10.141.141.10:8080",
+            "--partition",
+            "mesos",
+            "--hostname",
+            "10.128.1.145",
+            "--username",
+            "admin",
+            "--password",
+            "default"
+        ],
+        "backoffFactor": 1.15,
+        "backoffSeconds": 1,
+        "cmd": null,
+        "constraints": [],
+        "container": {
+            "docker": {
+                "forcePullImage": false,
+                "image": "docker-registry.pdbld.f5net.com/darzins/f5-marathon-lb:latest",
+                "network": "BRIDGE",
+                "parameters": [],
+                "privileged": false
+            },
+            "type": "DOCKER",
+            "volumes": []
+        },
+        "cpus": 0.5,
+        "dependencies": [],
+        "deployments": [],
+        "disk": 0,
+        "env": {},
+        "executor": "",
+        "healthChecks": [],
+        "id": "/f5-service-router",
+        "instances": 1,
+        "labels": {},
+        "maxLaunchDelaySeconds": 3600,
+        "mem": 128,
+        "ports": [
+            10000
+        ],
+        "requirePorts": false,
+        "storeUrls": [],
+        "tasks": [
+            {
+                "appId": "/f5-service-router",
+                "host": "10.141.141.10",
+                "id": "f5-service-router.8b3f015a-2124-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31328
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T20:25:52.008Z",
+                "startedAt": "2016-05-23T20:25:54.689Z",
+                "version": "2016-05-23T20:25:51.983Z"
+            }
+        ],
+        "tasksHealthy": 0,
+        "tasksRunning": 1,
+        "tasksStaged": 0,
+        "tasksUnhealthy": 0,
+        "upgradeStrategy": {
+            "maximumOverCapacity": 1,
+            "minimumHealthCapacity": 1
+        },
+        "uris": [],
+        "user": null,
+        "version": "2016-05-23T20:25:51.983Z",
+        "versionInfo": {
+            "lastConfigChangeAt": "2016-05-23T20:25:51.983Z",
+            "lastScalingAt": "2016-05-23T20:25:51.983Z"
+        }
+    },
+    {
+        "acceptedResourceRoles": null,
+        "args": null,
+        "backoffFactor": 1.15,
+        "backoffSeconds": 1,
+        "cmd": null,
+        "constraints": [],
+        "container": {
+            "docker": {
+                "forcePullImage": false,
+                "image": "edarzins/node-web-app",
+                "network": "BRIDGE",
+                "parameters": [],
+                "portMappings": [
+                    {
+                        "containerPort": 8088,
+                        "hostPort": 0,
+                        "protocol": "tcp",
+                        "servicePort": 10001
+                    }
+                ],
+                "privileged": false
+            },
+            "type": "DOCKER",
+            "volumes": []
+        },
+        "cpus": 0.1,
+        "dependencies": [],
+        "deployments": [],
+        "disk": 0,
+        "env": {},
+        "executor": "",
+        "healthChecks": [
+            {
+                "gracePeriodSeconds": 5,
+                "ignoreHttp1xx": false,
+                "intervalSeconds": 20,
+                "maxConsecutiveFailures": 3,
+                "path": "/",
+                "portIndex": 0,
+                "protocol": "HTTP",
+                "timeoutSeconds": 20
+            }
+        ],
+        "id": "/server-app",
+        "instances": 3,
+        "labels": {
+            "F5_0_BIND_ADDR": "10.128.10.240",
+            "F5_0_MODE": "http",
+            "F5_0_PORT": "80",
+            "F5_PARTITION": "mesos"
+        },
+        "maxLaunchDelaySeconds": 3600,
+        "mem": 16,
+        "ports": [
+            10001
+        ],
+        "requirePorts": false,
+        "storeUrls": [],
+        "tasks": [
+            {
+                "appId": "/server-app",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T21:47:28.715Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:31.311Z",
+                        "taskId": "server-app.e5fa8a5d-212f-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app.e5fa8a5d-212f-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31722
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T21:47:08.697Z",
+                "startedAt": "2016-05-23T21:47:09.700Z",
+                "version": "2016-05-23T21:47:08.675Z"
+            },
+            {
+                "appId": "/server-app",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T21:47:28.720Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:31.311Z",
+                        "taskId": "server-app.e5fa634b-212f-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app.e5fa634b-212f-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31274
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T21:47:08.695Z",
+                "startedAt": "2016-05-23T21:47:09.836Z",
+                "version": "2016-05-23T21:47:08.675Z"
+            },
+            {
+                "appId": "/server-app",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T21:47:28.715Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:31.312Z",
+                        "taskId": "server-app.e5fa8a5c-212f-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app.e5fa8a5c-212f-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31449
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T21:47:08.696Z",
+                "startedAt": "2016-05-23T21:47:09.748Z",
+                "version": "2016-05-23T21:47:08.675Z"
+            }
+        ],
+        "tasksHealthy": 3,
+        "tasksRunning": 3,
+        "tasksStaged": 0,
+        "tasksUnhealthy": 0,
+        "upgradeStrategy": {
+            "maximumOverCapacity": 1,
+            "minimumHealthCapacity": 1
+        },
+        "uris": [],
+        "user": null,
+        "version": "2016-05-23T21:47:08.675Z",
+        "versionInfo": {
+            "lastConfigChangeAt": "2016-05-23T21:47:08.675Z",
+            "lastScalingAt": "2016-05-23T21:47:08.675Z"
+        }
+    },
+    {
+        "acceptedResourceRoles": null,
+        "args": null,
+        "backoffFactor": 1.15,
+        "backoffSeconds": 1,
+        "cmd": null,
+        "constraints": [],
+        "container": {
+            "docker": {
+                "forcePullImage": false,
+                "image": "edarzins/node-web-app",
+                "network": "BRIDGE",
+                "parameters": [],
+                "portMappings": [
+                    {
+                        "containerPort": 8088,
+                        "hostPort": 0,
+                        "protocol": "tcp",
+                        "servicePort": 10002
+                    }
+                ],
+                "privileged": false
+            },
+            "type": "DOCKER",
+            "volumes": []
+        },
+        "cpus": 0.1,
+        "dependencies": [],
+        "deployments": [],
+        "disk": 0,
+        "env": {},
+        "executor": "",
+        "healthChecks": [
+            {
+                "gracePeriodSeconds": 5,
+                "ignoreHttp1xx": false,
+                "intervalSeconds": 20,
+                "maxConsecutiveFailures": 3,
+                "path": "/",
+                "portIndex": 0,
+                "protocol": "HTTP",
+                "timeoutSeconds": 20
+            }
+        ],
+        "id": "/server-app1",
+        "instances": 3,
+        "labels": {
+            "F5_0_BIND_ADDR": "10.128.10.242",
+            "F5_0_MODE": "http",
+            "F5_0_PORT": "80",
+            "F5_PARTITION": "mesos2"
+        },
+        "maxLaunchDelaySeconds": 3600,
+        "mem": 16,
+        "ports": [
+            10002
+        ],
+        "requirePorts": false,
+        "storeUrls": [],
+        "tasks": [
+            {
+                "appId": "/server-app1",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T21:48:06.213Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:28.812Z",
+                        "taskId": "server-app1.fc513ac0-212f-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app1.fc513ac0-212f-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31954
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T21:47:46.174Z",
+                "startedAt": "2016-05-23T21:47:47.121Z",
+                "version": "2016-05-23T21:47:46.135Z"
+            },
+            {
+                "appId": "/server-app1",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T22:42:42.942Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:42.942Z",
+                        "taskId": "server-app1.9d692471-2137-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app1.9d692471-2137-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31961
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T22:42:22.921Z",
+                "startedAt": "2016-05-23T22:42:23.810Z",
+                "version": "2016-05-23T22:42:22.900Z"
+            },
+            {
+                "appId": "/server-app1",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2016-05-23T21:48:06.197Z",
+                        "lastFailure": null,
+                        "lastSuccess": "2016-05-23T22:42:28.812Z",
+                        "taskId": "server-app1.fc5113af-212f-11e6-ad68-0242cc7d96dc"
+                    }
+                ],
+                "host": "10.141.141.10",
+                "id": "server-app1.fc5113af-212f-11e6-ad68-0242cc7d96dc",
+                "ports": [
+                    31236
+                ],
+                "slaveId": "5bba7178-6d5f-496f-b82a-f2227360608b-S0",
+                "stagedAt": "2016-05-23T21:47:46.174Z",
+                "startedAt": "2016-05-23T21:47:47.129Z",
+                "version": "2016-05-23T21:47:46.135Z"
+            }
+        ],
+        "tasksHealthy": 3,
+        "tasksRunning": 3,
+        "tasksStaged": 0,
+        "tasksUnhealthy": 0,
+        "upgradeStrategy": {
+            "maximumOverCapacity": 1,
+            "minimumHealthCapacity": 1
+        },
+        "uris": [],
+        "user": null,
+        "version": "2016-05-23T22:42:22.900Z",
+        "versionInfo": {
+            "lastConfigChangeAt": "2016-05-23T21:47:46.135Z",
+            "lastScalingAt": "2016-05-23T22:42:22.900Z"
+        }
+    }
+]

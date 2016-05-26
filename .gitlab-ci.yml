@@ -1,10 +1,32 @@
 before_script:
-  - docker info
-  - env
 
-build_image:
+stages:
+  - test
+  - deploy
+
+unit_test:
   script:
-    - docker build -t bldr-docker-registry.lab.lineratesystems.com:5000/andrewj/f5-service-router:build$CI_BUILD_ID .
-    - docker push bldr-docker-registry.lab.lineratesystems.com:5000/andrewj/f5-service-router:build$CI_BUILD_ID
-  tags: 
+    - pip install -r requirements.txt 
+    - pip install mock
+    - python -m unittest discover -v
+  stage: test
+
+# Create the docker container and upload it to the internal docker registry with the tags
+#   <PROJ_NAMESPACE>/tdp-controller:<COMMIT_ID>
+#   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>
+#   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>-<BUILD_ID>
+# If this branch is the master, then also tag:
+#   <PROJ_NAMESPACE>/tdp-controller:latest
+dockerize:
+  script:
+    - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
+    - docker build --no-cache -t docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF .
+    - docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
+    -   docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    - fi
+    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb
+  stage: deploy
+  tags:
     - docker-build

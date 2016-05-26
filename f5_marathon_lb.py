@@ -253,7 +253,6 @@ def get_health_check(app, portIndex):
 
 
 def get_apps(apps, health_check):
-    #apps = marathon.list()
     marathon_apps = []
     logger.debug("Marathon apps: %s", [app["id"] for app in apps])
 
@@ -369,13 +368,13 @@ class MarathonEventProcessor(object):
                     start_time = time.time()
 
                     self.__apps = get_apps(self.__marathon.list(), marathon.health_check())
-                    self.__bigip.regenerate_config_f5(self.__apps)
+                    if self.__bigip.regenerate_config_f5(self.__apps):
+                        # Timeout occurred, do a reset so that we try again
+                        self.reset_from_tasks()
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
-                except requests.exceptions.ConnectionError as e:
-                    logger.error("Connection error({0}): {1}".format(
-                        e.errno, e.strerror))
+
                 except:
                     logger.exception("Unexpected error!")
 
@@ -424,9 +423,9 @@ def get_arg_parser():
                         )
     parser.add_argument("--partition",
                         help="[required] Only generate config for apps which"
-                        " list the specified partition. Use '*' to match all"
-                        " partitions.  Can use a comma-separated list to specify"
-                        " multiple partitions",
+                        " match the specified partition. Use '*' to match all"
+                        " partitions.  Can use this arg multiple times to"
+                        " specify multiple partitions",
                         action="append",
                         default=list())
     parser.add_argument("--sse", "-s",
