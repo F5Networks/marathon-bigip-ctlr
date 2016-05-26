@@ -109,6 +109,10 @@ class MarathonBigIP(BigIP):
                             " responsible: %s", app.appId, app.partition)
                 continue
 
+            # No address for this port
+            if not app.bindAddr:
+                continue
+
             f5_service['partition'] = app.partition
 
             logger.info("Configuring app %s, partition %s",
