@@ -97,7 +97,7 @@ class MarathonService(object):
         self.redirectHttpToHttps = False
         self.sslCert = None
         self.bindOptions = None
-        self.bindAddr = '*'
+        self.bindAddr = None
         self.partition = None
         self.mode = 'tcp'
         self.balance = 'round-robin'

@@ -9,6 +9,8 @@ unit_test:
     - pip install -r requirements.txt 
     - pip install mock
     - python -m unittest discover -v
+  tags:
+    - docker
   stage: test
 
 # Create the docker container and upload it to the internal docker registry with the tags

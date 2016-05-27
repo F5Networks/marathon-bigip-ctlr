@@ -686,5 +686,54 @@ class BigIPTest(unittest.TestCase):
             None,
             None)
 
+    def test_start_app_with_one_unconfigured_service_ports(self,
+        marathon_state='tests/marathon_app_with_one_unconfig_service_port.json',
+        bigip_state='tests/bigip_test_blank.json',
+        hm_state='tests/bigip_test_blank.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.marathon_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+
+        self.assertTrue(self.bigip.virtual_create.called)
+        self.assertTrue(self.bigip.pool_create.called)
+        self.assertTrue(self.bigip.member_create.called)
+        self.assertTrue(self.bigip.healthcheck_create.called)
+        self.assertEquals(self.bigip.virtual_create.call_count, 2)
+        self.assertEquals(self.bigip.pool_create.call_count, 2)
+        self.assertEquals(self.bigip.member_create.call_count, 4)
+        self.assertEquals(self.bigip.healthcheck_create.call_count, 2)
+
+        expected_name1 = 'server-app4_10.128.10.240_8080'
+        expected_name2 = 'server-app4_10.128.10.242_8090'
+        self.assertEquals(self.bigip.virtual_create.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.virtual_create.call_args_list[1][0][1],
+                          expected_name2)
+        self.assertEquals(self.bigip.pool_create.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.pool_create.call_args_list[1][0][1],
+                          expected_name2)
+        self.assertEquals(self.bigip.healthcheck_create.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.healthcheck_create.call_args_list[1][0][1],
+                          expected_name2)
+
 if __name__ == '__main__':
     unittest.main()
