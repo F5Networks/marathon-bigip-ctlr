@@ -29,7 +29,9 @@ usage: f5_marathon_lb.py [-h] [--longhelp]
                          [--marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE]
 ```
 
-_The **marathon**, **hostname**, **username**, **password**, and **partition** arguments are mandatory_
+_The **marathon**, **hostname**, **username**, **password**, and **partition** arguments are mandatory_.
+
+Use the --partition argument multiple times to specify multiple BIG-IP partitions to be managed (e.g. --partition foo --partition bar).
 
 ### Application Labels
 
@@ -114,32 +116,41 @@ Where "f5-marathon-lb.json" contains the details needed to deploy the container 
 }
 ```
 
-The following is an example for an application deployment in Marathon, with the appropriate f5-marathon-lb labels configured:    
+The following is an example for an application deployment in Marathon, with the appropriate f5-marathon-lb labels configured. In this example, the app (server-app4) has three service ports configured, but only the first two are exposed via the BIG-IP (i.e. only port indices 0 and 1 are configured in the _labels_ section). Marathon health monitors are configured for all three service ports.
 
 ```json
 {
-  "id": "server-app",
+  "id": "server-app4",
   "cpus": 0.1,
   "mem": 16.0,
+  "instances": 2,
   "container": {
     "type": "DOCKER",
     "docker": {
       "image": "edarzins/node-web-app",
       "network": "BRIDGE",
-      "forcePullImage": true,
+      "forcePullImage": false,
       "portMappings": [
         { "containerPort": 8088,
+          "hostPort": 0,
+          "protocol": "tcp" },
+        { "containerPort": 8188,
+          "hostPort": 0,
+          "protocol": "tcp" },
+        { "containerPort": 8288,
           "hostPort": 0,
           "protocol": "tcp" }
       ]
     }
   },
   "labels": {
-    "F5_PARTITION": "mesos_1",
+    "F5_PARTITION": "mesos",
     "F5_0_BIND_ADDR": "10.128.10.240",
-    "F5_0_PORT": "80",
     "F5_0_MODE": "http",
-    "F5_0_BALANCE": "round-robin"
+    "F5_0_PORT": "8080",
+    "F5_1_BIND_ADDR": "10.128.10.242",
+    "F5_1_MODE": "http",
+    "F5_1_PORT": "8090"
   },
   "healthChecks": [
     {
@@ -149,7 +160,123 @@ The following is an example for an application deployment in Marathon, with the 
       "gracePeriodSeconds": 5,
       "intervalSeconds": 20,
       "maxConsecutiveFailures": 3
+    },
+    {
+      "protocol": "HTTP",
+      "portIndex": 1,
+      "path": "/",
+      "gracePeriodSeconds": 5,
+      "intervalSeconds": 20,
+      "maxConsecutiveFailures": 3
+    },
+    {
+      "protocol": "HTTP",
+      "portIndex": 2,
+      "path": "/",
+      "gracePeriodSeconds": 5,
+      "intervalSeconds": 20,
+      "maxConsecutiveFailures": 3
     }
   ]
+}
+```
+
+The following shows the BIG-IP configuration produced by f5-marathon-lb for the preceding Marathon configuration; showing virtual servers, pools, and health monitors.
+
+If a Marathon health monitor exists for a service port, f5-marathon-lb will also create a health monitor for it on the BIG-IP. The exception to this is when the "--health-check" option is used when starting f5-marathon-lb. If this option is set, f5-marathon-lb will respect the Marathon health status for the service port before adding it to the backend pool.
+
+```
+ltm monitor http server-app4_10.128.10.240_8080 {
+    adaptive disabled
+    defaults-from /Common/http
+    destination *:*
+    interval 20
+    ip-dscp 0
+    partition mesos
+    send "GET /\r\n"
+    time-until-up 0
+    timeout 61
+}
+ltm monitor http server-app4_10.128.10.242_8090 {
+    adaptive disabled
+    defaults-from /Common/http
+    destination *:*
+    interval 20
+    ip-dscp 0
+    partition mesos
+    send "GET /\r\n"
+    time-until-up 0
+    timeout 61
+}
+ltm node 10.141.141.10 {
+    address 10.141.141.10
+    partition mesos
+    session monitor-enabled
+    state up
+}
+ltm persistence global-settings { }
+ltm pool server-app4_10.128.10.240_8080 {
+    members {
+        10.141.141.10:31383 {
+            address 10.141.141.10
+            session monitor-enabled
+            state up
+        }
+        10.141.141.10:31775 {
+            address 10.141.141.10
+            session monitor-enabled
+            state up
+        }
+    }
+    monitor server-app4_10.128.10.240_8080
+    partition mesos
+}
+ltm pool server-app4_10.128.10.242_8090 {
+    members {
+        10.141.141.10:31384 {
+            address 10.141.141.10
+            session monitor-enabled
+            state up
+        }
+        10.141.141.10:31776 {
+            address 10.141.141.10
+            session monitor-enabled
+            state up
+        }
+    }
+    monitor server-app4_10.128.10.242_8090
+    partition mesos
+}
+ltm virtual server-app4_10.128.10.240_8080 {
+    destination 10.128.10.240:webcache
+    ip-protocol tcp
+    mask 255.255.255.255
+    partition mesos
+    pool server-app4_10.128.10.240_8080
+    profiles {
+        /Common/http { }
+        /Common/tcp { }
+    }
+    source 0.0.0.0/0
+    source-address-translation {
+        type automap
+    }
+    vs-index 153
+}
+ltm virtual server-app4_10.128.10.242_8090 {
+    destination 10.128.10.242:8090
+    ip-protocol tcp
+    mask 255.255.255.255
+    partition mesos
+    pool server-app4_10.128.10.242_8090
+    profiles {
+        /Common/http { }
+        /Common/tcp { }
+    }
+    source 0.0.0.0/0
+    source-address-translation {
+        type automap
+    }
+    vs-index 154
 }
 ```
