@@ -1,6 +1,7 @@
 import unittest
 import json
 from mock import Mock
+from mock import patch
 from f5_marathon_lb import *
 from _f5 import MarathonBigIP
 from StringIO import StringIO
@@ -203,7 +204,9 @@ class BigIPTest(unittest.TestCase):
                     self.assertEqual(app['ports'][0], service.servicePort)
 
     def setUp(self):
-        self.bigip = MarathonBigIP('1.2.3.4', 'admin', 'default', ['mesos'])
+        # mock the call to _get_tmos_version(), which tries to make a connection
+        with patch.object(BigIP, '_get_tmos_version') as mock_method:
+            self.bigip = MarathonBigIP('1.2.3.4', 'admin', 'default', ['mesos'])
 
         self.bigip.get_pool_member_list = \
             Mock(side_effect=self.mock_get_pool_member_list)
