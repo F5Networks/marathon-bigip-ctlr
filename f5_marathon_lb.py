@@ -24,6 +24,7 @@ from wsgiref.simple_server import make_server
 from sseclient import SSEClient
 from six.moves.urllib import parse
 from itertools import cycle
+from requests.exceptions import ConnectionError
 from common import *
 from _f5 import *
 
@@ -208,11 +209,11 @@ class Marathon(object):
                 ['eventSubscriptions'],
                 params={'callbackUrl': callbackUrl})
 
-    def get_event_stream(self):
+    def get_event_stream(self, timeout):
         url = self.host+"/v2/events"
         logger.info(
             "SSE Active, trying fetch events from from {0}".format(url))
-        return SSEClient(url, auth=self.__auth)
+        return SSEClient(url, auth=self.__auth, timeout=timeout)
 
     @property
     def host(self):
@@ -375,6 +376,8 @@ class MarathonEventProcessor(object):
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
 
+                except ConnectionError:
+                    logger.error("Could not connect to Marathon")
                 except:
                     logger.exception("Unexpected error!")
 
@@ -386,6 +389,7 @@ class MarathonEventProcessor(object):
 
     def handle_event(self, event):
         if event['eventType'] == 'status_update_event' or \
+                event['eventType'] == 'event_stream_attached' or \
                 event['eventType'] == 'health_status_changed_event' or \
                 event['eventType'] == 'api_post_event':
             self.reset_from_tasks()
@@ -437,6 +441,9 @@ def get_arg_parser():
                         "statuses before adding the app instance into "
                         "the backend pool.",
                         action="store_true")
+    parser.add_argument('--sse-timeout', "-t", type=int,
+                        default=30, help='Marathon event stream timeout')
+
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
     return parser
@@ -468,12 +475,10 @@ def clear_callbacks(marathon, callback_url):
     marathon.remove_subscriber(callback_url)
 
 
-def process_sse_events(marathon, bigip):
-    processor = MarathonEventProcessor(marathon, bigip)
-    events = marathon.get_event_stream()
+def process_sse_events(processor, events, bigip):
     for event in events:
         try:
-            # logger.info("received event: {0}".format(event))
+            # logger.info("Received event: {0}".format(event))
             # marathon might also send empty messages as keepalive...
             if (event.data.strip() != ''):
                 # marathon sometimes sends more than one json per event
@@ -523,6 +528,8 @@ def parse_args():
         if not args.password:
             arg_parser.error('argument --password is required: please' +
                              'specify')
+        if args.sse_timeout < 1:
+            arg_parser.error('argument --sse-timeout must be > 0')
 
     return args
 
@@ -556,12 +563,13 @@ if __name__ == '__main__':
         finally:
             clear_callbacks(marathon, callback_url)
     elif args.sse:
+        processor = MarathonEventProcessor(marathon, bigip)
         while True:
             try:
-                process_sse_events(marathon, bigip)
+                events = marathon.get_event_stream(args.sse_timeout)
+                process_sse_events(processor, events, bigip)
             except:
-                logger.exception("Caught exception")
-                logger.error("Reconnecting...")
+                logger.error("Reconnecting to Marathon event stream...")
             time.sleep(1)
     else:
         # Generate base config
