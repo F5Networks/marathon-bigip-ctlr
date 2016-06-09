@@ -34,7 +34,8 @@ class ArgTest(unittest.TestCase):
                       [--listening LISTENING] [--callback-url CALLBACK_URL]
                       [--hostname HOSTNAME] [--username USERNAME]
                       [--password PASSWORD] [--partition PARTITION] [--sse]
-                      [--health-check] [--syslog-socket SYSLOG_SOCKET]
+                      [--health-check] [--sse-timeout SSE_TIMEOUT]
+                      [--syslog-socket SYSLOG_SOCKET]
                       [--log-format LOG_FORMAT]
                       [--marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE]
 f5-marathon-lb: error: argument --marathon/-m is required
@@ -155,6 +156,17 @@ f5-marathon-lb: error: argument --marathon/-m is required
         args = parse_args()
         self.assertEqual(args.marathon_auth_credential_file, auth_file)
 
+    def test_timeout_arg(self):
+        timeout = 45
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--sse-timeout', str(timeout)]
+        args = parse_args()
+        self.assertEqual(args.sse_timeout, timeout)
+
+        # test default value
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.sse_timeout, 30)
 
 
 class BigIPTest(unittest.TestCase):
