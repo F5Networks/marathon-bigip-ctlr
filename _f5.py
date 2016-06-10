@@ -582,7 +582,7 @@ class MarathonBigIP(BigIP):
             hc.update(
                     interval=data['intervalSeconds'],
                     timeout=timeout,
-                    sendString=send_string,
+                    send=send_string,
                     )
 
         if (data['protocol']).lower() == "tcp":
@@ -619,7 +619,7 @@ class MarathonBigIP(BigIP):
                     partition=partition,
                     interval=data['intervalSeconds'],
                     timeout=timeout,
-                    sendString=send_string,
+                    send=send_string,
                     )
 
         if (data['protocol']).lower() == "tcp":
