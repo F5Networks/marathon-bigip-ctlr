@@ -39,8 +39,8 @@ def test_e2e(marathon, bigip, f5mlb):
         'pool_members': [
             "%s:%d" % (instances[0].host, instances[0].ports[0])
         ],
-        'health_monitors': [obj_name],
-        'nodes': [instances[0].host]
+        'nodes': [instances[0].host],
+        'health_monitors': [obj_name]
     }
     assert utils.get_f5mlb_objects(bigip) == backend_objs_exp
 
@@ -50,7 +50,7 @@ def test_e2e(marathon, bigip, f5mlb):
     # - verify num f5mlb instances unchanged
     utils.wait_for_f5mlb()
     assert f5mlb.instances.count() == 1
-    # - verify bigip pool members is changed
+    # - verify bigip pool members are changed
     instances = svc_2.instances.get()
     backend_objs_exp['pool_members'] = sorted([
         "%s:%d" % (instances[0].host, instances[0].ports[0]),
@@ -75,7 +75,7 @@ def test_e2e(marathon, bigip, f5mlb):
     # - verify num f5mlb instances unchanged
     utils.wait_for_f5mlb()
     assert f5mlb.instances.count() == 1
-    # - verify bigip pool members is changed
+    # - verify bigip pool members are changed
     instances = svc_2.instances.get()
     backend_objs_exp['pool_members'] = [
         "%s:%d" % (instances[0].host, instances[0].ports[0]),
