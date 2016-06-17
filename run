@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -euo pipefail
 
 #HAPROXY_SERVICE="/marathon-lb/service/haproxy"
@@ -73,8 +73,13 @@ case "$MODE" in
     ;;
 esac
 
+# Run the tdp-controller, if it exists
+if [-x /app/bin/tdp-controller ]; then
+    /app/bin/tdp-controller &
+fi
+
 while true; do
-  /f5-marathon-lb/f5_marathon_lb.py \
+  /app/f5_marathon_lb.py \
     --syslog-socket /dev/null \
     $ARGS "$@" &
   wait $! || exit $? # Needed for the traps to work

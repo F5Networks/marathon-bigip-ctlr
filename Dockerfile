@@ -1,15 +1,17 @@
 FROM debian:jessie
 
-RUN mkdir /f5-marathon-lb
+ENV APPPATH /app
 
-COPY requirements.txt /f5-marathon-lb/requirements.txt
+RUN mkdir $APPPATH
+
+COPY requirements.txt $APPPATH/requirements.txt
 
 RUN apt-get update && apt-get install -y python python-dev python-pip openssl libssl-dev \
     build-essential python-dateutil libffi-dev \
-    && pip install -r /f5-marathon-lb/requirements.txt \
+    && pip install -r $APPPATH/requirements.txt \
     && apt-get remove -yf --auto-remove python-dev libssl-dev libffi-dev build-essential \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT [ "/f5-marathon-lb/run" ]
-WORKDIR /f5-marathon-lb
-COPY  . /f5-marathon-lb
+ENTRYPOINT [ "$APPPATH/run" ]
+WORKDIR $APPPATH
+COPY  . $APPPATH
