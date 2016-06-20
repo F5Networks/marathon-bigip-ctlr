@@ -446,6 +446,7 @@ class MarathonBigIP(BigIP):
 
     def virtual_create(self, partition, virtual, data):
         logger.debug("Creating Virtual Server %s", virtual)
+        hc_data = data['health']
         data = data['virtual']
         v = self.ltm.virtuals.virtual
         destination = "/%s/%s:%d" % (
@@ -465,11 +466,12 @@ class MarathonBigIP(BigIP):
                 sourceAddressTranslation={'type': 'automap'}
                 )
 
-        # if this is an http virt, add the default /Common/http profile
-        v.profiles_s.profiles.create(
-                name='http',
-                partition='Common'
-                )
+        # if this is a virt with a http hc, add the default /Common/http profile
+        if (hc_data['protocol']).lower() == "http":
+                v.profiles_s.profiles.create(
+                        name='http',
+                        partition='Common'
+                        )
 
         logger.debug("virtual_create %s", a.raw);
 
@@ -479,6 +481,7 @@ class MarathonBigIP(BigIP):
         v.delete()
 
     def virtual_update(self, partition, virtual, data):
+        hc_data = data['health']
         data = data['virtual']
         destination = "/%s/%s:%d" % (
                 partition, 
@@ -498,15 +501,18 @@ class MarathonBigIP(BigIP):
                 )
     
         try:
-            v.profiles_s.profiles.load(
-                        name='http',
-                        partition='Common'
-                        )
+            # if this is a virt with a http hc, add the default /Common/http profile
+            if (hc_data['protocol']).lower() == "http":
+                    v.profiles_s.profiles.load(
+                                name='http',
+                                partition='Common'
+                                )
         except:
-            v.profiles_s.profiles.create(
-                            name='http',
-                            partition='Common'
-                            )
+            if (hc_data['protocol']).lower() == "http":
+                    v.profiles_s.profiles.create(
+                                    name='http',
+                                    partition='Common'
+                                    )
 
     def get_healthcheck(self, partition, hc, hc_type):
         # return hc object
