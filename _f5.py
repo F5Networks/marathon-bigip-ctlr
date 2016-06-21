@@ -76,9 +76,9 @@ class MarathonBigIP(BigIP):
             return True
         except f5.sdk_exception.F5SDKError as e:
             logger.error("Resource Error: {}".format(e))
-        except icontrol.session.BigIPInvalidURL as e:
+        except icontrol.exceptions.BigIPInvalidURL as e:
             logger.error("Invalid URL: {}".format(e))
-        except icontrol.session.iControlUnexpectedHTTPError as e:
+        except icontrol.exceptions.iControlUnexpectedHTTPError as e:
             logger.error("HTTP Error: {}".format(e))
         except Exception as e: raise
 
@@ -467,7 +467,7 @@ class MarathonBigIP(BigIP):
                 )
 
         # if this is a virt with a http hc, add the default /Common/http profile
-        if (hc_data['protocol']).lower() == "http":
+        if 'protocol' in hc_data and (hc_data['protocol']).lower() == "http":
                 v.profiles_s.profiles.create(
                         name='http',
                         partition='Common'
@@ -502,13 +502,13 @@ class MarathonBigIP(BigIP):
     
         try:
             # if this is a virt with a http hc, add the default /Common/http profile
-            if (hc_data['protocol']).lower() == "http":
+            if 'protocol' in hc_data and (hc_data['protocol']).lower() == "http":
                     v.profiles_s.profiles.load(
                                 name='http',
                                 partition='Common'
                                 )
         except:
-            if (hc_data['protocol']).lower() == "http":
+            if 'protocol' in hc_data and (hc_data['protocol']).lower() == "http":
                     v.profiles_s.profiles.create(
                                     name='http',
                                     partition='Common'
