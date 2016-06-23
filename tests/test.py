@@ -181,8 +181,17 @@ class BigIPTest(unittest.TestCase):
         except KeyError:
             return []
 
+    def mock_get_node_list(self, partition):
+        return ['10.141.141.10']
+
     def mock_get_healthcheck_list(self, partition):
         return self.hm_data
+
+    def mock_get_partition_list(self, partitions):
+        if '*' in partitions:
+            return ['mesos', 'mesos2']
+        else:
+            return partitions
 
     def read_test_vectors(self, marathon_state, bigip_state, hm_state):
         # Read the Marathon state
@@ -240,6 +249,11 @@ class BigIPTest(unittest.TestCase):
         self.bigip.member_create = Mock()
         self.bigip.member_delete = Mock()
         self.bigip.member_update = Mock()
+
+        self.bigip.node_delete = Mock()
+
+        self.bigip.get_partitions = Mock(side_effect=self.mock_get_partition_list)
+        self.bigip.get_node_list = Mock(side_effect=self.mock_get_node_list)
 
     def tearDown(self):
         pass
@@ -618,6 +632,7 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        #self.assertEquals(self.bigip.virtual_create.call_count, 2)
 
         create_call_count = 0
 
@@ -668,20 +683,20 @@ class BigIPTest(unittest.TestCase):
     def test_start_two_apps_with_two_matching_partitions(self):
         self.start_two_apps_with_two_partitions(
             ['mesos', 'mesos2'],
-            'server-app1_10.128.10.242_80',
-            'server-app_10.128.10.240_80')
+            'server-app_10.128.10.240_80',
+            'server-app1_10.128.10.242_80')
 
     def test_start_two_apps_with_wildcard_partitions(self):
         self.start_two_apps_with_two_partitions(
             ['*'],
-            'server-app1_10.128.10.242_80',
-            'server-app_10.128.10.240_80')
+            'server-app_10.128.10.240_80',
+            'server-app1_10.128.10.242_80')
 
     def test_start_two_apps_with_three_partitions(self):
         self.start_two_apps_with_two_partitions(
             ['mesos', 'mesos2', 'mesos3'],
-            'server-app1_10.128.10.242_80',
-            'server-app_10.128.10.240_80')
+            'server-app_10.128.10.240_80',
+            'server-app1_10.128.10.242_80')
 
     def test_start_two_apps_with_one_matching_partition(self):
         self.start_two_apps_with_two_partitions(
@@ -749,6 +764,90 @@ class BigIPTest(unittest.TestCase):
                           expected_name1)
         self.assertEquals(self.bigip.healthcheck_create.call_args_list[1][0][1],
                           expected_name2)
+
+    def test_destroy_all_apps(self,
+        marathon_state='tests/marathon_no_apps.json',
+        bigip_state='tests/bigip_test_no_change.json',
+        hm_state='tests/bigip_test_two_monitors.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.marathon_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+
+        self.assertTrue(self.bigip.virtual_delete.called)
+        self.assertTrue(self.bigip.pool_delete.called)
+        self.assertTrue(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertEquals(self.bigip.virtual_delete.call_count, 2)
+        self.assertEquals(self.bigip.pool_delete.call_count, 2)
+        self.assertEquals(self.bigip.member_delete.call_count, 0)
+        self.assertEquals(self.bigip.healthcheck_delete.call_count, 2)
+
+        expected_name1 = 'server-app2_10.128.10.240_8080'
+        expected_name2 = 'server-app_10.128.10.240_80'
+        self.assertEquals(self.bigip.virtual_delete.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.virtual_delete.call_args_list[1][0][1],
+                          expected_name2)
+        self.assertEquals(self.bigip.pool_delete.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.pool_delete.call_args_list[1][0][1],
+                          expected_name2)
+        self.assertEquals(self.bigip.healthcheck_delete.call_args_list[0][0][1],
+                          expected_name1)
+        self.assertEquals(self.bigip.healthcheck_delete.call_args_list[1][0][1],
+                          expected_name2)
+
+    def test_app_suspended(self,
+        marathon_state='tests/marathon_one_app_zero_instances.json',
+        bigip_state='tests/bigip_test_one_app.json',
+        hm_state='tests/bigip_test_one_http_monitor.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.marathon_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertTrue(self.bigip.pool_update.called)
+        self.assertTrue(self.bigip.healthcheck_update.called)
+        self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertTrue(self.bigip.member_delete.called)
+
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertEquals(self.bigip.member_delete.call_count, 4)
+
+        expected_name = 'server-app_10.128.10.240_80'
+        self.assertEquals(self.bigip.member_delete.call_args_list[0][0][1],
+                          expected_name)
 
 if __name__ == '__main__':
     unittest.main()
