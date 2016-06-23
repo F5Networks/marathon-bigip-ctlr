@@ -76,10 +76,16 @@ class MarathonBigIP(BigIP):
             return True
         except f5.sdk_exception.F5SDKError as e:
             logger.error("Resource Error: {}".format(e))
+            # Indicate that we need to retry
+            return True
         except icontrol.exceptions.BigIPInvalidURL as e:
             logger.error("Invalid URL: {}".format(e))
+            # Indicate that we need to retry
+            return True
         except icontrol.exceptions.iControlUnexpectedHTTPError as e:
             logger.error("HTTP Error: {}".format(e))
+            # Indicate that we need to retry
+            return True
         except Exception as e: raise
 
         return False
