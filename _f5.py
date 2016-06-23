@@ -179,8 +179,7 @@ class MarathonBigIP(BigIP):
 
     def _apply_config_f5(self, config):
 
-        unique_partitions = \
-            unique([config[x]['partition'] for x in config.keys()])
+        unique_partitions = self.get_partitions(self._partitions)
 
         for partition in unique_partitions:
             logger.debug("Doing config for partition '%s'" % partition)
@@ -325,6 +324,33 @@ class MarathonBigIP(BigIP):
                     self.member_update(partition, pool, member,
                                   config[pool]['nodes'][member])
         
+            # Delete any unreferenced nodes
+            self.cleanup_nodes(partition)
+
+    def cleanup_nodes(self, partition):
+        node_list = self.get_node_list(partition)
+        pool_list = self.get_pool_list(partition)
+
+        # Search pool members for nodes still in-use, if the node is still
+        # being used, remove it from the node list
+        for pool in pool_list:
+            member_list = self.get_pool_member_list(partition, pool)
+            for member in member_list:
+                name, port = member.split(':')
+                if name in node_list:
+                    node_list.remove(name)
+
+        # What's left in the node list is not referenced, delete
+        for node in node_list:
+            self.node_delete(node, partition)
+
+    def node_delete(self, node_name, partition):
+        node = self.ltm.nodes.node.load(
+            name=node_name,
+            partition=partition
+            )
+        node.delete()
+
     def get_pool(self, partition, pool):
         # return pool object
         p = self.ltm.pools.pool.load(
@@ -426,6 +452,15 @@ class MarathonBigIP(BigIP):
         #member.update(
         #        state=None
         #        )
+
+    def get_node_list(self, partition):
+        node_list = []
+        nodes = self.ltm.nodes.get_collection()
+        for node in nodes:
+            if node.partition == partition:
+                node_list.append(node.name)
+
+        return node_list
 
     def get_virtual(self, partition, virtual):
         # return virtual object
@@ -638,3 +673,17 @@ class MarathonBigIP(BigIP):
                     interval=data['intervalSeconds'],
                     timeout=timeout,
                     )
+
+    def get_partitions(self, partitions):
+        if ('*' in partitions):
+            # Wildcard means all partitions, so we need to query BIG-IP for the
+            # actual partition names
+            partition_list = []
+            for folder in self.sys.folders.get_collection():
+                if not folder.name == "Common" and not folder.name == "/" \
+                    and not folder.name.endswith(".app"):
+                    partition_list.append(folder.name)
+            return partition_list
+        else:
+            # No wildcard, so we just care about those already configured
+            return partitions

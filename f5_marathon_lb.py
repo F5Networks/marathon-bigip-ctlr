@@ -279,6 +279,7 @@ def get_apps(apps, health_check):
             servicePort = service_ports[i]
             service = MarathonService(
                         appId, servicePort, get_health_check(app, i))
+            service.partition = marathon_app.partition
 
             for key_unformatted in label_keys:
                 key = key_unformatted.format(i)
@@ -322,7 +323,6 @@ def get_apps(apps, health_check):
                 service_port = service_ports[i]
                 service = marathon_app.services.get(service_port, None)
                 if service:
-                    service.partition = marathon_app.partition
                     service.add_backend(task['host'],
                                         task_port,
                                         draining)
@@ -331,8 +331,7 @@ def get_apps(apps, health_check):
     apps_list = []
     for marathon_app in marathon_apps:
         for service in list(marathon_app.services.values()):
-            if service.backends:
-                apps_list.append(service)
+            apps_list.append(service)
 
     logger.debug("Marathon app list: %s", repr(apps_list))
 
@@ -391,6 +390,7 @@ class MarathonEventProcessor(object):
         if event['eventType'] == 'status_update_event' or \
                 event['eventType'] == 'event_stream_attached' or \
                 event['eventType'] == 'health_status_changed_event' or \
+                event['eventType'] == 'app_terminated_event' or \
                 event['eventType'] == 'api_post_event':
             self.reset_from_tasks()
 
