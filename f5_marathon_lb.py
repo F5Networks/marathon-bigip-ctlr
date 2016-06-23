@@ -59,6 +59,10 @@ def set_balance(x, k, v):
     x.balance = v
 
 
+def set_profile(x, k, v):
+    x.profile = v
+
+
 def set_label(x, k, v):
     x.labels[k] = v
 
@@ -68,6 +72,7 @@ label_keys = {
     'F5_{0}_PORT': set_port,
     'F5_{0}_MODE': set_mode,
     'F5_{0}_BALANCE': set_balance,
+    'F5_{0}_SSL_PROFILE': set_profile
 }
 
 logger = logging.getLogger('marathon_lb')
@@ -102,6 +107,7 @@ class MarathonService(object):
         self.partition = None
         self.mode = 'tcp'
         self.balance = 'round-robin'
+        self.profile = None
         self.healthCheck = healthCheck
         self.labels = {}
         if healthCheck:
