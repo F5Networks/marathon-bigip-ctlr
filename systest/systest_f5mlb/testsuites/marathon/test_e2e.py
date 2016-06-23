@@ -64,8 +64,9 @@ def test_e2e(marathon, bigip, f5mlb):
     # - verify num f5mlb instances unchanged
     utils.wait_for_f5mlb()
     assert f5mlb.instances.count() == 1
-    # - verify bigip pool members is changed
-    backend_objs_exp['pool_members'] = []
+    # - verify bigip pool members are changed
+    backend_objs_exp.pop('pool_members')
+    backend_objs_exp.pop('nodes')
     assert utils.get_f5mlb_objects(bigip) == backend_objs_exp
 
     # - scale managed service to 1 instance
@@ -79,6 +80,7 @@ def test_e2e(marathon, bigip, f5mlb):
     backend_objs_exp['pool_members'] = [
         "%s:%d" % (instances[0].host, instances[0].ports[0]),
     ]
+    backend_objs_exp['nodes'] = [instances[0].host]
     assert utils.get_f5mlb_objects(bigip) == backend_objs_exp
 
     # - delete managed service
