@@ -898,5 +898,29 @@ class BigIPTest(unittest.TestCase):
         self.assertEquals(self.bigip.member_delete.call_args_list[0][0][1],
                           expected_name)
 
+    def test_https_app(self,
+        marathon_state='tests/marathon_one_app_https.json',
+        bigip_state='tests/bigip_test_blank.json',
+        hm_state='tests/bigip_test_blank.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        https_app_count = 0
+        for service, app in zip(self.marathon_data, apps):
+            labels = service['labels']
+            if labels.get('F5_0_BIND_ADDR') != None:
+                self.assertEqual(labels.get('F5_PARTITION'), app.partition)
+                self.assertEqual(labels.get('F5_0_BIND_ADDR'), app.bindAddr)
+                self.assertEqual(labels.get('F5_0_MODE'), app.mode)
+                self.assertEqual(labels.get('F5_0_SSL_PROFILE'), app.profile)
+                https_app_count+=1
+
+        self.assertEqual(https_app_count, 1)
+
 if __name__ == '__main__':
     unittest.main()

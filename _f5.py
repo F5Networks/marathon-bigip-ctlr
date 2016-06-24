@@ -131,6 +131,15 @@ class MarathonBigIP(BigIP):
             logger.debug("Frontend at %s:%d with backend %s",
                          app.bindAddr, app.servicePort, backend)
 
+            # Parse the SSL profile into partition and name
+            profile = [None, None]
+            if app.profile:
+                profile = app.profile.split('/')
+                if len(profile) != 2:
+                    logger.error("Could not parse partition and name from SSL"
+                                 " profile: %s", app.profile)
+                    profile = [None, None]
+
             f5_service['virtual'].update({
                 'id': (app.appId).lstrip('/'),
                 'name': frontend_name,
@@ -138,6 +147,7 @@ class MarathonBigIP(BigIP):
                 'port': app.servicePort,
                 'protocol': app.mode,
                 'balance': app.balance,
+                'profile': {'partition': profile[0], 'name': profile[1]}
                 })
 
             if app.healthCheck:
@@ -507,6 +517,13 @@ class MarathonBigIP(BigIP):
                 sourceAddressTranslation={'type': 'automap'}
                 )
 
+        # SSL Profile
+        if (data['profile']['name']):
+            v.profiles_s.profiles.create(
+                name=data['profile']['name'],
+                partition=data['profile']['partition']
+                )
+
         # if this is a virt with a http hc, add the default /Common/http profile
         if 'protocol' in hc_data and (hc_data['protocol']).lower() == "http":
                 v.profiles_s.profiles.create(
@@ -554,6 +571,17 @@ class MarathonBigIP(BigIP):
                                     name='http',
                                     partition='Common'
                                     )
+
+        # SSL Profile
+        if (data['profile']['name']):
+            if not v.profiles_s.profiles.exists(
+                name=data['profile']['name'],
+                partition=data['profile']['partition']
+                ):
+                v.profiles_s.profiles.create(
+                    name=data['profile']['name'],
+                    partition=data['profile']['partition']
+                    )
 
     def get_healthcheck(self, partition, hc, hc_type):
         # return hc object

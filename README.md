@@ -48,23 +48,28 @@ The full list of labels which can be specified are:
  F5_{n}_BIND_ADDR
 
     Bind to the specific address for the service
-    Ex: F5_0_BIND_ADDR = '10.0.0.42'
+    Ex: "F5_0_BIND_ADDR": "10.0.0.42"
 
  F5_{n}_PORT
 
     Bind to the specific port for the service
     This overrides the servicePort which has to be unique
-    Ex: F5 _ 0 _ PORT = 80
+    Ex: "F5_0_PORT": "80"
 
  F5_{n}_MODE
 
     Set the connection mode to either TCP or HTTP. The default is TCP.
-    Ex: F5_0_MODE = 'http'
+    Ex: "F5_0_MODE": "http"
 
  F5_{n}_BALANCE
 
     Set the load balancing algorithm to be used in a backend. The default is roundrobin.
-    Ex: F5_0_BALANCE = 'leastconn'
+    Ex: "F5_0_BALANCE": "leastconn"
+
+ F5_{n}_SSL_PROFILE
+
+    Set the SSL profile to be used for the HTTPS Virtual Server
+    Ex: "F5_0_SSL_PROFILE": "Common/clentssl"
 ```
 
 ### Building and Running
