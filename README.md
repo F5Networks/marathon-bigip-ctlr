@@ -37,7 +37,7 @@ Use the --partition argument multiple times to specify multiple BIG-IP partition
 
 Applications to be managed by f5-marathon-lb are identified and configured via their _Marathon Labels_. Some labels are specified _per service port_. These are denoted with the `{n}` parameter in the label key, where `{n}` corresponds to the service port index, beginning at `0`.
 
-The full list of labels which can be specified are:
+The list of labels which can be specified are:
 
 ```
  F5_PARTITION
@@ -71,6 +71,7 @@ The full list of labels which can be specified are:
     Set the SSL profile to be used for the HTTPS Virtual Server
     Ex: "F5_0_SSL_PROFILE": "Common/clentssl"
 ```
+
 
 ### Building and Running
 
@@ -283,5 +284,89 @@ ltm virtual server-app4_10.128.10.242_8090 {
         type automap
     }
     vs-index 154
+}
+```
+
+
+### iApps
+
+iApps is the BIG-IP system framework for deploying services-based, template-driven configurations on BIG-IP systems running TMOS 11.0.0 and later. It consists of three components: Templates, Application Services, and Analytics. An iApps Template is where the application is described and the objects (required and optional) are defined through presentation and implementation language. An iApps Application Service is the deployment process of an iApps Template which bundles all of the configuration options for a particular application together.
+
+#### iApp Labels
+
+f5-marathon-lb can be used to instantiate and manage an iApp Application Service, with the iApp template and variables specicified via the LABELS in a Marathon application.
+
+```
+
+ F5_{n}_IAPP_TEMPLATE
+
+    The iApp template to create the Application Service. The template must already be installed on the BIG-IP
+    Ex: "F5_0_IAPP_TEMPLATE": "/Common/f5.http"
+
+ F5_{n}_IAPP_OPTION_*
+
+    The predicate that defines configuration options for the service
+    Ex: "F5_0_IAPP_OPTION_description": "This is a test iApp"
+
+ F5_{n}_IAPP_VARIABLE_*
+
+    The predicate that defines the variables needed by the iApp to create the service. The variable names and values are specific to the template being used. The "/#create_new#" value directs the service to create the resource, otherwise it will use an existing, specified resource.
+
+    Ex: "F5_0_IAPP_VARIABLE_pool__addr": "10.128.10.240"
+    Ex: "F5_0_IAPP_VARIABLE_pool__pool_to_use": "/#create_new#"
+
+ F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME
+
+    The name of the iApp table entry that specifies the pool members: THIS NAME IS NOT STANDARD AND CAN BE DIFFERENT FOR EACH iApp TEMPLATE.
+    Ex: "F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members"
+```
+
+##### iApp Configuration Example
+
+The following shows an example Marathon app definition configured to use the "f5.http" template to define an HTTP service. Note that the only label needed other than the IAPP labels, is the F5_PARTITION label. The parameters that were specified earlier for F5_0_BIND_ADDR and F5_0_PORT are now accounted for as iApp variables (pool__addr and pool__port, respectively).
+
+```
+{
+  "id": "server-app2",
+  "cpus": 0.1,
+  "mem": 16.0,
+  "instances": 4,
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "edarzins/node-web-app",
+      "network": "BRIDGE",
+      "forcePullImage": false,
+      "portMappings": [
+        { "containerPort": 8088,
+          "hostPort": 0,
+          "protocol": "tcp" }
+      ]
+    }
+  },
+  "labels": {
+    "F5_PARTITION": "mesos",
+    "F5_0_IAPP_TEMPLATE": "/Common/f5.http",
+    "F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members",
+    "F5_0_IAPP_VARIABLE_net__server_mode": "lan",
+    "F5_0_IAPP_VARIABLE_pool__addr": "10.128.10.240",
+    "F5_0_IAPP_VARIABLE_pool__pool_to_use": "/#create_new#",
+    "F5_0_IAPP_VARIABLE_monitor__monitor": "/#create_new#",
+    "F5_0_IAPP_VARIABLE_monitor__uri": "/",
+    "F5_0_IAPP_VARIABLE_monitor__response": "none",
+    "F5_0_IAPP_VARIABLE_net__client_mode": "wan",
+    "F5_0_IAPP_VARIABLE_pool__port": "8080",
+    "F5_0_IAPP_OPTION_description": "This is a test iApp"
+  },
+  "healthChecks": [
+    {
+      "protocol": "TCP",
+      "portIndex": 0,
+      "path": "/",
+      "gracePeriodSeconds": 5,
+      "intervalSeconds": 20,
+      "maxConsecutiveFailures": 3
+    }
+  ]
 }
 ```
