@@ -224,6 +224,21 @@ class BigIPTest(unittest.TestCase):
                 else:
                     self.assertEqual(app['ports'][0], service.servicePort)
 
+    def raiseTypeError(self, cfg):
+        raise TypeError
+
+    def raiseSDKError(self, cfg):
+        raise f5.sdk_exception.F5SDKError
+
+    def raiseConnectionError(self, cfg):
+        raise requests.exceptions.ConnectionError
+
+    def raiseBigIPInvalidURL(self, cfg):
+        raise icontrol.exceptions.BigIPInvalidURL
+
+    def raiseBigiControlUnexpectedHTTPError(self, cfg):
+        raise icontrol.exceptions.iControlUnexpectedHTTPError
+
     def setUp(self):
         # mock the call to _get_tmos_version(), which tries to make a connection
         with patch.object(BigIP, '_get_tmos_version') as mock_method:
@@ -257,6 +272,40 @@ class BigIPTest(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+    def test_exceptions(self, marathon_state='tests/marathon_two_apps.json',
+                        bigip_state='tests/bigip_test_no_change.json',
+                        hm_state='tests/bigip_test_two_monitors.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+        apps = get_apps(self.marathon_data, True)
+
+        # Successful configuration (no retry)
+        self.assertFalse(self.bigip.regenerate_config_f5(apps))
+
+        # BIG-IP related exception (retry)
+        self.bigip._apply_config_f5 = Mock(side_effect=self.raiseSDKError)
+        self.assertTrue(self.bigip.regenerate_config_f5(apps))
+
+        # BIG-IP related exception (retry)
+        self.bigip._apply_config_f5 = \
+            Mock(side_effect=self.raiseConnectionError)
+        self.assertTrue(self.bigip.regenerate_config_f5(apps))
+
+        # BIG-IP related exception (retry)
+        self.bigip._apply_config_f5 = \
+            Mock(side_effect=self.raiseBigIPInvalidURL)
+        self.assertTrue(self.bigip.regenerate_config_f5(apps))
+
+        # BIG-IP related exception (retry)
+        self.bigip._apply_config_f5 = \
+            Mock(side_effect=self.raiseBigiControlUnexpectedHTTPError)
+        self.assertTrue(self.bigip.regenerate_config_f5(apps))
+
+        # Other exception types are raised
+        self.bigip._apply_config_f5 = Mock(side_effect=self.raiseTypeError)
+        self.assertRaises(TypeError, self.bigip.regenerate_config_f5, apps)
 
     def test_no_change(self, marathon_state='tests/marathon_two_apps.json',
                        bigip_state='tests/bigip_test_no_change.json',
