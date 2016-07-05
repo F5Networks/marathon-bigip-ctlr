@@ -22,13 +22,20 @@ unit_test:
 dockerize:
   script:
     - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
-    - docker build --no-cache -t docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF .
-    - docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - BUILD_TAG="docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF"
+    - docker build --no-cache -t $BUILD_TAG .
+    - docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
     - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
-    -   docker tag docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -   docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -   docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -   docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
     - fi
-    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb
+    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF
   stage: deploy
   tags:
     - docker-build
