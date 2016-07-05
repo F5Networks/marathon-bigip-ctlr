@@ -16,6 +16,12 @@ def marathon(request):
 
 
 @pytest.fixture(scope='module', autouse=True)
+def ssh(request):
+    """Provide an ssh connection - via the bastion host."""
+    return common.ssh.connect(gateway=symbols.bastion)
+
+
+@pytest.fixture(scope='module', autouse=True)
 def bigip(request):
     """Provide a bigip connection."""
     return common.bigip.connect(
@@ -38,7 +44,9 @@ def default_test_fx(request, marathon, bigip):
 
     def teardown():
         marathon.apps.delete()
+        marathon.deployments.delete()
         bigip.virtual_servers.delete(partition=partition)
+        bigip.virtual_addresses.delete(partition=partition)
         bigip.pools.delete(partition=partition)
         bigip.nodes.delete(partition=partition)
         bigip.health_monitors.delete(partition=partition)
