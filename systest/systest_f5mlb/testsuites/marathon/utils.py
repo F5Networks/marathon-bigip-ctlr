@@ -6,16 +6,24 @@ import time
 from pytest import symbols
 
 
+REGISTRY = "docker-registry.pdbld.f5net.com"
+
 DEFAULT_BIGIP_PASSWORD = "admin"
 DEFAULT_BIGIP_USERNAME = "admin"
 
+DEFAULT_F5MLB_CPUS = 0.1
+DEFAULT_F5MLB_MEM = 32
+DEFAULT_F5MLB_TIMEOUT = 30
 DEFAULT_F5MLB_BIND_ADDR = "192.168.1.100"
-DEFAULT_F5MLB_MODE = "tcp"
+DEFAULT_F5MLB_MODE = "http"
 DEFAULT_F5MLB_NAME = "test-f5mlb"
 DEFAULT_F5MLB_PARTITION = "test"
-DEFAULT_F5MLB_PORT = 80
+DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_WAIT = 5
 
+DEFAULT_SVC_CPUS = 0.1
+DEFAULT_SVC_MEM = 32
+DEFAULT_SVC_TIMEOUT = 30
 DEFAULT_SVC_LABELS = {
     'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
     'F5_0_BIND_ADDR': DEFAULT_F5MLB_BIND_ADDR,
@@ -24,22 +32,27 @@ DEFAULT_SVC_LABELS = {
 }
 
 
-def create_managed_service(marathon, id, labels=DEFAULT_SVC_LABELS):
+def create_managed_service(
+        marathon, id="test-svc", cpus=DEFAULT_SVC_CPUS, mem=DEFAULT_SVC_MEM,
+        labels=DEFAULT_SVC_LABELS, timeout=DEFAULT_SVC_TIMEOUT):
     """Create a marathon app with f5mlb decorations."""
     # FIXME (kevin): merge user-provided labels w/ default labels
     return marathon.app.create(
         id=id,
-        cpus=0.1,
-        mem=32,
-        container_img="nginx",
+        cpus=cpus,
+        mem=mem,
+        timeout=timeout,
+        container_img="%s/systest-common/test-nginx" % REGISTRY,
         labels=labels,
         container_port_mappings=[
             {
                 'container_port': 80,
                 'host_port': 0,
+                'service_port': 0,
                 'protocol': "tcp"
             }
         ],
+        container_force_pull_image=True,
         health_checks=[
             {
                 'path': "/",
@@ -54,13 +67,17 @@ def create_managed_service(marathon, id, labels=DEFAULT_SVC_LABELS):
     )
 
 
-def create_f5mlb(marathon, id=DEFAULT_F5MLB_NAME):
+def create_f5mlb(
+        marathon, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
+        mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_F5MLB_TIMEOUT):
     """Create an f5mlb app."""
     return marathon.app.create(
         id=id,
-        cpus=0.1,
-        mem=32,
+        cpus=cpus,
+        mem=mem,
+        timeout=timeout,
         container_img=symbols.f5mlb_img,
+        container_force_pull_image=True,
         args=[
             "sse",
             "--marathon", symbols.marathon_url,
@@ -74,7 +91,22 @@ def create_f5mlb(marathon, id=DEFAULT_F5MLB_NAME):
 
 def create_unmanaged_service(marathon, id, labels={}):
     """Create a marathon app with no f5mlb decorations."""
-    return marathon.app.create(id=id, container_img="nginx", labels=labels)
+    return marathon.app.create(
+        id=id,
+        cpus=DEFAULT_SVC_CPUS,
+        mem=DEFAULT_SVC_MEM,
+        timeout=DEFAULT_SVC_TIMEOUT,
+        container_img="%s/systest-common/test-nginx" % REGISTRY,
+        labels=labels,
+        container_port_mappings=[
+            {
+                'container_port': 80,
+                'host_port': 0,
+                'protocol': "tcp"
+            }
+        ],
+        container_force_pull_image=True
+    )
 
 
 def get_backend_object_name(svc, port_idx=0):
@@ -94,7 +126,7 @@ def wait_for_f5mlb(num_seconds=DEFAULT_F5MLB_WAIT):
     time.sleep(num_seconds)
 
 
-def get_f5mlb_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
+def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
     ret = {}
 
     if not bigip.partition.exists(name=partition):
@@ -131,3 +163,28 @@ def get_f5mlb_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
         ret['nodes'] = nodes
 
     return ret
+
+
+def get_backend_objects_exp(svc):
+    instances = svc.instances.get()
+    obj_name = get_backend_object_name(svc)
+    return {
+        'virtual_servers': [obj_name],
+        'virtual_addresses': [svc.labels['F5_0_BIND_ADDR']],
+        'pools': [obj_name],
+        'pool_members': [
+            "%s:%d" % (instances[0].host, instances[0].ports[0])
+        ],
+        'nodes': [instances[0].host],
+        'health_monitors': [obj_name]
+    }
+
+
+def wait_for_backend_objects(
+        bigip, objs_exp, partition=DEFAULT_F5MLB_PARTITION, timeout=60):
+    interval = 2
+    duration = 0
+    while get_backend_objects(bigip) != objs_exp and duration <= timeout:
+        time.sleep(interval)
+        duration += interval
+    assert get_backend_objects(bigip) == objs_exp
