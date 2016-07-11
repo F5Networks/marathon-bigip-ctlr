@@ -43,6 +43,11 @@ import math
 import threading
 
 
+# Setter functions that correspond to specific labels (k) and their
+# values (v) to set an attribute on the object (x). These functions
+# are associated with the 'label_keys' dictionary
+# that follows.
+
 def set_bindAddr(x, k, v):
     x.bindAddr = v
 
@@ -82,7 +87,7 @@ def set_iapp_option(x, k, v):
 def set_label(x, k, v):
     x.labels[k] = v
 
-
+# Dictionary of labels and setter functions
 label_keys = {
     'F5_{0}_BIND_ADDR': set_bindAddr,
     'F5_{0}_PORT': set_port,

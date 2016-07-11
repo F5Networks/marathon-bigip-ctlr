@@ -788,18 +788,14 @@ class MarathonBigIP(BigIP):
             # No wildcard, so we just care about those already configured
             return partitions
 
-    def iapp_create(self, partition, name, config):
-        logger.debug("Creating iApp %s from template %s",
-                     name, config['iapp']['template'])
-        a = self.sys.applications.services.service
-
-        # Build variable list:wq
+    def iapp_build_definition(self, iapp, config):
+        # Build variable list
         variables = []
         for key in config['iapp']['variables']:
             var = {'name': key, 'value': config['iapp']['variables'][key]}
             variables.append(var)
 
-        #Build table
+        # Build table
         tables=[{'columnNames': [ 'addr', 'port', 'connection_limit' ],
                  'name': config['iapp']['tableName'],
                  'rows': []
@@ -808,12 +804,21 @@ class MarathonBigIP(BigIP):
             tables[0]['rows'].append({'row': [config['nodes'][node]['host'],
                 config['nodes'][node]['port'], '0']})
 
+        return {'variables': variables, 'tables': tables}
+
+    def iapp_create(self, partition, name, config):
+        logger.debug("Creating iApp %s from template %s",
+                     name, config['iapp']['template'])
+        a = self.sys.applications.services.service
+
+        iapp_def = self.iapp_build_definition(a, config)
+
         a.create(
             name = name,
             template = config['iapp']['template'],
             partition = partition,
-            variables = variables,
-            tables = tables,
+            variables = iapp_def['variables'],
+            tables = iapp_def['tables'],
             **config['iapp']['options']
             )
 
@@ -825,27 +830,14 @@ class MarathonBigIP(BigIP):
     def iapp_update(self, partition, name, config):
         a = self.get_iapp(partition, name)
 
-        # Build variable list
-        variables = []
-        for key in config['iapp']['variables']:
-            var = {'name': key, 'value': config['iapp']['variables'][key]}
-            variables.append(var)
-
-        #Build table
-        tables=[{'columnNames': [ 'addr', 'port', 'connection_limit' ],
-                 'name': config['iapp']['tableName'],
-                 'rows': []
-                }]
-        for node in config['nodes']:
-            tables[0]['rows'].append({'row': [config['nodes'][node]['host'],
-                config['nodes'][node]['port'], '0']})
+        iapp_def = self.iapp_build_definition(a, config)
 
         a.update(
             executeAction = 'definition',
             name = name,
             partition = partition,
-            variables = variables,
-            tables = tables,
+            variables = iapp_def['variables'],
+            tables = iapp_def['tables'],
             **config['iapp']['options']
             )
 
