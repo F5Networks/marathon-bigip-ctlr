@@ -43,6 +43,13 @@ import math
 import threading
 
 
+# Setter function callbacks that correspond to specific labels (k) and their
+# values (v) to set an attribute on the object (x). These functions are
+# associated with the 'label_keys' dictionary that follows.
+# The 'k' arg is not used for those labels that uniquely corrrespond to an
+# object attribute (e.g. F5_0_PORT), while other labels are a combination of
+# a label prefix and attribute name (e.g. F5_0_IAPP_VARIABLE_net__server_mode).
+
 def set_bindAddr(x, k, v):
     x.bindAddr = v
 
@@ -63,16 +70,36 @@ def set_profile(x, k, v):
     x.profile = v
 
 
+def set_iapp(x, k, v):
+    x.iapp = v
+
+
+def set_iapp_table(x, k, v):
+    x.iappTableName = v
+
+
+def set_iapp_variable(x, k, v):
+    x.iappVariables[k] = v
+
+
+def set_iapp_option(x, k, v):
+    x.iappOptions[k] = v
+
+
 def set_label(x, k, v):
     x.labels[k] = v
 
-
+# Dictionary of labels and setter functions
 label_keys = {
     'F5_{0}_BIND_ADDR': set_bindAddr,
     'F5_{0}_PORT': set_port,
     'F5_{0}_MODE': set_mode,
     'F5_{0}_BALANCE': set_balance,
-    'F5_{0}_SSL_PROFILE': set_profile
+    'F5_{0}_SSL_PROFILE': set_profile,
+    'F5_{0}_IAPP_TEMPLATE': set_iapp,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_table,
+    'F5_{0}_IAPP_VARIABLE_': set_iapp_variable,
+    'F5_{0}_IAPP_OPTION_': set_iapp_option
 }
 
 logger = logging.getLogger('marathon_lb')
@@ -105,6 +132,10 @@ class MarathonService(object):
         self.bindOptions = None
         self.bindAddr = None
         self.partition = None
+        self.iapp = None
+        self.iappTableName = None
+        self.iappVariables = {}
+        self.iappOptions = {}
         self.mode = 'tcp'
         self.balance = 'round-robin'
         self.profile = None
@@ -287,13 +318,18 @@ def get_apps(apps, health_check):
                         appId, servicePort, get_health_check(app, i))
             service.partition = marathon_app.partition
 
+            # Parse the app labels
             for key_unformatted in label_keys:
                 key = key_unformatted.format(i)
-                if key in marathon_app.app['labels']:
-                    func = label_keys[key_unformatted]
-                    func(service,
-                         key_unformatted,
-                         marathon_app.app['labels'][key])
+
+                for label in marathon_app.app['labels']:
+                    # Labels can be a combination of predicate +
+                    # a variable name
+                    if label.startswith(key):
+                        func = label_keys[key_unformatted]
+                        func(service,
+                            label.strip(key),
+                            marathon_app.app['labels'][label])
 
             marathon_app.services[servicePort] = service
 

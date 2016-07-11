@@ -187,6 +187,12 @@ class BigIPTest(unittest.TestCase):
     def mock_get_healthcheck_list(self, partition):
         return self.hm_data
 
+    def mock_get_iapp_empty_list(self, partition):
+        return []
+
+    def mock_get_iapp_list(self, partition):
+        return ['server-app2_iapp_10000_vs']
+
     def mock_get_partition_list(self, partitions):
         if '*' in partitions:
             return ['mesos', 'mesos2']
@@ -248,6 +254,8 @@ class BigIPTest(unittest.TestCase):
             Mock(side_effect=self.mock_get_pool_member_list)
         self.bigip.get_healthcheck_list = \
             Mock(side_effect=self.mock_get_healthcheck_list)
+        self.bigip.get_iapp_list = \
+            Mock(side_effect=self.mock_get_iapp_empty_list)
 
         self.bigip.pool_create = Mock()
         self.bigip.pool_delete = Mock()
@@ -264,6 +272,10 @@ class BigIPTest(unittest.TestCase):
         self.bigip.member_create = Mock()
         self.bigip.member_delete = Mock()
         self.bigip.member_update = Mock()
+
+        self.bigip.iapp_create = Mock()
+        self.bigip.iapp_delete = Mock()
+        self.bigip.iapp_update = Mock()
 
         self.bigip.node_delete = Mock()
 
@@ -326,6 +338,8 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
 
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_create.called)
@@ -353,12 +367,15 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.pool_create.called)
         self.assertFalse(self.bigip.healthcheck_create.called)
         self.assertFalse(self.bigip.member_create.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.virtual_delete.called)
         self.assertTrue(self.bigip.pool_delete.called)
@@ -385,6 +402,7 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.virtual_delete.called)
@@ -393,6 +411,8 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.healthcheck_create.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.member_create.called)
         self.assertEqual(self.bigip.member_create.call_count, 2)
@@ -415,6 +435,7 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.virtual_delete.called)
@@ -423,6 +444,8 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.healthcheck_create.called)
         self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.member_delete.called)
         self.assertEqual(self.bigip.member_delete.call_count, 2)
@@ -446,11 +469,14 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -480,11 +506,14 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -514,12 +543,15 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.member_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
         self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -546,11 +578,14 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -580,11 +615,14 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -623,11 +661,14 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -676,12 +717,15 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
-        #self.assertEquals(self.bigip.virtual_create.call_count, 2)
+        self.assertFalse(self.bigip.iapp_delete.called)
 
         create_call_count = 0
 
@@ -784,11 +828,14 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertTrue(self.bigip.virtual_create.called)
         self.assertTrue(self.bigip.pool_create.called)
@@ -833,11 +880,14 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.healthcheck_update.called)
         self.assertFalse(self.bigip.member_update.called)
         self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertTrue(self.bigip.virtual_delete.called)
         self.assertTrue(self.bigip.pool_delete.called)
         self.assertTrue(self.bigip.healthcheck_delete.called)
         self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.pool_create.called)
@@ -882,11 +932,14 @@ class BigIPTest(unittest.TestCase):
         self.assertTrue(self.bigip.healthcheck_update.called)
         self.assertTrue(self.bigip.virtual_update.called)
         self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
 
         self.assertFalse(self.bigip.virtual_delete.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
         self.assertTrue(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
 
         self.assertFalse(self.bigip.virtual_create.called)
         self.assertFalse(self.bigip.pool_create.called)
@@ -896,6 +949,85 @@ class BigIPTest(unittest.TestCase):
 
         expected_name = 'server-app_10.128.10.240_80'
         self.assertEquals(self.bigip.member_delete.call_args_list[0][0][1],
+                          expected_name)
+
+    def test_new_iapp(self, marathon_state='tests/marathon_one_iapp.json',
+                      bigip_state='tests/bigip_test_blank.json',
+                      hm_state='tests/bigip_test_blank.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.marathon_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertTrue(self.bigip.iapp_create.called)
+
+        self.assertEquals(self.bigip.iapp_create.call_count, 1)
+
+        expected_name = 'server-app2_iapp_10000'
+        self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
+                          expected_name)
+
+    def test_delete_iapp(self, marathon_state='tests/marathon_no_apps.json',
+                         bigip_state='tests/bigip_test_blank.json',
+                         hm_state='tests/bigip_test_blank.json'):
+
+        # Get the test data
+        self.read_test_vectors(marathon_state, bigip_state, hm_state)
+
+        self.bigip.get_iapp_list = \
+            Mock(side_effect=self.mock_get_iapp_list)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.marathon_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.marathon_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+
+        self.assertTrue(self.bigip.iapp_delete.called)
+        self.assertEquals(self.bigip.iapp_delete.call_count, 1)
+
+        expected_name = 'server-app2_iapp_10000_vs'
+        self.assertEquals(self.bigip.iapp_delete.call_args_list[0][0][1],
                           expected_name)
 
     def test_https_app(self,

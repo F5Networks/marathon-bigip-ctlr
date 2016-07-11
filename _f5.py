@@ -6,8 +6,10 @@ from operator import attrgetter
 from common import *
 from f5.bigip import BigIP
 import icontrol.session
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 logger = logging.getLogger('marathon_lb')
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # common
 
@@ -115,21 +117,29 @@ class MarathonBigIP(BigIP):
                             " responsible: %s", app.appId, app.partition)
                 continue
 
-            # No address for this port
-            if not app.bindAddr:
+            # No address or iApp for this port
+            if not app.bindAddr and not app.iapp:
                 continue
 
             f5_service['partition'] = app.partition
+
+            if app.iapp:
+                f5_service['iapp'] = {'template': app.iapp,
+                                      'tableName': app.iappTableName,
+                                      'variables': app.iappVariables,
+                                      'options': app.iappOptions}
 
             logger.info("Configuring app %s, partition %s",
                         app.appId, app.partition)
             backend = app.appId[1:].replace('/', '_') + '_' + str(app.servicePort)
 
-            frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), app.bindAddr,
+            frontend = 'iapp' if app.iapp else app.bindAddr
+            frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), frontend,
                                           app.servicePort)
             f5_service['name'] = frontend_name
-            logger.debug("Frontend at %s:%d with backend %s",
-                         app.bindAddr, app.servicePort, backend)
+            if app.bindAddr:
+                logger.debug("Frontend at %s:%d with backend %s",
+                             app.bindAddr, app.servicePort, backend)
 
             # Parse the SSL profile into partition and name
             profile = [None, None]
@@ -202,9 +212,38 @@ class MarathonBigIP(BigIP):
 
             #marathon_virtual_list = [x for x in config.keys() if '*' not in x]
             marathon_virtual_list = \
-                [x for x in config.keys() if config[x]['partition'] == partition]
+                [x for x in config.keys() if config[x]['partition'] == partition
+                 and 'iapp' not in config[x]]
             marathon_pool_list = \
-                [x for x in config.keys() if config[x]['partition'] == partition]
+                [x for x in config.keys() if config[x]['partition'] == partition
+                 and 'iapp' not in config[x]]
+            marathon_iapp_list = \
+                [x for x in config.keys() if config[x]['partition'] == partition
+                 and 'iapp' in config[x]]
+
+            # Configure iApps
+            f5_iapp_list = self.get_iapp_list(partition)
+            logger.debug("f5_iapp_list:       %s" % (', '.join(f5_iapp_list)))
+            logger.debug("marathon_iapp_list: %s" %
+                         (', '.join(marathon_iapp_list)))
+
+            # iapp delete
+            iapp_delete = list_diff(f5_iapp_list, marathon_iapp_list)
+            logger.debug("iApps to delete: %s", (', '.join(iapp_delete)))
+            for iapp in iapp_delete:
+                self.iapp_delete(partition, iapp)
+
+            # iapp add
+            iapp_add = list_diff(marathon_iapp_list, f5_iapp_list)
+            logger.debug("iApps to add: %s", (', '.join(iapp_add)))
+            for iapp in iapp_add:
+                self.iapp_create(partition, iapp, config[iapp])
+
+            # iapp update
+            iapp_intersect = list_intersect(marathon_iapp_list, f5_iapp_list)
+            logger.debug("iApps to update: %s", (', '.join(iapp_intersect)))
+            for iapp in iapp_intersect:
+                self.iapp_update(partition, iapp, config[iapp])
 
             # this is kinda kludgey: health monitor has the same name as the
             # virtual, and there is no more than 1 monitor per virtual.
@@ -229,6 +268,17 @@ class MarathonBigIP(BigIP):
             # and then we need just the list to identify differences from the list 
             # returned from marathon
             f5_healthcheck_list = f5_healthcheck_dict.keys()
+
+            # The virtual servers, pools, and health monitors for iApps are
+            # managed by the iApps themselves, so remove them from the lists we
+            # manage
+            for iapp in marathon_iapp_list:
+                f5_virtual_list = \
+                    [x for x in f5_virtual_list if not x.startswith(iapp)]
+                f5_pool_list = \
+                    [x for x in f5_pool_list if not x.startswith(iapp)]
+                f5_healthcheck_list = \
+                    [x for x in f5_healthcheck_list if not x.startswith(iapp)]
 
             logger.debug("f5_pool_list:          %s" % (', '.join(f5_pool_list)))
             logger.debug("f5_virtual_list:       %s" % (', '.join(f5_virtual_list)))
@@ -367,19 +417,35 @@ class MarathonBigIP(BigIP):
             )
         node.delete()
 
-    def get_pool(self, partition, pool):
+    def get_pool(self, partition, name):
         # return pool object
-        p = self.ltm.pools.pool.load(
-            name=pool,
-            partition=partition
-            )
-        return p
+
+        # TODO: This is the efficient way to lookup a pool object:
+        #
+        #       p = self.ltm.pools.pool.load(
+        #           name=name,
+        #           partition=partition
+        #       )
+        #       return p
+        #
+        # However, this doesn't work if the path to the pool contains a
+        # subpath. This is a known problem in the F5 SDK:
+        #     https://github.com/F5Networks/f5-common-python/issues/468
+        #
+        # The alternative (below) is to get the collection of pool objects
+        # and then search the list for the matching pool name.
+
+        pools = self.ltm.pools.get_collection()
+        for pool in pools:
+            if pool.name == name:
+                return pool
+
+        return None
 
     def get_pool_list(self, partition):
         pool_list = []
         pools = self.ltm.pools.get_collection()
         for pool in pools:
-            logger.debug("Pool list: %s", pool.__dict__)
             if pool.partition == partition:
                 pool_list.append(pool.name)
         return pool_list
@@ -721,3 +787,73 @@ class MarathonBigIP(BigIP):
         else:
             # No wildcard, so we just care about those already configured
             return partitions
+
+    def iapp_build_definition(self, iapp, config):
+        # Build variable list
+        variables = []
+        for key in config['iapp']['variables']:
+            var = {'name': key, 'value': config['iapp']['variables'][key]}
+            variables.append(var)
+
+        # Build table
+        tables=[{'columnNames': [ 'addr', 'port', 'connection_limit' ],
+                 'name': config['iapp']['tableName'],
+                 'rows': []
+                }]
+        for node in config['nodes']:
+            tables[0]['rows'].append({'row': [config['nodes'][node]['host'],
+                config['nodes'][node]['port'], '0']})
+
+        return {'variables': variables, 'tables': tables}
+
+    def iapp_create(self, partition, name, config):
+        logger.debug("Creating iApp %s from template %s",
+                     name, config['iapp']['template'])
+        a = self.sys.applications.services.service
+
+        iapp_def = self.iapp_build_definition(a, config)
+
+        a.create(
+            name = name,
+            template = config['iapp']['template'],
+            partition = partition,
+            variables = iapp_def['variables'],
+            tables = iapp_def['tables'],
+            **config['iapp']['options']
+            )
+
+    def iapp_delete(self, partition, name):
+        logger.debug("Deleting iApp %s", name)
+        a = self.get_iapp(partition, name)
+        a.delete()
+
+    def iapp_update(self, partition, name, config):
+        a = self.get_iapp(partition, name)
+
+        iapp_def = self.iapp_build_definition(a, config)
+
+        a.update(
+            executeAction = 'definition',
+            name = name,
+            partition = partition,
+            variables = iapp_def['variables'],
+            tables = iapp_def['tables'],
+            **config['iapp']['options']
+            )
+
+    def get_iapp(self, partition, name):
+
+        a = self.sys.applications.services.service.load(
+                name=name,
+                partition=partition
+                )
+        return a
+
+    def get_iapp_list(self, partition):
+        iapp_list = []
+        iapps = self.sys.applications.services.get_collection()
+        for iapp in iapps:
+            if iapp.partition == partition:
+                iapp_list.append(iapp.name)
+
+        return iapp_list
