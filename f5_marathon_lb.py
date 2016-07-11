@@ -43,10 +43,12 @@ import math
 import threading
 
 
-# Setter functions that correspond to specific labels (k) and their
-# values (v) to set an attribute on the object (x). These functions
-# are associated with the 'label_keys' dictionary
-# that follows.
+# Setter function callbacks that correspond to specific labels (k) and their
+# values (v) to set an attribute on the object (x). These functions are
+# associated with the 'label_keys' dictionary that follows.
+# The 'k' arg is not used for those labels that uniquely corrrespond to an
+# object attribute (e.g. F5_0_PORT), while other labels are a combination of
+# a label prefix and attribute name (e.g. F5_0_IAPP_VARIABLE_net__server_mode).
 
 def set_bindAddr(x, k, v):
     x.bindAddr = v
