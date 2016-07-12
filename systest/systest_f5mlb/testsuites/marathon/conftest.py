@@ -43,6 +43,8 @@ def default_test_fx(request, marathon, bigip):
     bigip.partition.create(partition, subPath="/")
 
     def teardown():
+        if request.config._meta.vars.get('skip_teardown', None):
+            return
         marathon.apps.delete()
         marathon.deployments.delete()
         bigip.virtual_servers.delete(partition=partition)
@@ -61,6 +63,8 @@ def f5mlb(request, marathon):
     f5mlb = utils.create_f5mlb(marathon)
 
     def teardown():
+        if request.config._meta.vars.get('skip_teardown', None):
+            return
         f5mlb.delete()
 
     request.addfinalizer(teardown)
