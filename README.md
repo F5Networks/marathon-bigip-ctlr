@@ -33,6 +33,23 @@ _The **marathon**, **hostname**, **username**, **password**, and **partition** a
 
 Use the --partition argument multiple times to specify multiple BIG-IP partitions to be managed (e.g. --partition foo --partition bar).
 
+### Partitions
+
+The partitions managed by f5-marathon-lb must already exist, and f5-marathon-lb can manage any partitions except "Common".
+
+f5-marathon-lb takes ownership of certain resource types in the partitions it is given to manage, and modifications to these resource types in other ways (GUI, REST, etc) than via f5-marathon-lb will lead to unpredictable behavior.
+
+The resource types managed by f5-marathon-lb are:
+
+ - Virtual Servers
+ - Pools
+ - Pool Members
+ - Nodes
+ - Health Monitors
+ - Application Services
+
+To prevent conflict with f5-marathon-lb for any user-managed items, these should be configured within partitions not managed by f5-marathon-lb (e.g. "Common").
+
 ### Application Labels
 
 Applications to be managed by f5-marathon-lb are identified and configured via their _Marathon Labels_. Some labels are specified _per service port_. These are denoted with the `{n}` parameter in the label key, where `{n}` corresponds to the service port index, beginning at `0`.
