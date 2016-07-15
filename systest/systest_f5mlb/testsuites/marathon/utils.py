@@ -14,7 +14,7 @@ DEFAULT_BIGIP_USERNAME = "admin"
 DEFAULT_F5MLB_CPUS = 0.1
 DEFAULT_F5MLB_MEM = 32
 DEFAULT_F5MLB_TIMEOUT = 30
-DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_traffic_ip
+DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_ext_ip
 DEFAULT_F5MLB_MODE = "http"
 DEFAULT_F5MLB_NAME = "test-f5mlb"
 DEFAULT_F5MLB_PARTITION = "test"
@@ -82,7 +82,7 @@ def create_f5mlb(
             "sse",
             "--marathon", symbols.marathon_url,
             "--partition", DEFAULT_F5MLB_PARTITION,
-            "--hostname", symbols.bigip_default_ip,
+            "--hostname", symbols.bigip_mgmt_ip,
             "--username", DEFAULT_BIGIP_USERNAME,
             "--password", DEFAULT_BIGIP_PASSWORD
           ]
@@ -188,3 +188,40 @@ def wait_for_backend_objects(
         time.sleep(interval)
         duration += interval
     assert get_backend_objects(bigip) == objs_exp
+
+
+def verify_bigip_round_robin(ssh, svc):
+    # - bigip round robin is not as predictable as we would like (ie. you
+    #   can't be sure that two consecutive requests will be sent to two
+    #   separate pool members - but if you send enough requests, the responses
+    #   will average out to something like what you expected).
+    svc_url = (
+        "http://%s:%s"
+        % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
+    )
+    pool_members = []
+    exp_responses = []
+    for instance in svc.instances.get():
+        member = "%s:%d" % (instance.host, instance.ports[0])
+        pool_members.append(member)
+        exp_responses.append("Hello from %s :0)" % member)
+
+    num_requests = 20
+    min_res_per_member = 2
+
+    # - send the target number of requests and collect the responses
+    act_responses = {}
+    curl_cmd = "curl -s %s" % svc_url
+    for i in range(num_requests):
+        res = ssh.run(symbols.bastion, curl_cmd)
+        if res not in act_responses:
+            act_responses[res] = 1
+        else:
+            act_responses[res] += 1
+
+    # - verify all our responses came from recognized pool members
+    assert sorted(act_responses.keys()) == sorted(exp_responses)
+
+    # - verify we got at least 2 responses from each member
+    for k, v in act_responses.iteritems():
+        assert v >= min_res_per_member
