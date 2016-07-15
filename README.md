@@ -42,13 +42,14 @@ f5-marathon-lb takes ownership of certain resource types in the partitions it is
 The resource types managed by f5-marathon-lb are:
 
  - Virtual Servers
+ - Virtual Addresses
  - Pools
  - Pool Members
  - Nodes
  - Health Monitors
  - Application Services
 
-To prevent conflict with f5-marathon-lb for any user-managed items, these should be configured within partitions not managed by f5-marathon-lb (e.g. "Common").
+To prevent conflict with f5-marathon-lb, **no** user-managed items should be configured within partitions that are managed by f5-marathon-lb.
 
 ### Application Labels
 
