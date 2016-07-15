@@ -25,7 +25,7 @@ def ssh(request):
 def bigip(request):
     """Provide a bigip connection."""
     return common.bigip.connect(
-        symbols.bigip_default_ip,
+        symbols.bigip_mgmt_ip,
         utils.DEFAULT_BIGIP_USERNAME,
         utils.DEFAULT_BIGIP_PASSWORD
     )

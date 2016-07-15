@@ -2,7 +2,6 @@
 
 
 from pytest import meta_suite, meta_test
-from pytest import symbols
 
 from . import utils
 
@@ -49,20 +48,7 @@ def test_e2e(ssh, marathon, bigip, f5mlb):
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - verify round-robin load balancing
-    svc_url = (
-        "http://%s:%s"
-        % (svc_2.labels['F5_0_BIND_ADDR'], svc_2.labels['F5_0_PORT'])
-    )
-    pool_members = []
-    for instance in svc_2.instances.get():
-        pool_members.append("%s:%d" % (instance.host, instance.ports[0]))
-    curl_cmd = "curl -s %s" % svc_url
-    msg = "Hello from %s :0)"
-    assert ssh.run(symbols.bastion, curl_cmd) == msg % pool_members[0]
-    assert ssh.run(symbols.bastion, curl_cmd) == msg % pool_members[1]
-    assert ssh.run(symbols.bastion, curl_cmd) == msg % pool_members[0]
-    assert ssh.run(symbols.bastion, curl_cmd) == msg % pool_members[1]
-    assert ssh.run(symbols.bastion, curl_cmd + "/app") == svc_2.app_id
+    utils.verify_bigip_round_robin(ssh, svc_2)
 
     # - scale managed service to 0 instances
     svc_2.scale(0)
