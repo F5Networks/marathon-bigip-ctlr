@@ -15,6 +15,7 @@ def setup_logging(logger, syslog_socket, log_format):
     consoleHandler = logging.StreamHandler(sys.stdout)
     consoleHandler.setFormatter(formatter)
     logger.addHandler(consoleHandler)
+    logger.propagate = False
 
     if syslog_socket != '/dev/null':
         syslogHandler = SysLogHandler(syslog_socket)
