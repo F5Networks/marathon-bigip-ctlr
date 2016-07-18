@@ -219,6 +219,8 @@ class BigIPTest(unittest.TestCase):
         for app, service in zip(apps, services):
             labels = app['labels']
             if labels.get('F5_0_BIND_ADDR') != None:
+                self.assertNotEqual(labels.get('F5_PARTITION'), None)
+                self.assertNotEqual(labels.get('F5_0_MODE'), None)
                 self.assertEqual(labels.get('F5_PARTITION'), service.partition)
                 self.assertEqual(labels.get('F5_0_BIND_ADDR'), service.bindAddr)
                 self.assertEqual(labels.get('F5_0_MODE'), service.mode)
@@ -1046,6 +1048,11 @@ class BigIPTest(unittest.TestCase):
         for service, app in zip(self.marathon_data, apps):
             labels = service['labels']
             if labels.get('F5_0_BIND_ADDR') != None:
+                self.assertEqual(labels.get('F5_PARTITION'), 'mesos')
+                self.assertEqual(labels.get('F5_0_BIND_ADDR'), '10.128.10.240')
+                self.assertEqual(labels.get('F5_0_MODE'), 'http')
+                self.assertEqual(labels.get('F5_0_SSL_PROFILE'),
+                                            'Common/clientssl')
                 self.assertEqual(labels.get('F5_PARTITION'), app.partition)
                 self.assertEqual(labels.get('F5_0_BIND_ADDR'), app.bindAddr)
                 self.assertEqual(labels.get('F5_0_MODE'), app.mode)
