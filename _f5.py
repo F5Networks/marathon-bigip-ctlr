@@ -113,8 +113,6 @@ class MarathonBigIP(BigIP):
             # Only handle application if it's partition is one that this script is
             # responsible for
             if not has_partition(partitions, app.partition):
-                logger.info("App %s has a partition for which we are not"
-                            " responsible: %s", app.appId, app.partition)
                 continue
 
             # No address or iApp for this port
