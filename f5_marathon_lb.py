@@ -178,7 +178,6 @@ class MarathonApp(object):
 class Marathon(object):
 
     def __init__(self, hosts, health_check, auth):
-        # TODO(cmaloney): Support getting master list from zookeeper
         self.__hosts = hosts
         self.__health_check = health_check
         self.__auth = auth
@@ -495,14 +494,10 @@ def run_server(marathon, listen_addr, callback_url, bigip):
     processor = MarathonEventProcessor(marathon, bigip)
     marathon.add_subscriber(callback_url)
 
-    # TODO(cmaloney): Switch to a sane http server
-    # TODO(cmaloney): Good exception catching, etc
     def wsgi_app(env, start_response):
         length = int(env['CONTENT_LENGTH'])
         data = env['wsgi.input'].read(length)
         processor.handle_event(json.loads(data.decode('utf-8')))
-        # TODO(cmaloney): Make this have a simple useful webui for debugging /
-        # monitoring
         start_response('200 OK', [('Content-Type', 'text/html')])
 
         return ["Got it\n".encode('utf-8')]
