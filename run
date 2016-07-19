@@ -74,8 +74,8 @@ case "$MODE" in
 esac
 
 # Run the tdp-controller, if it exists
-if [ -x /app/bin/tdp-controller ]; then
-    /app/bin/tdp-controller &
+if [ -x /app/bin/lwp-controller ]; then
+    /app/bin/lwp-controller &
 fi
 
 while true; do
