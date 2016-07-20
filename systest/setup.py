@@ -29,5 +29,5 @@ setup(
         "systest-common>0,<1",
     ],
     entry_points={},
-    package_data={'': ["*.*"]}
+    package_data={'': [".pytest.rootdir"]}
 )

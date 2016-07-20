@@ -9,7 +9,7 @@ from pytest import symbols
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "scale"])
+pytestmark = meta_suite(tags=["scale", "marathon"])
 
 DEFAULT_SVC_CPUS = 0.01
 DEFAULT_SVC_MEM = 32
