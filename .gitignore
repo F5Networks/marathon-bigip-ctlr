@@ -1,13 +1,54 @@
-.idea
-templates/
-__pycache__
-*.pyc
-*~
-*.swp
-.DS_Store
-._.DS_Store
-*.pyo
-.vagrant
-.git
-.cache
+### added by GMW
+.venv
+.project
+.pydevproject
+.settings/*
+.idea/*
+*.py[cod]
+
+### added with RM's Makefile
+**/deb_dist/**
+localutils/**
+agent/f5/bigip/pycontrol/wsdl/**
+
+### auto-added by Github
+
+# C extensions
+*.so
+
+# Packages
+*.egg
 *.egg-info
+dist
+build
+eggs
+parts
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+__pycache__
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+nosetests.xml
+htmlcov
+.cache
+test/*/logs/*
+
+# Translations
+*.mo
+
+# Docs
+docs/_build
+venv/*
+docs/venv/*
+
+# iControl REST logs
+logs
