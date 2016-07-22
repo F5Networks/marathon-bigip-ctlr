@@ -6,8 +6,11 @@ stages:
 
 unit_test:
   script:
+    - pip install flake8
+    - pip install flake8_docstrings
     - pip install -r requirements.txt 
     - pip install mock
+    - flake8 ./
     - python -m unittest discover -v
   tags:
     - docker

@@ -2,9 +2,6 @@
 
 
 from pytest import meta_suite, meta_test
-from pytest import symbols
-
-from . import utils
 
 
 pytestmark = meta_suite(tags=["func", "marathon", "config"])

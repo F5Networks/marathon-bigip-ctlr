@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Common utility functions."""
 
 from logging.handlers import SysLogHandler
 
@@ -8,6 +9,7 @@ import socket
 
 
 def setup_logging(logger, syslog_socket, log_format):
+    """Configure logging."""
     logger.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(log_format)
@@ -24,6 +26,7 @@ def setup_logging(logger, syslog_socket, log_format):
 
 
 def set_marathon_auth_args(parser):
+    """Set the authorization for Marathon."""
     parser.add_argument("--marathon-auth-credential-file",
                         help="Path to file containing a user/pass for "
                         "the Marathon HTTP API in the format of 'user:pass'."
@@ -33,6 +36,7 @@ def set_marathon_auth_args(parser):
 
 
 def get_marathon_auth_params(args):
+    """Get the Marathon credentials from a file."""
     if args.marathon_auth_credential_file is None:
         return None
 
@@ -48,6 +52,7 @@ def get_marathon_auth_params(args):
 
 
 def set_logging_args(parser):
+    """Add logging-related args to the parser."""
     default_log_socket = "/dev/log"
     if sys.platform == "darwin":
         default_log_socket = "/var/run/syslog"
@@ -59,20 +64,24 @@ def set_logging_args(parser):
                         )
     parser.add_argument("--log-format",
                         help="Set log message format",
-                        default="%(asctime)s %(name)s: %(levelname) -8s: %(message)s"
+                        default="%(asctime)s %(name)s: %(levelname)"
+                        " -8s: %(message)s"
                         )
     return parser
 
 
 def unique(l):
+    """Return the unique elements of a list."""
     return list(set(l))
 
 
 def list_diff(list1, list2):
-    return  list(set(list1) - set(list2))
+    """Return the difference between two lists."""
+    return list(set(list1) - set(list2))
 
 
 def list_intersect(list1, list2):
+    """Return the intersection of two lists."""
     return list(set.intersection(set(list1), set(list2)))
 
 
@@ -80,12 +89,12 @@ ip_cache = dict()
 
 
 def resolve_ip(host):
+    """Get the IP address for a hostname."""
     cached_ip = ip_cache.get(host, None)
     if cached_ip:
         return cached_ip
     else:
         try:
-            #logger.debug("trying to resolve ip address for host %s", host)
             ip = socket.gethostbyname(host)
             ip_cache[host] = ip
             return ip
