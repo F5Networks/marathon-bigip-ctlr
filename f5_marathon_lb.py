@@ -1,9 +1,7 @@
 #!/usr/bin/env python
+"""f5-marathon-lb.
 
-
-"""Overview:
-### Overview
-The f5-marathon-lb is a service discovery and load balancing tool
+f5-marathon-lb is a service discovery and load balancing tool
 for Marathon to configure an F5 BIG-IP. It reads the Marathon task information
 and dynamically generates BIG-IP configuration details.
 
@@ -19,27 +17,24 @@ To run in listening mode you must also specify the address + port at
 which f5-marathon-lb can be reached by Marathon.
 """
 
-from logging.handlers import SysLogHandler
 from wsgiref.simple_server import make_server
 from sseclient import SSEClient
 from six.moves.urllib import parse
 from itertools import cycle
 from requests.exceptions import ConnectionError
-from common import *
-from _f5 import *
+from common import (set_logging_args, set_marathon_auth_args, setup_logging,
+                    get_marathon_auth_params)
+from _f5 import MarathonBigIP
 
 import argparse
 import json
 import logging
 import os
 import os.path
-import stat
 import re
 import requests
 import sys
 import time
-import dateutil.parser
-import math
 import threading
 
 
@@ -51,42 +46,83 @@ import threading
 # a label prefix and attribute name (e.g. F5_0_IAPP_VARIABLE_net__server_mode).
 
 def set_bindAddr(x, k, v):
+    """App label callback.
+
+    Setthe Virtual Server address from label F5_n_BIND_ADDR
+    """
     x.bindAddr = v
 
 
 def set_port(x, k, v):
+    """App label callback.
+
+    Set the service port from label F5_n_PORT
+    """
     x.servicePort = int(v)
 
 
 def set_mode(x, k, v):
+    """App label callback.
+
+    Set the mode from label F5_n_MODE
+    """
     x.mode = v
 
 
 def set_balance(x, k, v):
+    """App label callback.
+
+    Set the load-balancing method from label F5_n_BALANCE
+    """
     x.balance = v
 
 
 def set_profile(x, k, v):
+    """App label callback.
+
+    Set the SSL Profile from label F5_n_SSL_PROFILE
+    """
     x.profile = v
 
 
 def set_iapp(x, k, v):
+    """App label callback.
+
+    Set the iApp template from label F5_n_IAPP_TEMPLATE
+    """
     x.iapp = v
 
 
 def set_iapp_table(x, k, v):
+    """App label callback.
+
+    Set the pool-member table name in the iApp from label
+    F5_n_IAPP_POOL_MEMBER_TABLE_NAME
+    """
     x.iappTableName = v
 
 
 def set_iapp_variable(x, k, v):
+    """App label callback.
+
+    Set an element in the iApp Variables from label F5_n_IAPP_VARIABLE_*
+    """
     x.iappVariables[k] = v
 
 
 def set_iapp_option(x, k, v):
+    """App label callback.
+
+    Set an optional parameter in the iApp from label F5_n_IAPP_OPTION_*
+    """
     x.iappOptions[k] = v
 
 
 def set_label(x, k, v):
+    """App label callback.
+
+    Generric method for capturing a label and its value
+    """
     x.labels[k] = v
 
 # Dictionary of labels and setter functions
@@ -106,22 +142,36 @@ logger = logging.getLogger('marathon_lb')
 
 
 class MarathonBackend(object):
+    """MarathonBackend class.
+
+    Represents a backend server (host and port) that requires
+    load balancing
+    """
 
     def __init__(self, host, port, draining):
+        """Initialize the backend object."""
         self.host = host
         self.port = port
         self.draining = draining
 
     def __hash__(self):
+        """Host and port for a backend are unique."""
         return hash((self.host, self.port))
 
     def __repr__(self):
+        """String representation of object."""
         return "MarathonBackend(%r, %r)" % (self.host, self.port)
 
 
 class MarathonService(object):
+    """MarathonService class.
+
+    Represents a service in Marathon that requires
+    load balancing
+    """
 
     def __init__(self, appId, servicePort, healthCheck):
+        """Initialize MarathonService with defaults."""
         self.appId = appId
         self.servicePort = servicePort
         self.backends = set()
@@ -146,21 +196,30 @@ class MarathonService(object):
                 self.mode = 'http'
 
     def add_backend(self, host, port, draining):
+        """Add a backend to the service."""
         self.backends.add(MarathonBackend(host, port, draining))
 
     def __hash__(self):
+        """Object is identified by servicePort."""
         return hash(self.servicePort)
 
     def __eq__(self, other):
+        """Object is identified by servicePort."""
         return self.servicePort == other.servicePort
 
     def __repr__(self):
+        """String representation of object."""
         return "MarathonService(%r, %r)" % (self.appId, self.servicePort)
 
 
 class MarathonApp(object):
+    """MarathonApp class.
+
+    Represents an application in Marathon
+    """
 
     def __init__(self, appId, app):
+        """Initialize MarathonApp."""
         self.app = app
         self.partition = None
         self.appId = appId
@@ -169,21 +228,32 @@ class MarathonApp(object):
         self.services = dict()
 
     def __hash__(self):
+        """Object is identified by appId."""
         return hash(self.appId)
 
     def __eq__(self, other):
+        """Object is identified by appId."""
         return self.appId == other.appId
 
 
 class Marathon(object):
+    """Marathon class.
+
+    Manages access to Marathon
+        * Subscribe for events
+        * Processes event
+        * Retrieves Marathon application state
+    """
 
     def __init__(self, hosts, health_check, auth):
+        """Initialize the Marathon object."""
         self.__hosts = hosts
         self.__health_check = health_check
         self.__auth = auth
         self.__cycle_hosts = cycle(self.__hosts)
 
     def api_req_raw(self, method, path, auth, body=None, **kwargs):
+        """Send an API request to Marathon and return the response."""
         for host in self.__hosts:
             path_str = os.path.join(host, 'v2')
 
@@ -211,41 +281,50 @@ class Marathon(object):
         return response
 
     def api_req(self, method, path, **kwargs):
+        """Send an API request to Marathon and return the JSON response."""
         return self.api_req_raw(method, path, self.__auth, **kwargs).json()
 
     def create(self, app_json):
+        """Create a Marathon app."""
         return self.api_req('POST', ['apps'], app_json)
 
     def get_app(self, appid):
+        """Get the info for a Marathon app."""
         logger.info('fetching app %s', appid)
         return self.api_req('GET', ['apps', appid])["app"]
 
     # Lists all running apps.
     def list(self):
+        """Get the app list from Marathon."""
         logger.info('fetching apps')
         return self.api_req('GET', ['apps'],
                             params={'embed': 'apps.tasks'})["apps"]
 
     def health_check(self):
+        """Get health check."""
         return self.__health_check
 
     def tasks(self):
+        """Get Marathon tasks."""
         logger.info('fetching tasks')
         return self.api_req('GET', ['tasks'])["tasks"]
 
     def add_subscriber(self, callbackUrl):
+        """Add a subscriber for use with HTTP callbacks."""
         return self.api_req(
                 'POST',
                 ['eventSubscriptions'],
                 params={'callbackUrl': callbackUrl})
 
     def remove_subscriber(self, callbackUrl):
+        """Remove a callback used for a subscriber."""
         return self.api_req(
                 'DELETE',
                 ['eventSubscriptions'],
                 params={'callbackUrl': callbackUrl})
 
     def get_event_stream(self, timeout):
+        """Get the Server Side Event (SSE) event stream."""
         url = self.host+"/v2/events"
         logger.info(
             "SSE Active, trying fetch events from from {0}".format(url))
@@ -253,32 +332,12 @@ class Marathon(object):
 
     @property
     def host(self):
+        """Cycle the the configured set of Marathon hosts."""
         return next(self.__cycle_hosts)
 
 
-
-class Healthcheck(object):
-
-    def __init__(self, data):
-        self.path = None
-        self.timeout = None
-        self._name = data['name']
-        self.protocol = data['protocol']
-        self.maxConsecutiveFailures = data['maxConsecutiveFailures']
-        self.intervalSeconds = data['intervalSeconds']
-        self.timeoutSeconds = data['timeoutSeconds']
-
-    @property
-    def name(self):
-        return "%s_%s" % (self._name, self.protocol)
-
-    @property
-    def get_timeout(self):
-        timeout = (((self.maxConsecutiveFailures - 1) * self.intervalSeconds)
-                   + self.timeoutSeconds + 1)
-        return timeout
-
 def get_health_check(app, portIndex):
+    """Get the healthcheck for the app."""
     for check in app['healthChecks']:
         # FIXME: There may be more than one health check for a given port or
         # portIndex, but we currently only take the first.
@@ -290,6 +349,7 @@ def get_health_check(app, portIndex):
 
 
 def get_apps(apps, health_check):
+    """Create a list of app services from the Marathon state."""
     marathon_apps = []
     logger.debug("Marathon apps: %s", [app["id"] for app in apps])
 
@@ -327,8 +387,8 @@ def get_apps(apps, health_check):
                     if label.startswith(key):
                         func = label_keys[key_unformatted]
                         func(service,
-                            label.strip(key),
-                            marathon_app.app['labels'][label])
+                             label.strip(key),
+                             marathon_app.app['labels'][label])
 
             marathon_app.services[servicePort] = service
 
@@ -379,10 +439,19 @@ def get_apps(apps, health_check):
     return apps_list
 
 
-
 class MarathonEventProcessor(object):
+    """MarathonEventProcessor class.
+
+    Processes Marathon events, fetches the Marathon state, and
+    reconfigures the BIG-IP
+    """
 
     def __init__(self, marathon, bigip):
+        """Class init.
+
+        Starts a thread that waits for Marathon events,
+        then configures BIG-IP based on the Marathon state
+        """
         self.__marathon = marathon
         # appId -> MarathonApp
         self.__apps = dict()
@@ -397,6 +466,7 @@ class MarathonEventProcessor(object):
         self.reset_from_tasks()
 
     def do_reset(self):
+        """Process the Marathon state and reconfigure the BIG-IP."""
         with self.__condition:
             while True:
                 self.__condition.acquire()
@@ -408,7 +478,8 @@ class MarathonEventProcessor(object):
                 try:
                     start_time = time.time()
 
-                    self.__apps = get_apps(self.__marathon.list(), marathon.health_check())
+                    self.__apps = get_apps(self.__marathon.list(),
+                                           marathon.health_check())
                     if self.__bigip.regenerate_config_f5(self.__apps):
                         # Timeout occurred, do a reset so that we try again
                         self.reset_from_tasks()
@@ -422,12 +493,18 @@ class MarathonEventProcessor(object):
                     logger.exception("Unexpected error!")
 
     def reset_from_tasks(self):
+        """Indicate that we need to process the Marathon state."""
         self.__condition.acquire()
         self.__pending_reset = True
         self.__condition.notify()
         self.__condition.release()
 
     def handle_event(self, event):
+        """Check Marathon event.
+
+        If a Marathon event in which we are interested occurs, wake up the
+        thread and process the Marathon state
+        """
         if event['eventType'] == 'status_update_event' or \
                 event['eventType'] == 'event_stream_attached' or \
                 event['eventType'] == 'health_status_changed_event' or \
@@ -437,6 +514,7 @@ class MarathonEventProcessor(object):
 
 
 def get_arg_parser():
+    """Create the parser for the command-line args."""
     parser = argparse.ArgumentParser(
         description="Marathon F5 BIG-IP Load Balancer",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -491,6 +569,11 @@ def get_arg_parser():
 
 
 def run_server(marathon, listen_addr, callback_url, bigip):
+    """Run an http server.
+
+    In "listening" mode, run an http server that receives Marathon
+    events on the specified callback URL.
+    """
     processor = MarathonEventProcessor(marathon, bigip)
     marathon.add_subscriber(callback_url)
 
@@ -508,11 +591,13 @@ def run_server(marathon, listen_addr, callback_url, bigip):
 
 
 def clear_callbacks(marathon, callback_url):
+    """Remove Marathon subscriber."""
     logger.info("Cleanup, removing subscription to {0}".format(callback_url))
     marathon.remove_subscriber(callback_url)
 
 
 def process_sse_events(processor, events, bigip):
+    """Process Server Side Events (SSE) from Marathon."""
     for event in events:
         try:
             # logger.info("Received event: {0}".format(event))
@@ -537,7 +622,9 @@ def process_sse_events(processor, events, bigip):
 
             raise
 
+
 def parse_args():
+    """Entry point for parsing command-line args."""
     # Process arguments
     arg_parser = get_arg_parser()
     args = arg_parser.parse_args()

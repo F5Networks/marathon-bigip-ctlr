@@ -127,6 +127,7 @@ def wait_for_f5mlb(num_seconds=DEFAULT_F5MLB_WAIT):
 
 
 def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
+    """Get the resources managed by BIG-IP."""
     ret = {}
 
     if not bigip.partition.exists(name=partition):
@@ -166,6 +167,7 @@ def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
 
 
 def get_backend_objects_exp(svc):
+    """A dict of the expected backend resources."""
     instances = svc.instances.get()
     obj_name = get_backend_object_name(svc)
     return {
@@ -182,6 +184,7 @@ def get_backend_objects_exp(svc):
 
 def wait_for_backend_objects(
         bigip, objs_exp, partition=DEFAULT_F5MLB_PARTITION, timeout=60):
+    """Verify that the actual backend resources match what's expected."""
     interval = 2
     duration = 0
     while get_backend_objects(bigip) != objs_exp and duration <= timeout:
@@ -191,6 +194,7 @@ def wait_for_backend_objects(
 
 
 def verify_bigip_round_robin(ssh, svc):
+    """Verify round-robin load balancing behavior."""
     # - bigip round robin is not as predictable as we would like (ie. you
     #   can't be sure that two consecutive requests will be sent to two
     #   separate pool members - but if you send enough requests, the responses
