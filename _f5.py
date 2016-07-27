@@ -1028,7 +1028,7 @@ class MarathonBigIP(BigIP):
                      name, config['iapp']['template'])
         a = self.sys.applications.services.service
 
-        iapp_def = self.iapp_build_definition(a, config)
+        iapp_def = self.iapp_build_definition(config)
 
         a.create(
             name=name,
@@ -1060,7 +1060,7 @@ class MarathonBigIP(BigIP):
         """
         a = self.get_iapp(partition, name)
 
-        iapp_def = self.iapp_build_definition(a, config)
+        iapp_def = self.iapp_build_definition(config)
 
         a.update(
             executeAction='definition',
