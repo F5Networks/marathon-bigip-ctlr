@@ -11,12 +11,12 @@
       "network": "BRIDGE"
     }
   },
-  "args": [
-    "sse",
-    "--marathon", "http://10.141.141.10:8080",
-    "--partition", "mesos",
-    "--hostname", "10.128.1.145",
-    "--username", "admin",
-    "--password", "default"
-  ]
+  "env": {
+    "F5_CSI_USE_SSE": "True",
+    "MARATHON_URL": "http://10.141.141.10:8080",
+    "F5_CSI_PARTITIONS": "[mesos]",
+    "F5_CSI_BIGIP_HOSTNAME": "10.128.1.145",
+    "F5_CSI_BIGIP_USERNAME": "admin",
+    "F5_CSI_BIGIP_PASSWORD": "default"
+  }
 }

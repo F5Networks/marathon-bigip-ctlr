@@ -50,28 +50,30 @@ ARGS=""
 
 #trap "kill $RUNSV; wait $RUNSV; exit 0" TERM INT
 
-MODE=$1; shift
-case "$MODE" in
-  poll)
-    POLL_INTERVAL="${POLL_INTERVAL:-60}"
-    ;;
-  sse)
-    ARGS="--sse"
-    ;;
-  event)
-    URL=$1; shift
-    if [ -z "$URL" ] || echo "$URL" | grep -q '^-'; then
-      echo "$0 event callback-url [marathon_lb.py args]" >&2
+if [ -z "${F5_CSI_USE_SSEi-}" ]; then
+  MODE=$1; shift
+  case "$MODE" in
+    poll)
+      POLL_INTERVAL="${POLL_INTERVAL:-60}"
+      ;;
+    sse)
+      ARGS="--sse"
+      ;;
+    event)
+      URL=$1; shift
+      if [ -z "$URL" ] || echo "$URL" | grep -q '^-'; then
+        echo "$0 event callback-url [marathon_lb.py args]" >&2
+        exit 1
+      fi
+      echo "Using $URL as event callback-url"
+      ARGS="-l :8080 -u '$URL'"
+      ;;
+    *)
+      echo "Unknown mode $MODE. Synopsis: $0 poll|sse|event [marathon_lb.py args]" >&2
       exit 1
-    fi
-    echo "Using $URL as event callback-url"
-    ARGS="-l :8080 -u '$URL'"
-    ;;
-  *)
-    echo "Unknown mode $MODE. Synopsis: $0 poll|sse|event [marathon_lb.py args]" >&2
-    exit 1
-    ;;
-esac
+      ;;
+  esac
+fi
 
 # Run the tdp-controller, if it exists
 if [ -x /app/bin/lwp-controller ]; then

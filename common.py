@@ -28,6 +28,7 @@ def setup_logging(logger, syslog_socket, log_format):
 def set_marathon_auth_args(parser):
     """Set the authorization for Marathon."""
     parser.add_argument("--marathon-auth-credential-file",
+                        env_var='F5_CSI_MARATHON_AUTH',
                         help="Path to file containing a user/pass for "
                         "the Marathon HTTP API in the format of 'user:pass'."
                         )
@@ -58,11 +59,13 @@ def set_logging_args(parser):
         default_log_socket = "/var/run/syslog"
 
     parser.add_argument("--syslog-socket",
+                        env_var='F5_CSI_SYSLOG_SOCKET',
                         help="Socket to write syslog messages to. "
                         "Use '/dev/null' to disable logging to syslog",
                         default=default_log_socket
                         )
     parser.add_argument("--log-format",
+                        env_var='F5_CSI_LOG_FORMAT',
                         help="Set log message format",
                         default="%(asctime)s %(name)s: %(levelname)"
                         " -8s: %(message)s"

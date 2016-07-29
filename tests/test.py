@@ -10,12 +10,27 @@ import sys
 import f5
 import icontrol
 import requests
+import os
 from mock import Mock
 from mock import patch
 from f5_marathon_lb import get_apps, parse_args
 from f5.bigip import BigIP
 from _f5 import MarathonBigIP
 from StringIO import StringIO
+
+args_env = ['F5_CSI_SYSLOG_SOCKET',
+            'F5_CSI_LOG_FORMAT',
+            'F5_CSI_MARATHON_AUTH',
+            'MARATHON_URL',
+            'F5_CSI_LISTENING_ADDR',
+            'F5_CSI_CALLBACK_URL',
+            'F5_CSI_BIGIP_HOSTNAME',
+            'F5_CSI_BIGIP_USERNAME',
+            'F5_CSI_BIGIP_PASSWORD',
+            'F5_CSI_PARTITIONS',
+            'F5_CSI_USE_SSE',
+            'F5_CSI_USE_HEALTHCHECK',
+            'F5_CSI_SSE_TIMEOUT']
 
 
 class ArgTest(unittest.TestCase):
@@ -27,6 +42,10 @@ class ArgTest(unittest.TestCase):
                        '--hostname', '10.10.1.145',
                        '--username', 'admin',
                        '--password', 'default']
+    _args_without_partition = ['--marathon', 'http://10.0.0.10:8080',
+                               '--hostname', '10.10.1.145',
+                               '--username', 'admin',
+                               '--password', 'default']
 
     def setUp(self):
         """Test suite set up."""
@@ -35,7 +54,9 @@ class ArgTest(unittest.TestCase):
 
     def tearDown(self):
         """Test suite tear down."""
-        pass
+        # Clear env vars
+        for arg in args_env:
+            os.environ.pop(arg, None)
 
     def test_no_args(self):
         """Test: No command-line args."""
@@ -80,6 +101,21 @@ class ArgTest(unittest.TestCase):
         self.assertEqual(args.callback_url, None)
         self.assertEqual(args.marathon_auth_credential_file, None)
 
+    def test_all_mandatory_args_from_env(self):
+        """Test: All mandatory command-line args."""
+        sys.argv[0:] = self._args_app_name
+        os.environ['MARATHON_URL'] = 'http://10.0.0.10:8080'
+        os.environ['F5_CSI_PARTITIONS'] = '[mesos, mesos2]'
+        os.environ['F5_CSI_BIGIP_HOSTNAME'] = '10.10.1.145'
+        os.environ['F5_CSI_BIGIP_USERNAME'] = 'admin'
+        os.environ['F5_CSI_BIGIP_PASSWORD'] = 'default'
+        args = parse_args()
+        self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
+        self.assertEqual(args.partition, ['mesos', 'mesos2'])
+        self.assertEqual(args.hostname, '10.10.1.145')
+        self.assertEqual(args.username, 'admin')
+        self.assertEqual(args.password, 'default')
+
     def test_partition_arg(self):
         """Test: Wildcard partition arg."""
         args = ['--marathon', 'http://10.0.0.10:8080',
@@ -88,6 +124,13 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
+        args = parse_args()
+        self.assertEqual(args.partition, ['*'])
+
+        # test via env var
+        partitions_env = '*'
+        sys.argv[0:] = self._args_app_name + self._args_without_partition
+        os.environ['F5_CSI_PARTITIONS'] = partitions_env
         args = parse_args()
         self.assertEqual(args.partition, ['*'])
 
@@ -104,14 +147,33 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.partition, ['mesos-1', 'mesos-2', 'mesos-3'])
 
+        # test via env var
+        partitions_env = '[mesos7, mesos8]'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_PARTITIONS'] = partitions_env
+        args = parse_args()
+        # command-line overrides env var
+        self.assertEqual(args.partition, ['mesos'])
+
+        sys.argv[0:] = self._args_app_name + self._args_without_partition
+        args = parse_args()
+        self.assertEqual(args.partition, ['mesos7', 'mesos8'])
+
     def test_conflicting_args(self):
-        """Test: Mutually-exclusive command-line args."""
+        """Test: Mutually-exclusive args."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--listening', '-sse']
         self.assertRaises(SystemExit, parse_args)
 
+        # test via env var
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        listen_addr_env = '192.168.10.50'
+        os.environ['F5_CSI_LISTENING_ADDR'] = listen_addr_env
+        os.environ['F5_CSI_USE_SSE'] = 'True'
+        self.assertRaises(SystemExit, parse_args)
+
     def test_callback_arg(self):
-        """Test: 'Callback URL' command-line arg."""
+        """Test: 'Callback URL' arg."""
         url = 'http://marathon:8080'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--callback-url', url]
@@ -122,8 +184,15 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.callback_url, url)
 
+        # test via env var
+        url_env = 'http://marathon:8081'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_CALLBACK_URL'] = url_env
+        args = parse_args()
+        self.assertEqual(args.callback_url, url_env)
+
     def test_listening_arg(self):
-        """Test: 'Listening' command-line arg."""
+        """Test: 'Listening' arg."""
         listen_addr = '192.168.10.50'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--listening', listen_addr]
@@ -135,8 +204,18 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.listening, listen_addr)
 
+        # test via env var
+        listen_addr_env = '192.168.10.90'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_LISTENING_ADDR'] = listen_addr_env
+        args = parse_args()
+        self.assertEqual(args.listening, listen_addr_env)
+
     def test_sse_arg(self):
-        """Test: 'SSE' command-line arg."""
+        """Test: 'SSE' arg."""
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.sse, False)
         sys.argv[0:] = self._args_app_name + self._args_mandatory + ['--sse']
         args = parse_args()
         self.assertEqual(args.sse, True)
@@ -145,8 +224,19 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.sse, True)
 
+        # test via env var
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.sse, False)
+        os.environ['F5_CSI_USE_SSE'] = 'True'
+        args = parse_args()
+        self.assertEqual(args.sse, True)
+
     def test_health_check_arg(self):
-        """Test: 'Health Check' command-line arg."""
+        """Test: 'Health Check' arg."""
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.health_check, False)
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--health-check']
         args = parse_args()
@@ -156,32 +246,61 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.health_check, True)
 
+        # test via env var
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.health_check, False)
+        os.environ['F5_CSI_USE_HEALTHCHECK'] = 'True'
+        args = parse_args()
+        self.assertEqual(args.health_check, True)
+
     def test_syslog_socket_arg(self):
-        """Test: 'Syslog socket' command-line arg."""
+        """Test: 'Syslog socket' arg."""
         log_file = '/var/run/mylog'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--syslog-socket', log_file]
         args = parse_args()
         self.assertEqual(args.syslog_socket, log_file)
 
+        # test via env var
+        env_log_file = '/var_run/mylog_from_env'
+        os.environ['F5_CSI_SYSLOG_SOCKET'] = env_log_file
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.syslog_socket, env_log_file)
+
     def test_log_format_arg(self):
-        """Test: 'Log format' command-line arg."""
+        """Test: 'Log format' arg."""
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--log-format', log_format]
         args = parse_args()
         self.assertEqual(args.log_format, log_format)
 
+        # test via env var
+        env_log_format = '%(asctime)s - %(message)s'
+        os.environ['F5_CSI_LOG_FORMAT'] = env_log_format
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.log_format, env_log_format)
+
     def test_marathon_cred_arg(self):
-        """Test: 'Marathon credentials' command-line arg."""
+        """Test: 'Marathon credentials' arg."""
         auth_file = '/tmp/auth'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-auth-credential-file', auth_file]
         args = parse_args()
         self.assertEqual(args.marathon_auth_credential_file, auth_file)
 
+        # test via env var
+        env_auth_file = '/tmp/auth_from_env'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_MARATHON_AUTH'] = env_auth_file
+        args = parse_args()
+        self.assertEqual(args.marathon_auth_credential_file, env_auth_file)
+
     def test_timeout_arg(self):
-        """Test: 'SSE timeout' command-line arg."""
+        """Test: 'SSE timeout' arg."""
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--sse-timeout', str(timeout)]
@@ -192,6 +311,11 @@ class ArgTest(unittest.TestCase):
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         args = parse_args()
         self.assertEqual(args.sse_timeout, 30)
+
+        # test via env var
+        os.environ['F5_CSI_SSE_TIMEOUT'] = str(timeout)
+        args = parse_args()
+        self.assertEqual(args.sse_timeout, timeout)
 
 
 class BigIPTest(unittest.TestCase):

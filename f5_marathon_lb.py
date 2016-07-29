@@ -26,7 +26,6 @@ from common import (set_logging_args, set_marathon_auth_args, setup_logging,
                     get_marathon_auth_params)
 from _f5 import MarathonBigIP
 
-import argparse
 import json
 import logging
 import os
@@ -36,6 +35,7 @@ import requests
 import sys
 import time
 import threading
+import configargparse
 
 
 # Setter function callbacks that correspond to specific labels (k) and their
@@ -515,36 +515,41 @@ class MarathonEventProcessor(object):
 
 def get_arg_parser():
     """Create the parser for the command-line args."""
-    parser = argparse.ArgumentParser(
-        description="Marathon F5 BIG-IP Load Balancer",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = configargparse.getArgumentParser()
     parser.add_argument("--longhelp",
                         help="Print out configuration details",
                         action="store_true"
                         )
     parser.add_argument("--marathon", "-m",
                         nargs="+",
+                        env_var='MARATHON_URL',
                         help="[required] Marathon endpoint, eg. -m " +
-                             "http://marathon1:8080 -m http://marathon2:8080"
+                             "http://marathon1:8080 http://marathon2:8080"
                         )
     parser.add_argument("--listening", "-l",
+                        env_var='F5_CSI_LISTENING_ADDR',
                         help="The address this script listens on for " +
                         "marathon events"
                         )
     parser.add_argument("--callback-url", "-u",
+                        env_var='F5_CSI_CALLBACK_URL',
                         help="The HTTP address that Marathon can call this " +
                              "script back at (http://lb1:8080)"
                         )
     parser.add_argument("--hostname",
+                        env_var='F5_CSI_BIGIP_HOSTNAME',
                         help="F5 BIG-IP hostname"
                         )
     parser.add_argument("--username",
+                        env_var='F5_CSI_BIGIP_USERNAME',
                         help="F5 BIG-IP username"
                         )
     parser.add_argument("--password",
+                        env_var='F5_CSI_BIGIP_PASSWORD',
                         help="F5 BIG-IP password"
                         )
     parser.add_argument("--partition",
+                        env_var='F5_CSI_PARTITIONS',
                         help="[required] Only generate config for apps which"
                         " match the specified partition. Use '*' to match all"
                         " partitions.  Can use this arg multiple times to"
@@ -552,15 +557,18 @@ def get_arg_parser():
                         action="append",
                         default=list())
     parser.add_argument("--sse", "-s",
+                        env_var='F5_CSI_USE_SSE',
                         help="Use Server Sent Events instead of HTTP "
                         "Callbacks",
                         action="store_true")
     parser.add_argument("--health-check", "-H",
+                        env_var='F5_CSI_USE_HEALTHCHECK',
                         help="If set, respect Marathon's health check "
                         "statuses before adding the app instance into "
                         "the backend pool.",
                         action="store_true")
     parser.add_argument('--sse-timeout', "-t", type=int,
+                        env_var='F5_CSI_SSE_TIMEOUT',
                         default=30, help='Marathon event stream timeout')
 
     parser = set_logging_args(parser)
