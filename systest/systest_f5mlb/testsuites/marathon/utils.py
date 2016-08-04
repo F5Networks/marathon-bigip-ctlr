@@ -22,6 +22,27 @@ DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_WAIT = 5
 
 DEFAULT_SVC_CPUS = 0.1
+DEFAULT_SVC_HEALTH_CHECKS_HTTP = [
+    {
+        'path': "/",
+        'protocol': "HTTP",
+        'max_consecutive_failures': 3,
+        'port_index': 0,
+        'interval_seconds': 5,
+        'grace_period_seconds': 10,
+        'timeout_seconds': 5
+    }
+]
+DEFAULT_SVC_HEALTH_CHECKS_TCP = [
+    {
+        'protocol': "TCP",
+        'max_consecutive_failures': 3,
+        'port_index': 0,
+        'interval_seconds': 5,
+        'grace_period_seconds': 10,
+        'timeout_seconds': 5
+    }
+]
 DEFAULT_SVC_MEM = 32
 DEFAULT_SVC_TIMEOUT = 30
 DEFAULT_SVC_LABELS = {
@@ -30,11 +51,13 @@ DEFAULT_SVC_LABELS = {
     'F5_0_PORT': DEFAULT_F5MLB_PORT,
     'F5_0_MODE': DEFAULT_F5MLB_MODE,
 }
+DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
 
 
 def create_managed_service(
         marathon, id="test-svc", cpus=DEFAULT_SVC_CPUS, mem=DEFAULT_SVC_MEM,
-        labels=DEFAULT_SVC_LABELS, timeout=DEFAULT_SVC_TIMEOUT):
+        labels=DEFAULT_SVC_LABELS, timeout=DEFAULT_SVC_TIMEOUT,
+        health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP):
     """Create a marathon app with f5mlb decorations."""
     # FIXME (kevin): merge user-provided labels w/ default labels
     return marathon.app.create(
@@ -53,17 +76,7 @@ def create_managed_service(
             }
         ],
         container_force_pull_image=True,
-        health_checks=[
-            {
-                'path': "/",
-                'protocol': "HTTP",
-                'max_consecutive_failures': 3,
-                'port_index': 0,
-                'interval_seconds': 5,
-                'grace_period_seconds': 10,
-                'timeout_seconds': 5
-            }
-        ]
+        health_checks=health_checks
     )
 
 
@@ -199,9 +212,13 @@ def verify_bigip_round_robin(ssh, svc):
     #   can't be sure that two consecutive requests will be sent to two
     #   separate pool members - but if you send enough requests, the responses
     #   will average out to something like what you expected).
+    if 'F5_0_SSL_PROFILE' in svc.labels:
+        protocol = "https"
+    else:
+        protocol = "http"
     svc_url = (
-        "http://%s:%s"
-        % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
+        "%s://%s:%s"
+        % (protocol, svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
     )
     pool_members = []
     exp_responses = []
@@ -215,7 +232,7 @@ def verify_bigip_round_robin(ssh, svc):
 
     # - send the target number of requests and collect the responses
     act_responses = {}
-    curl_cmd = "curl -s %s" % svc_url
+    curl_cmd = "curl -s -k %s" % svc_url
     for i in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
         if res not in act_responses:
