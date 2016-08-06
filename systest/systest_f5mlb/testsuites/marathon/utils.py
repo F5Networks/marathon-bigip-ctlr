@@ -206,20 +206,13 @@ def wait_for_backend_objects(
     assert get_backend_objects(bigip) == objs_exp
 
 
-def verify_bigip_round_robin(ssh, svc):
+def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
     """Verify round-robin load balancing behavior."""
     # - bigip round robin is not as predictable as we would like (ie. you
     #   can't be sure that two consecutive requests will be sent to two
     #   separate pool members - but if you send enough requests, the responses
     #   will average out to something like what you expected).
-    if 'F5_0_SSL_PROFILE' in svc.labels:
-        protocol = "https"
-    else:
-        protocol = "http"
-    svc_url = (
-        "%s://%s:%s"
-        % (protocol, svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
-    )
+    svc_url = _get_svc_url(svc, protocol, ipaddr, port)
     pool_members = []
     exp_responses = []
     for instance in svc.instances.get():
@@ -246,3 +239,22 @@ def verify_bigip_round_robin(ssh, svc):
     # - verify we got at least 2 responses from each member
     for k, v in act_responses.iteritems():
         assert v >= min_res_per_member
+
+
+def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
+    if protocol is None:
+        if 'F5_0_SSL_PROFILE' in svc.labels:
+            protocol = "https"
+        else:
+            protocol = "http"
+    if ipaddr is None:
+        if 'F5_0_BIND_ADDR' in svc.labels:
+            ipaddr = svc.labels['F5_0_BIND_ADDR']
+        else:
+            ipaddr = DEFAULT_F5MLB_BIND_ADDR
+    if port is None:
+        if 'F5_0_PORT' in svc.labels:
+            port = svc.labels['F5_0_PORT']
+        else:
+            port = DEFAULT_F5MLB_PORT
+    return "%s://%s:%s" % (protocol, ipaddr, port)

@@ -41,12 +41,18 @@ def default_test_fx(request, marathon, bigip):
     """
     partition = utils.DEFAULT_F5MLB_PARTITION
     bigip.partition.create(partition, subPath="/")
+    # FIXME (kevin): remove these partition hacks when issue #32 is fixed
+    p = bigip.partition.get(name=partition)
+    p.inheritedTrafficGroup = False
+    p.trafficGroup = "/Common/traffic-group-local-only"
+    p.update()
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
         marathon.apps.delete()
         marathon.deployments.delete()
+        bigip.iapps.delete(partition=partition)
         bigip.virtual_servers.delete(partition=partition)
         bigip.virtual_addresses.delete(partition=partition)
         bigip.pools.delete(partition=partition)
