@@ -446,7 +446,7 @@ class MarathonEventProcessor(object):
     reconfigures the BIG-IP
     """
 
-    def __init__(self, marathon, bigip):
+    def __init__(self, marathon, verify_interval, bigip):
         """Class init.
 
         Starts a thread that waits for Marathon events,
@@ -456,11 +456,13 @@ class MarathonEventProcessor(object):
         # appId -> MarathonApp
         self.__apps = dict()
         self.__bigip = bigip
+        self.__verify_interval = verify_interval
 
         self.__condition = threading.Condition()
         self.__thread = threading.Thread(target=self.do_reset)
         self.__pending_reset = False
         self.__thread.start()
+        self.__timer = None
 
         # Fetch the base data
         self.reset_from_tasks()
@@ -477,20 +479,39 @@ class MarathonEventProcessor(object):
 
                 try:
                     start_time = time.time()
+                    if self.__timer is not None:
+                        # Stop timer
+                        self.__timer.cancel()
+                        self.__timer = None
 
                     self.__apps = get_apps(self.__marathon.list(),
                                            marathon.health_check())
                     if self.__bigip.regenerate_config_f5(self.__apps):
-                        # Timeout occurred, do a reset so that we try again
+                        # Timeout (or some other retryable error occurred),
+                        # do a reset so that we try again
                         self.reset_from_tasks()
+                    else:
+                        # Reconfig was successful
+                        self.start_checkpoint_timer()
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
 
                 except ConnectionError:
                     logger.error("Could not connect to Marathon")
+                    self.start_checkpoint_timer()
                 except:
                     logger.exception("Unexpected error!")
+                    self.start_checkpoint_timer()
+
+    def start_checkpoint_timer(self):
+        """Start timer to checkpoint the BIG-IP config."""
+        # Start a timer that will force a reconfig in the absence of Marathon
+        # events to ensure that the BIG-IP config remains sane
+        self.__timer = threading.Timer(self.__verify_interval,
+                                       self.reset_from_tasks)
+        self.__timer.start()
+        print threading.enumerate()
 
     def reset_from_tasks(self):
         """Indicate that we need to process the Marathon state."""
@@ -570,19 +591,23 @@ def get_arg_parser():
     parser.add_argument('--sse-timeout', "-t", type=int,
                         env_var='F5_CSI_SSE_TIMEOUT',
                         default=30, help='Marathon event stream timeout')
+    parser.add_argument('--verify-interval', "-v", type=int,
+                        env_var='F5_CSI_VERIFY_INTERVAL',
+                        default=30, help="'Interval at which to verify "
+                        "the BIG-IP configuration.")
 
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
     return parser
 
 
-def run_server(marathon, listen_addr, callback_url, bigip):
+def run_server(marathon, listen_addr, verify_interval, callback_url, bigip):
     """Run an http server.
 
     In "listening" mode, run an http server that receives Marathon
     events on the specified callback URL.
     """
-    processor = MarathonEventProcessor(marathon, bigip)
+    processor = MarathonEventProcessor(marathon, bigip, verify_interval)
     marathon.add_subscriber(callback_url)
 
     def wsgi_app(env, start_response):
@@ -662,6 +687,8 @@ def parse_args():
                              'specify')
         if args.sse_timeout < 1:
             arg_parser.error('argument --sse-timeout must be > 0')
+        if args.verify_interval < 1:
+            arg_parser.error('argument --verification-interval must be > 0')
 
     return args
 
@@ -691,11 +718,13 @@ if __name__ == '__main__':
     if args.listening:
         callback_url = args.callback_url or args.listening
         try:
-            run_server(marathon, args.listening, callback_url, bigip)
+            run_server(marathon, args.listening, args.verify_interval,
+                       callback_url, bigip)
         finally:
             clear_callbacks(marathon, callback_url)
     elif args.sse:
-        processor = MarathonEventProcessor(marathon, bigip)
+        processor = MarathonEventProcessor(marathon, args.verify_interval,
+                                           bigip)
         while True:
             try:
                 events = marathon.get_event_stream(args.sse_timeout)

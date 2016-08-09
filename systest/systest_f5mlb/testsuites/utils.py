@@ -20,6 +20,7 @@ DEFAULT_F5MLB_NAME = "test-f5mlb"
 DEFAULT_F5MLB_PARTITION = "test"
 DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_WAIT = 5
+DEFAULT_F5MLB_VERIFY_INTERVAL = 2
 
 DEFAULT_SVC_CPUS = 0.1
 DEFAULT_SVC_HEALTH_CHECKS_HTTP = [
@@ -104,7 +105,8 @@ def create_f5mlb(
             "--partition", DEFAULT_F5MLB_PARTITION,
             "--hostname", symbols.bigip_mgmt_ip,
             "--username", DEFAULT_BIGIP_USERNAME,
-            "--password", DEFAULT_BIGIP_PASSWORD
+            "--password", DEFAULT_BIGIP_PASSWORD,
+            "--verify-interval", "%s" % (DEFAULT_F5MLB_VERIFY_INTERVAL)
           ]
     )
 

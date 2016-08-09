@@ -11,7 +11,9 @@ the following command-line arguments:
                              [--listening LISTENING] [--callback-url CALLBACK_URL]
                              [--hostname HOSTNAME] [--username USERNAME]
                              [--password PASSWORD] [--partition PARTITION] [--sse]
-                             [--health-check] [--syslog-socket SYSLOG_SOCKET]
+                             [--health-check] [--sse-timeout SSE_TIMEOUT]
+                             [--verify-interval VERIFY_INTERVAL]
+                             [--syslog-socket SYSLOG_SOCKET]
                              [--log-format LOG_FORMAT]
                              [--marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE]
 
@@ -51,6 +53,9 @@ the following command-line arguments:
       --sse-timeout SSE_TIMEOUT, -t SSE_TIMEOUT
                             Marathon event stream timeout [env var:
                             F5_CSI_SSE_TIMEOUT] (default: 30)
+      --verify-interval VERIFY_INTERVAL, -v VERIFY_INTERVAL
+                            'Interval at which to verify the BIG-IP configuration.
+                            [env var: F5_CSI_VERIFY_INTERVAL] (default: 30)
       --syslog-socket SYSLOG_SOCKET
                             Socket to write syslog messages to. Use '/dev/null' to
                             disable logging to syslog [env var:
