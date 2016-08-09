@@ -8,9 +8,9 @@ WORKDIR $APPPATH
 COPY requirements.txt $APPPATH
 
 # Install dependencies, build, and remove the dependencies.
-RUN apk add --update git gcc musl-dev python python-dev py-pip openssl openssl-dev py-dateutil libffi-dev && \
+RUN apk add --update git gcc musl-dev python python-dev py-pip openssl openssl-dev libffi-dev && \
     pip install -r $APPPATH/requirements.txt && \
-    apk del git python-dev openssl-dev libffi-dev && \
+    apk del gcc git musl-dev python-dev openssl-dev libffi-dev py-pip && \
     rm -rf /var/cache/apk/*
 
 # Move the f5-marathon-lb files into place
