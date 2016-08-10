@@ -1,5 +1,9 @@
 before_script:
 
+variables:
+  TEST_RE: '^v[0-9]+\.[0-9]+\.[0-9]+[-0-9A-Za-z]*'
+  EXTRACT_RE: '^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([-0-9A-Za-z]*\)'
+
 stages:
   - test
   - deploy
@@ -25,20 +29,44 @@ unit_test:
 dockerize:
   script:
     - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
+    - REGISTRY="docker-registry.pdbld.f5net.com"
     - BUILD_TAG="docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF"
     - docker build --no-cache -t $BUILD_TAG .
-    - docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
-    -   docker tag $BUILD_TAG docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
-    -   docker push docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
-    -   docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - if [ -v CI_BUILD_TAG ]; then
+    -   if [ "$CI_BUILD_REF_NAME" != "$CI_BUILD_TAG" ]; then
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
+    -   fi
+    -   if [[ $CI_BUILD_TAG =~ $TEST_RE ]]; then
+    -     latest=`git tag -l | sort -V | tail -n1`
+    -     if [ "$latest" == "$CI_BUILD_TAG" ]; then
+    -       docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -       docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -       docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -     fi
+    -     major=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\1#"`
+    -     minor=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\2#"`
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
+    -   fi
     - fi
-    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker rmi docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF
+    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
+    -   docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
+    -   docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
+    -   docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
+    - fi
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF
   stage: deploy
   tags:
     - docker-build
