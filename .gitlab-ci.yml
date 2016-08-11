@@ -30,7 +30,7 @@ dockerize:
   script:
     - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
     - REGISTRY="docker-registry.pdbld.f5net.com"
-    - BUILD_TAG="docker-registry.pdbld.f5net.com/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF"
+    - BUILD_TAG="$REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF"
     - docker build --no-cache -t $BUILD_TAG .
     - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
     - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
