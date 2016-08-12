@@ -701,6 +701,7 @@ if __name__ == '__main__':
                 events = marathon.get_event_stream(args.sse_timeout)
                 process_sse_events(processor, events, bigip)
             except:
+                logger.exception("Marathon event exception:")
                 logger.error("Reconnecting to Marathon event stream...")
             time.sleep(1)
     else:
