@@ -2,6 +2,8 @@
 
 
 import multiprocessing
+import random
+import time
 
 from pytest import meta_suite, meta_test
 from pytest import symbols
@@ -11,49 +13,53 @@ from . import utils
 
 pytestmark = meta_suite(tags=["scale", "marathon"])
 
-DEFAULT_SVC_CPUS = 0.01
-DEFAULT_SVC_MEM = 32
-DEFAULT_SVC_TIMEOUT = 60
+F5MLB_CPUS = 0.5
+F5MLB_MEM = 128
+SVC_CPUS = 0.01
+SVC_MEM = 32
+SVC_TIMEOUT = 5 * 60
+SVC_START_PORT = 7000
+VS_INTERVAL = 10
+VS_TIMEOUT = 5 * 60
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_f5mlb1_svc10_srv100(marathon, bigip, f5mlb):
+def test_f5mlb1_svc10_srv100(ssh, marathon):
     """Scale test: 1 f5mlb, 10 managed services (w/ 100 backend servers each).
 
     Each managed service has 100 backend servers.
     So this test creates 1,011 marathon objects.
     """
-    _run_scale_test(marathon, bigip, f5mlb, num_svcs=10, num_srvs=10)
+    f5mlb = utils.create_f5mlb(marathon, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
+    _run_scale_test(ssh, marathon, f5mlb, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_f5mlb1_svc100_srv10(marathon, bigip, f5mlb):
+def test_f5mlb1_svc100_srv10(ssh, marathon, f5mlb):
     """Scale test: 1 f5mlb, 100 managed services (w/ 10 backend servers each).
 
     Each managed service has 10 backend servers.
     So this test creates 1,101 marathon objects.
     """
-    _run_scale_test(marathon, bigip, f5mlb, num_svcs=100, num_srvs=10)
+    _run_scale_test(ssh, marathon, f5mlb, num_svcs=100, num_srvs=10)
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_f5mlb1_svc100_srv100(marathon, bigip, f5mlb):
+def test_f5mlb1_svc100_srv100(ssh, marathon, f5mlb):
     """Scale test: 1 f5mlb, 100 managed services (w/ 100 backend servers each).
 
     Each managed service has and 100 backend servers.
     So this test creates 10,101 marathon objects.
     """
-    _run_scale_test(marathon, bigip, f5mlb, num_svcs=100, num_srvs=100)
+    _run_scale_test(ssh, marathon, f5mlb, num_svcs=100, num_srvs=100)
 
 
 def _run_scale_test(
-        ssh, marathon, num_svcs, num_srvs,
-        svc_cpus=DEFAULT_SVC_CPUS, svc_mem=DEFAULT_SVC_MEM,
-        timeout=DEFAULT_SVC_TIMEOUT):
+        ssh, marathon, f5mlb, num_svcs, num_srvs,
+        svc_cpus=SVC_CPUS, svc_mem=SVC_MEM,
+        timeout=SVC_TIMEOUT):
     svc_inputs = []
     svcs = []
-    results = []
-    mismatches = []
 
     # - first, scale-up the appropriate services and instances
     for i in range(1, num_svcs + 1):
@@ -68,7 +74,7 @@ def _run_scale_test(
         })
     # FIXME (kevin): need to figure out why we get intermittent failures when
     # the pool size for the "create managed service" phase is more than 1
-    pool_size = 1
+    pool_size = 10
     slices = [
         svc_inputs[i:i+pool_size] for i in range(0, len(svc_inputs), pool_size)
     ]
@@ -82,21 +88,22 @@ def _run_scale_test(
     pool_size = 10
     for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
         p = multiprocessing.Pool(processes=len(slice))
-        results += p.map(_verify_f5mlb, slice)
+        p.map(_verify_f5mlb, slice)
         p.close()
         p.join()
-    for row in results:
-        mismatches += [r for r in row if r['is_match'] is not True]
-    assert mismatches == []
 
 
 def _create_svc(kwargs):
+    # - wait a pseudo-random number of seconds (to prevent the marathon server
+    #   from being inundated with simultaneous app creation/scaling requests)
+    time.sleep(random.randint(1, 20) + ((kwargs['idx'] * 5) % 30))
+
     # - create a managed service
     svc_name = "svc-%d" % kwargs['idx']
     svc_labels = {
         'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
-        'F5_0_BIND_ADDR': "192.168.100.%d" % kwargs['idx'],
-        'F5_0_PORT': utils.DEFAULT_F5MLB_PORT,
+        'F5_0_BIND_ADDR': utils.DEFAULT_F5MLB_BIND_ADDR,
+        'F5_0_PORT': SVC_START_PORT + kwargs['idx'],
         'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
     }
     svc = utils.create_managed_service(
@@ -105,41 +112,69 @@ def _create_svc(kwargs):
         labels=svc_labels,
         cpus=kwargs['svc_cpus'],
         mem=kwargs['svc_mem'],
-        timeout=kwargs['timeout']
+        timeout=kwargs['timeout'],
+        num_instances=kwargs['num_srvs']
     )
+    _wait_for_virtual_server(svc, kwargs['ssh'])
+    return {
+        'svc_name': svc_name,
+        'ssh': kwargs['ssh'],
+        'marathon': kwargs['marathon']
+    }
+
+
+def _wait_for_virtual_server(svc, ssh, timeout=VS_TIMEOUT):
+    duration = 0
+    interval = VS_INTERVAL
+
+    vs_name = utils.get_backend_object_name(svc)
+    vs_url = (
+        "https://%s/mgmt/tm/ltm/virtual/~%s~%s/stats"
+        % (
+            symbols.bigip_mgmt_ip,
+            utils.DEFAULT_F5MLB_PARTITION,
+            vs_name
+        )
+    )
+    curl_cmd = (
+        "curl -sk -u \"%s:%s\" -H \"Content-Type: application/json\" %s"
+        % (
+            utils.DEFAULT_BIGIP_USERNAME,
+            utils.DEFAULT_BIGIP_PASSWORD,
+            vs_url,
+        )
+    )
+    availability_msg = "The virtual server is available"
+
+    def is_available():
+        res = ssh.run(symbols.bastion, curl_cmd)
+        return availability_msg in res
+
+    while not is_available() and duration < timeout:
+        time.sleep(interval)
+        duration += interval
+    assert is_available()
+
+
+def _verify_f5mlb(kwargs):
+    marathon = kwargs['marathon']
+    ssh = kwargs['ssh']
+    svc = marathon.app.get(kwargs['svc_name'])
     svc_url = (
         "http://%s:%s"
         % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
     )
-
-    # - create backend servers
-    svc.scale(kwargs['num_srvs'], timeout=kwargs['timeout'])
-    svc_instances = svc.instances.get()
-    pool_members = []
-    for instance in svc_instances:
-        pool_members.append("%s:%d" % (instance.host, instance.ports[0]))
-
-    return {
-        'name': svc_name,
-        'svc_url': svc_url,
-        'members': pool_members,
-        'num_srvs': kwargs['num_srvs'],
-        'ssh': kwargs['ssh'],
-        'timeout': kwargs['timeout']
-    }
-
-
-def _verify_f5mlb(kwargs):
-    ret = []
-    curl_cmd = "curl -s %s" % kwargs['svc_url']
-    msg = "Hello from %s :0)"
-    for member in kwargs['members']:
-        exp = msg % member
-        act = kwargs['ssh'].run(symbols.bastion, curl_cmd)
-        ret.append({
-            'name': kwargs['name'],
-            'exp': exp,
-            'act': act,
-            'is_match': exp == act
-        })
-    return ret
+    potential_responses = []
+    actual_responses = []
+    for instance in svc.instances.get():
+        member = "%s:%d" % (instance.host, instance.ports[0])
+        potential_responses.append("Hello from %s :0)" % member)
+    num_requests = 20
+    curl_cmd = "curl -s %s" % svc_url
+    for i in range(num_requests):
+        res = ssh.run(symbols.bastion, curl_cmd)
+        assert res in potential_responses
+        if res not in actual_responses:
+            actual_responses.append(res)
+    # - verify we got responses from at least two different pool members
+    assert len(actual_responses) >= 2

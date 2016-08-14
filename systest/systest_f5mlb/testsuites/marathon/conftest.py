@@ -9,6 +9,9 @@ import systest_common.src as common
 from . import utils
 
 
+MARATHON_DELETE_TIMEOUT = 2 * 60
+
+
 @pytest.fixture(scope='module', autouse=True)
 def marathon(request):
     """Provide a marathon connection."""
@@ -50,8 +53,8 @@ def default_test_fx(request, marathon, bigip):
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        marathon.apps.delete()
-        marathon.deployments.delete()
+        marathon.apps.delete(timeout=MARATHON_DELETE_TIMEOUT)
+        marathon.deployments.delete(timeout=MARATHON_DELETE_TIMEOUT)
         bigip.iapps.delete(partition=partition)
         bigip.virtual_servers.delete(partition=partition)
         bigip.virtual_addresses.delete(partition=partition)

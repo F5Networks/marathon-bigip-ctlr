@@ -43,6 +43,7 @@ DEFAULT_SVC_HEALTH_CHECKS_TCP = [
         'timeout_seconds': 5
     }
 ]
+DEFAULT_SVC_INSTANCES = 1
 DEFAULT_SVC_MEM = 32
 DEFAULT_SVC_TIMEOUT = 30
 DEFAULT_SVC_LABELS = {
@@ -55,9 +56,13 @@ DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
 
 
 def create_managed_service(
-        marathon, id="test-svc", cpus=DEFAULT_SVC_CPUS, mem=DEFAULT_SVC_MEM,
-        labels=DEFAULT_SVC_LABELS, timeout=DEFAULT_SVC_TIMEOUT,
-        health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP):
+        marathon, id="test-svc",
+        cpus=DEFAULT_SVC_CPUS,
+        mem=DEFAULT_SVC_MEM,
+        labels=DEFAULT_SVC_LABELS,
+        timeout=DEFAULT_SVC_TIMEOUT,
+        health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP,
+        num_instances=DEFAULT_SVC_INSTANCES):
     """Create a marathon app with f5mlb decorations."""
     # FIXME (kevin): merge user-provided labels w/ default labels
     return marathon.app.create(
@@ -76,7 +81,8 @@ def create_managed_service(
             }
         ],
         container_force_pull_image=True,
-        health_checks=health_checks
+        health_checks=health_checks,
+        num_instances=num_instances
     )
 
 
@@ -220,7 +226,8 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
         pool_members.append(member)
         exp_responses.append("Hello from %s :0)" % member)
 
-    num_requests = 20
+    num_members = len(pool_members)
+    num_requests = num_members * 10
     min_res_per_member = 2
 
     # - send the target number of requests and collect the responses
@@ -233,7 +240,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
         else:
             act_responses[res] += 1
 
-    # - verify all our responses came from recognized pool members
+    # - verify all responses came from recognized pool members
     assert sorted(act_responses.keys()) == sorted(exp_responses)
 
     # - verify we got at least 2 responses from each member
