@@ -13,6 +13,8 @@ pytestmark = meta_suite(tags=["func", "marathon", "https"])
 def test_iapp_f5_http(ssh, marathon, bigip, f5mlb):
     """Basic iApp config."""
     # - start managed service
+    CREATE_NEW = "/#create_new#"
+    DONT_USE = "/#do_not_use#"
     labels = {
         'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
         'F5_0_IAPP_TEMPLATE': "/Common/f5.http",
@@ -22,11 +24,24 @@ def test_iapp_f5_http(ssh, marathon, bigip, f5mlb):
         'F5_0_IAPP_POOL_MEMBER_TABLE_NAME': "pool__members",
         'F5_0_IAPP_VARIABLE_pool__addr': utils.DEFAULT_F5MLB_BIND_ADDR,
         'F5_0_IAPP_VARIABLE_pool__port': str(utils.DEFAULT_F5MLB_PORT),
-        'F5_0_IAPP_VARIABLE_pool__pool_to_use': "/#create_new#",
+        'F5_0_IAPP_VARIABLE_pool__pool_to_use': CREATE_NEW,
         'F5_0_IAPP_VARIABLE_pool__lb_method': "round-robin",
-        'F5_0_IAPP_VARIABLE_monitor__monitor': "/#create_new#",
+        'F5_0_IAPP_VARIABLE_pool__http': CREATE_NEW,
+        'F5_0_IAPP_VARIABLE_pool__mask': "",
+        'F5_0_IAPP_VARIABLE_pool__persist': DONT_USE,
+        'F5_0_IAPP_VARIABLE_monitor__monitor': CREATE_NEW,
         'F5_0_IAPP_VARIABLE_monitor__uri': "/",
-        'F5_0_IAPP_VARIABLE_monitor__response': "none"
+        'F5_0_IAPP_VARIABLE_monitor__frequency': "30",
+        'F5_0_IAPP_VARIABLE_monitor__response': "none",
+        'F5_0_IAPP_VARIABLE_ssl_encryption_questions__advanced': "yes",
+        'F5_0_IAPP_VARIABLE_net__vlan_mode': "all",
+        'F5_0_IAPP_VARIABLE_net__snat_type': "automap",
+        'F5_0_IAPP_VARIABLE_client__tcp_wan_opt': CREATE_NEW,
+        'F5_0_IAPP_VARIABLE_client__standard_caching_with_wa': CREATE_NEW,
+        'F5_0_IAPP_VARIABLE_client__standard_caching_without_wa': DONT_USE,
+        'F5_0_IAPP_VARIABLE_server__tcp_lan_opt': CREATE_NEW,
+        'F5_0_IAPP_VARIABLE_server__oneconnect': CREATE_NEW,
+        'F5_0_IAPP_VARIABLE_server__ntlm': "/#do_not_use#",
     }
     svc = utils.create_managed_service(
         marathon,
@@ -57,6 +72,7 @@ def test_iapp_f5_http(ssh, marathon, bigip, f5mlb):
         k.replace(lbl_prefix, ""): v for k, v in labels.iteritems()
         if k.startswith(lbl_prefix)
     }
+    vars_exp['pool__mask'] = "none"
     assert vars_act == vars_exp
 
     # - verify round-robin load balancing
