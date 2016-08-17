@@ -6,7 +6,7 @@ repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/f5-marathon-lb.git
 systest_pkg := systest_f5mlb
 registry := docker-registry.pdbld.f5net.com
 namespace := velcro
-f5mlb_img := $(registry)/$(namespace)/f5-marathon-lb
+f5mlb_img := $(registry)/$(namespace)/f5-marathon-lb:master
 ssh_conf := testenv_symbols/testenv_ssh_config
 
 current_commit := $(shell git rev-parse HEAD | cut -c 1-8)
@@ -67,7 +67,8 @@ scaletest-setup:
 	@echo "setting up scale test environment ..."
 	testenv create --name $(scale_testenv_name) \
 		--config mesos.testenv.yaml \
-		--params num_masters:1 num_workers:5 \
+		--requires bigip \
+		--params num_masters:1 num_workers:6 \
 		--vars f5mlb_img:"$(f5mlb_img)" \
 		|| true
 
