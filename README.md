@@ -87,9 +87,7 @@ Use the --partition argument multiple times to specify multiple BIG-IP partition
 
 The partitions managed by f5-marathon-lb must already exist, and f5-marathon-lb can manage any partitions except "Common".
 
-f5-marathon-lb takes ownership of certain resource types in the partitions it is given to manage, and modifications to these resource types in other ways (GUI, REST, etc) than via f5-marathon-lb will lead to unpredictable behavior.
-
-The resource types managed by f5-marathon-lb are:
+The following BIG-IP object types are managed by the f5-marathon-lb application and should not be manually added, changed or deleted as this may result in unexpected behavior:
 
  - Virtual Servers
  - Virtual Addresses
@@ -99,7 +97,6 @@ The resource types managed by f5-marathon-lb are:
  - Health Monitors
  - Application Services
 
-To prevent conflict with f5-marathon-lb, **no** user-managed items should be configured within partitions that are managed by f5-marathon-lb.
 
 ### Application Labels
 
