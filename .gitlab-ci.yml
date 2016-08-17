@@ -70,3 +70,26 @@ dockerize:
   stage: deploy
   tags:
     - docker-build
+
+# Push changes to the f5-ci-docs GitHub repo on successful builds
+github_update:
+  stage: deploy
+  script:
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in GITHUB_DOCS_SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$GITHUB_DOCS_SSH_PRIVATE_KEY")
+    - echo 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $*' > /tmp/ssh
+    - chmod a+x /tmp/ssh
+    - export GIT_SSH=/tmp/ssh
+    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
+    - echo "cloning f5-ci-docs from GitHub on gitlab-ci branch"
+    -   git clone -b gitlab-ci git@github.com:F5Networks/f5-ci-docs.git
+    -   echo "copying into f5-ci-docs/lwp-controller"
+    -   cp $CI_PROJECT_DIR f5-ci-docs/lwp-controller
+    -   echo "committing changes"
+    -   git commit --all -m "changes pushed to GitHub by gitlab-ci for build ID $CI_BUILD_ID @ $CI_BUILD_REF"
+    -   echo "pushing changes to f5-ci-docs/gitlab-ci"
+    -   git push origin gitlab-ci
+    -   echo "all updates pushed to GitHub"
+    - fi
