@@ -46,7 +46,7 @@ test/*/logs/*
 *.mo
 
 # Docs
-docs/_build
+docs/_build/*
 venv/*
 docs/venv/*
 _build/*
