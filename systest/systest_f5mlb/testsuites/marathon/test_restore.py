@@ -1,14 +1,14 @@
 """Test suite to verify f5mlb's ability to restore target configs."""
 
 
-import time
-
 from pytest import meta_suite, meta_test
 
 from . import utils
 
 
 pytestmark = meta_suite(tags=["func", "marathon", "restore"])
+
+RESTORE_TIMEOUT = 10
 
 
 @meta_test(id="f5mlb-2", tags=[])
@@ -32,7 +32,7 @@ def test_restore_after_backend_create(marathon, bigip, f5mlb):
         name="tst-health-monitor", partition=default_partition)
 
     # - verify unmanaged backend objects are left intact
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     backend_objs_exp = {
         'virtual_servers': ["tst-virtual-server"],
         'virtual_addresses': ["192.168.100.1"],
@@ -65,7 +65,7 @@ def test_restore_after_virtual_server_update(marathon, bigip, f5mlb):
     virtual_server.destination = "192.168.100.1:8080"
     virtual_server.description = "test-description"
     virtual_server.update()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     virtual_server.refresh()
     assert virtual_server.destination == vs_dest_orig
     assert virtual_server.description == "test-description"
@@ -91,7 +91,7 @@ def test_restore_after_virtual_address_update(marathon, bigip, f5mlb):
     virtual_address.enabled = "no"
     virtual_address.description = "test-description"
     virtual_address.update()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     virtual_address.refresh()
     assert virtual_address.enabled == va_enabled_orig
     assert virtual_address.description == "test-description"
@@ -116,7 +116,7 @@ def test_restore_after_pool_update(marathon, bigip, f5mlb):
     pool.loadBalancingMode = "least-connections-node"
     pool.description = "test-description"
     pool.update()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     pool.refresh()
     assert pool.loadBalancingMode == pool_lb_orig
     assert pool.description == "test-description"
@@ -146,7 +146,7 @@ def test_restore_after_pool_member_update(marathon, bigip, f5mlb):
     pool_member.description = "test-description"
     pool_member.update(state=None)
 #    pool_member.update(state="user-down")
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     pool_member.refresh()
     assert pool_member.state == member_state_orig
     assert pool_member.description == "test-description"
@@ -173,7 +173,7 @@ def test_restore_after_node_update(marathon, bigip, f5mlb):
     node.state = "user-down"
     node.description = "test-description"
     node.update()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     node.refresh()
     assert node.state == node_state_orig
     assert node.description == "test-description"
@@ -200,7 +200,7 @@ def test_restore_after_health_monitor_update(marathon, bigip, f5mlb):
     health_monitor.send = "GET /foo"
     health_monitor.description = "test-description"
     health_monitor.update()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     health_monitor.refresh()
     assert health_monitor.send == hm_send_orig
     assert health_monitor.description == "test-description"
@@ -223,7 +223,7 @@ def test_restore_after_virtual_server_delete(marathon, bigip, f5mlb):
         bigip.virtual_servers.list(partition=default_partition) == [obj_name]
     bigip.virtual_server.delete(obj_name, partition=default_partition)
     assert bigip.virtual_servers.list(partition=default_partition) == []
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert \
         bigip.virtual_servers.list(partition=default_partition) == [obj_name]
 
@@ -251,10 +251,9 @@ def test_restore_after_virtual_address_delete(marathon, bigip, f5mlb):
     virtual_server.destination = new_addr + ":80"
     virtual_server.update()
     bigip.virtual_address.delete(old_addr, partition=default_partition)
-    time.sleep(1)
     assert \
         bigip.virtual_addresses.list(partition=default_partition) == [new_addr]
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert \
         bigip.virtual_addresses.list(partition=default_partition) == [old_addr]
 
@@ -280,7 +279,7 @@ def test_restore_after_pool_delete(marathon, bigip, f5mlb):
     virtual_server.update()
     bigip.pool.delete(name=obj_name, partition=default_partition)
     assert bigip.pools.list(partition=default_partition) == []
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.pools.list(partition=default_partition) == [obj_name]
 
 
@@ -301,7 +300,7 @@ def test_restore_after_pool_member_delete(marathon, bigip, f5mlb):
     assert bigip.pool_members.list(partition=default_partition) == [obj_name]
     bigip.pool_member.delete(name=obj_name, partition=default_partition)
     assert bigip.pool_members.list(partition=default_partition) == []
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.pool_members.list(partition=default_partition) == [obj_name]
 
 
@@ -324,7 +323,7 @@ def test_restore_after_node_delete(marathon, bigip, f5mlb):
     bigip.pool_member.delete(name=member_name, partition=default_partition)
     bigip.node.delete(obj_name, partition=default_partition)
     assert bigip.nodes.list(partition=default_partition) == []
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.nodes.list(partition=default_partition) == [obj_name]
 
 
@@ -353,7 +352,7 @@ def test_restore_after_health_monitor_delete(marathon, bigip, f5mlb):
     )
     assert \
         bigip.health_monitors.http.list(partition=default_partition) == []
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert (
         bigip.health_monitors.http.list(partition=default_partition) ==
         [obj_name]
@@ -374,12 +373,11 @@ def test_restore_after_f5mlb_delete(marathon, bigip, f5mlb):
     f5mlb.delete()
     # - verify managed service is unchanged
     utils.wait_for_f5mlb()
-    utils.wait_for_f5mlb()
     assert svc.diff(old_svc) == {}
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
     f5mlb = utils.create_f5mlb(marathon)
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert svc.diff(old_svc) == {}
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
@@ -402,7 +400,7 @@ def test_restore_after_f5mlb_delete_then_svc_delete(marathon, bigip, f5mlb):
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
     f5mlb = utils.create_f5mlb(marathon)
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert not marathon.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == {}
 
@@ -425,7 +423,7 @@ def test_restore_after_f5mlb_delete_then_svc_update(marathon, bigip, f5mlb):
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
     f5mlb = utils.create_f5mlb(marathon)
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert utils.get_backend_objects(bigip) == {}
 
 
@@ -444,12 +442,13 @@ def test_restore_after_f5mlb_delete_then_backend_delete(
     default_partition = utils.DEFAULT_F5MLB_PARTITION
     obj_name = utils.get_backend_object_name(svc)
     bigip.virtual_server.delete(name=obj_name, partition=default_partition)
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     orig_vs_list = backend_objs_exp.pop('virtual_servers')
     orig_va_list = backend_objs_exp.pop('virtual_addresses')
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
     f5mlb = utils.create_f5mlb(marathon)
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     backend_objs_exp['virtual_servers'] = orig_vs_list
     backend_objs_exp['virtual_addresses'] = orig_va_list
     assert utils.get_backend_objects(bigip) == backend_objs_exp
@@ -482,13 +481,12 @@ def test_restore_after_f5mlb_delete_then_backend_update(
     virtual_server.destination = new_dest
     virtual_server.description = new_desc
     virtual_server.update()
-    utils.wait_for_f5mlb()
     virtual_server.refresh()
     assert virtual_server.destination == new_dest
     assert virtual_server.description == new_desc
     # - recreate f5mlb and verify restoration
     f5mlb = utils.create_f5mlb(marathon)
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     virtual_server.refresh()
     assert virtual_server.destination == old_dest
     assert virtual_server.description == new_desc
@@ -514,7 +512,7 @@ def test_restore_after_f5mlb_suspend(marathon, bigip, f5mlb):
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume f5mlb and verify restoration
     f5mlb.resume()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert svc.diff(old_svc) == {}
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
@@ -537,7 +535,7 @@ def test_restore_after_f5mlb_suspend_then_svc_delete(marathon, bigip, f5mlb):
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume f5mlb and verify restoration
     f5mlb.resume()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert not marathon.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == {}
 
@@ -579,12 +577,12 @@ def test_restore_after_f5mlb_suspend_then_backend_delete(
     default_partition = utils.DEFAULT_F5MLB_PARTITION
     obj_name = utils.get_backend_object_name(svc)
     bigip.virtual_server.delete(name=obj_name, partition=default_partition)
-    utils.wait_for_f5mlb()
     orig_vs_list = backend_objs_exp.pop('virtual_servers')
     orig_va_list = backend_objs_exp.pop('virtual_addresses')
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume f5mlb and verify restoration
     f5mlb.resume()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     backend_objs_exp['virtual_servers'] = orig_vs_list
     backend_objs_exp['virtual_addresses'] = orig_va_list
     assert utils.get_backend_objects(bigip) == backend_objs_exp
@@ -617,13 +615,12 @@ def test_restore_after_f5mlb_suspend_then_backend_update(
     virtual_server.destination = new_dest
     virtual_server.description = new_desc
     virtual_server.update()
-    utils.wait_for_f5mlb()
     virtual_server.refresh()
     assert virtual_server.destination == new_dest
     assert virtual_server.description == new_desc
     # - resume f5mlb and verify restoration
     f5mlb.resume()
-    utils.wait_for_f5mlb()
+    utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     virtual_server.refresh()
     assert virtual_server.destination == old_dest
     assert virtual_server.description == new_desc
