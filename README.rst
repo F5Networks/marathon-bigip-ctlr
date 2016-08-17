@@ -8,7 +8,7 @@ f5-marathon-lb
     self
 
 
-The f5-marathon-lb tool allows users to manage F5® BIG-IP® with `Marathon <https://github.com/mesosphere/marathon>`_ in a `Mesos <https://mesos.apache.org/>`_ environment.
+Part of the F5® Container Services Integration suite, f5-marathon-lb allows users to manage BIG-IP® devices in a  `Mesos <https://mesos.apache.org/>`_ / `Marathon <https://github.com/mesosphere/marathon>`_ environment.
 
 Architecture
 ------------
@@ -33,9 +33,8 @@ f5-marathon-lb allows you to manage resources in specific partitions on a BIG-IP
 
     * f5-marathon-lb can not manage the "Common" partition.
 
-Because f5-marathon-lb takes ownership of certain resource types in the partitions it manages,
 
-The BIG-IP object types listed below are managed by the f5-marathon-lb application and should not be manually added, changed, or deleted, as this may result in unexpected behavior.
+The BIG-IP object types listed below are managed by the f5-marathon-lb application; these should not be manually added, changed, or deleted, as this may result in unexpected behavior.
 
 -  Virtual Servers
 -  Virtual Addresses
@@ -215,9 +214,7 @@ For example:
 
 .. topic:: args
 
-    .. code-block:: json
-        :linenos:
-        :emphasize-lines: 14-20
+    .. code-block:: javascript
 
         {
           "id": "f5-marathon-lb",
@@ -246,9 +243,7 @@ For example:
 
 .. topic:: env variables
 
-    .. code-block:: json
-        :linenos:
-        :emphasize-lines: 14-20
+    .. code-block:: javascript
 
         {
           "id": "f5-mlb",
@@ -285,9 +280,7 @@ The following example demonstrates an application deployment in Marathon with th
 - The app (``server-app4``) has three service ports configured; only the first two are exposed via the BIG-IP (in other words, only port indices 0 and 1 are configured in the *labels* section).
 - Marathon health monitors are configured for all three service ports.
 
-.. code-block:: json
-    :linenos:
-    :emphasize-lines: 29, 32
+.. code-block:: javascript
 
     {
       "id": "server-app4",
@@ -358,8 +351,7 @@ For our Marathon application, f5-marathon-lb configures the BIG-IP as demonstrat
 
     If the ``--health-check`` option is set, f5-marathon-lb will respect the Marathon health status for the service port before adding it to the backend pool.
 
-.. code-block:: bash
-    :linenos:
+.. code-block:: shell
 
     ltm monitor http server-app4_10.128.10.240_8080 {
         adaptive disabled
@@ -466,8 +458,7 @@ The following example uses the "f5.http" iApp template to define an HTTP service
     Only the the IAPP labels and the ``F5_PARTITION`` label are needed to deploy using an iApp template. For example, the ``F5_0_BIND_ADDR`` and ``F5_0_PORT`` parameters are accounted for by iApp variables (``pool__addr`` and ``pool__port``, respectively).
 
 
-.. code-block:: json
-    :linenos:
+.. code-block:: javascript
 
     {
       "id": "server-app2",

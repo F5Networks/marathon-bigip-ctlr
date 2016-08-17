@@ -14,7 +14,7 @@ unit_test:
     - pip install flake8_docstrings
     - pip install -r requirements.txt 
     - pip install mock
-    - flake8 ./
+    - flake8 --exclude=docs/ ./ 
     - python -m unittest discover -v
   tags:
     - docker
@@ -73,7 +73,7 @@ dockerize:
 
 # Push changes to the f5-ci-docs GitHub repo on successful builds
 github_update:
-  stage: deploy
+  stage: test
   script:
     # Run ssh-agent (inside the build environment)
     - eval $(ssh-agent -s)
@@ -82,14 +82,15 @@ github_update:
     - echo 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $*' > /tmp/ssh
     - chmod a+x /tmp/ssh
     - export GIT_SSH=/tmp/ssh
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
-    - echo "cloning f5-ci-docs from GitHub on gitlab-ci branch"
-    -   git clone -b gitlab-ci git@github.com:F5Networks/f5-ci-docs.git
-    -   echo "copying into f5-ci-docs/lwp-controller"
-    -   cp $CI_PROJECT_DIR f5-ci-docs/lwp-controller
-    -   echo "committing changes"
-    -   git commit --all -m "changes pushed to GitHub by gitlab-ci for build ID $CI_BUILD_ID @ $CI_BUILD_REF"
-    -   echo "pushing changes to f5-ci-docs/gitlab-ci"
-    -   git push origin gitlab-ci
-    -   echo "all updates pushed to GitHub"
-    - fi
+    # Clone f5-ci-docs from GitHub and push updated README and docs
+    # if [ "$CI_BUILD_REF_NAME" == "master" ]; then
+    - git clone -b feature.experiment git@github.com:F5Networks/f5-ci-docs.git
+    - cd f5-ci-docs/
+    - git config user.email "gitlab-runner@gitlab-shared-runner-01.com"
+    - git config user.name "gitlab-runner"
+    - cp ../README.rst ./docs/csi/
+    - git status
+    - git add docs/csi/README.rst
+    - git commit -m "changes pushed to GitHub by gitlab-ci for commit {$CI_BUILD_REF}, build ID {$CI_BUILD_ID}"
+    - git push origin feature.experiment
+    # fi
