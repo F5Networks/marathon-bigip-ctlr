@@ -45,25 +45,52 @@ The BIG-IP object types listed below are managed by the f5-marathon-lb applicati
 -  Application Services
 
 
-Configuration
--------------
+Launch in Marathon
+------------------
 
-First, f5-marathon-lb needs to know how to connect to Marathon and the BIG-IP. This is done via the command-line arguments:
+.. code-block:: shell
+
+   curl -X POST -H "Content-Type: application/json" http://<marathon-ip-addr>:8080/v2/apps -d @f5-marathon-lb.json
+
+Above, we use the curl command to configure the f5-marathon-lb tool via the
+Marathon REST API. In this command, "f5-marathon-lb.json" refers to a file
+that contains details needed to deploy the f5-marathon-lb container in Marathon.
+You can use **args** variables in your json file to define the Marathon
+application labels.
+
+.. topic:: args
+
+    .. code-block:: javascript
+
+        {
+          "id": "f5-marathon-lb",
+          "cpus": 0.5,
+          "mem": 64.0,
+          "instances": 1,
+          "container": {
+            "type": "DOCKER",
+            "docker": {
+              "image": "<f5-marathon-lb-container>",
+              "network": "BRIDGE"
+            }
+          },
+          "args": [
+            "sse",
+            "--marathon", "<Marathon-REST-API-URL>",
+            "--partition", "<BigIP-Partition>",
+            "--hostname", "<BigIP-Admin-IP>",
+            "--username", "admin",
+            "--password", "<BigIP-Admin-Password>"
+          ]
+        }
+
+
+The following arguments are supported:
 
 .. code-block:: console
 
-    usage: f5_marathon_lb.py [-h] [--longhelp]
-                             [--marathon MARATHON [MARATHON ...]]
-                             [--listening LISTENING] [--callback-url CALLBACK_URL]
-                             [--hostname HOSTNAME] [--username USERNAME]
-                             [--password PASSWORD] [--partition PARTITION] [--sse]
-                             [--health-check] [--syslog-socket SYSLOG_SOCKET]
-                             [--log-format LOG_FORMAT]
-                             [--marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE]
-
-    If an arg is specified in more than one place, then commandline values override environment variables, which override defaults.
-
-    optional arguments:
+      sse                   Use Server Sent Events instead of HTTP Callbacks [env
+                            var: F5_CSI_USE_SSE] (default: False)
       -h, --help            show this help message and exit
       --longhelp            Print out configuration details (default: False)
       --marathon MARATHON [MARATHON ...], -m MARATHON [MARATHON ...]
@@ -89,18 +116,12 @@ First, f5-marathon-lb needs to know how to connect to Marathon and the BIG-IP. T
                             partitions. Can use this arg multiple times to specify
                             multiple partitions [env var: F5_CSI_PARTITIONS]
                             (default: [])
-      --sse, -s             Use Server Sent Events instead of HTTP Callbacks [env
-                            var: F5_CSI_USE_SSE] (default: False)
       --health-check, -H    If set, respect Marathon's health check statuses
                             before adding the app instance into the backend pool.
                             [env var: F5_CSI_USE_HEALTHCHECK] (default: False)
       --sse-timeout SSE_TIMEOUT, -t SSE_TIMEOUT
                             Marathon event stream timeout [env var:
                             F5_CSI_SSE_TIMEOUT] (default: 30)
-      --syslog-socket SYSLOG_SOCKET
-                            Socket to write syslog messages to. Use '/dev/null' to
-                            disable logging to syslog [env var:
-                            F5_CSI_SYSLOG_SOCKET] (default: /var/run/syslog)
       --log-format LOG_FORMAT
                             Set log message format [env var: F5_CSI_LOG_FORMAT]
                             (default: %(asctime)s %(name)s: %(levelname) -8s:
@@ -178,95 +199,6 @@ Field                                   Definition                              
                                                                                                             | Example: ``"F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members"``
 ====================================    =================================================================   =======================================================================
 
-
-
-Build and Launch via Docker
----------------------------
-
-Follow the steps below to build and launch f5-marathon-lb as a Docker container.
-
-.. topic:: 1. Build a Docker container:
-
-    .. code-block:: shell
-
-        docker build -t docker-registry.pdbld.f5net.com/darzins/f5-marathon-lb:latest .
-
-
-.. topic:: 2. Push to a Docker registry:
-
-    .. code-block:: shell
-
-        docker push docker-registry.pdbld.f5net.com/darzins/f5-marathon-lb:latest
-
-.. topic:: 3. Launch in Marathon:
-
-    .. code-block:: shell
-
-        curl -X POST -H "Content-Type: application/json" http://10.141.141.10:8080/v2/apps -d @f5-marathon-lb.json
-
-
-Define Marathon Application Labels via JSON
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In step 3, above, we use the command ``curl -X POST -H "Content-Type: application/json" http://10.141.141.10:8080/v2/apps -d @f5-marathon-lb.json``. In this command, "f5-marathon-lb.json" is the file that contains the details needed to deploy the container in Marathon. You can use either **args** or **env** variables in your json file to define the Marathon application labels.
-
-For example:
-
-.. topic:: args
-
-    .. code-block:: javascript
-
-        {
-          "id": "f5-marathon-lb",
-          "cpus": 0.5,
-          "mem": 128.0,
-          "instances": 1,
-          "container": {
-            "type": "DOCKER",
-            "forcePullImage": true,
-            "docker": {
-              "image": "docker-registry.pdbld.f5net.com/darzins/f5-marathon-lb:latest",
-              "network": "BRIDGE"
-            }
-          },
-          "args": [
-            "sse",
-            "--marathon", "http://10.141.141.10:8080",
-            "--partition", "mesos_1",
-            "--hostname", "10.128.1.145",
-            "--username", "admin",
-            "--password", "default"
-          ]
-        }
-
-\
-
-.. topic:: env variables
-
-    .. code-block:: javascript
-
-        {
-          "id": "f5-mlb",
-          "cpus": 0.5,
-          "mem": 128.0,
-          "instances": 1,
-          "container": {
-            "type": "DOCKER",
-            "forcePullImage": true,
-            "docker": {
-              "image": "docker-registry.pdbld.f5net.com/velcro/f5-marathon-lb:latest",
-              "network": "BRIDGE"
-            }
-          },
-          "env": {
-            "F5_CSI_USE_SSE": "True",
-            "MARATHON_URL": "http://10.141.141.10:8080",
-            "F5_CSI_PARTITIONS": "[mesos_1, mesos_test]",
-            "F5_CSI_BIGIP_HOSTNAME": "10.128.1.145",
-            "F5_CSI_BIGIP_USERNAME": "admin",
-            "F5_CSI_BIGIP_PASSWORD": "default"
-          }
-        }
 
 
 Deployment Examples
