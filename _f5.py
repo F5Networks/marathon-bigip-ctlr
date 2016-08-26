@@ -1026,7 +1026,7 @@ class MarathonBigIP(BigIP):
         """
         logger.debug("Creating iApp %s from template %s",
                      name, config['iapp']['template'])
-        a = self.sys.applications.services.service
+        a = self.sys.application.services.service
 
         iapp_def = self.iapp_build_definition(config)
 
@@ -1078,7 +1078,7 @@ class MarathonBigIP(BigIP):
             partition: Partition name
             name: Application Service name
         """
-        a = self.sys.applications.services.service.load(
+        a = self.sys.application.services.service.load(
                 name=name,
                 partition=partition
                 )
@@ -1091,7 +1091,7 @@ class MarathonBigIP(BigIP):
             partition: Partition name
         """
         iapp_list = []
-        iapps = self.sys.applications.services.get_collection()
+        iapps = self.sys.application.services.get_collection()
         for iapp in iapps:
             if iapp.partition == partition:
                 iapp_list.append(iapp.name)
