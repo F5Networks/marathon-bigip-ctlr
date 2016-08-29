@@ -30,36 +30,36 @@ def test_f5mlb1_svc10_srv100(ssh, marathon):
     Each managed service has 100 backend servers.
     So this test creates 1,011 marathon objects.
     """
-    f5mlb = utils.create_f5mlb(marathon, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
-    _run_scale_test(ssh, marathon, f5mlb, num_svcs=10, num_srvs=100)
+    _run_scale_test(ssh, marathon, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_f5mlb1_svc100_srv10(ssh, marathon, f5mlb):
+def test_f5mlb1_svc100_srv10(ssh, marathon):
     """Scale test: 1 f5mlb, 100 managed services (w/ 10 backend servers each).
 
     Each managed service has 10 backend servers.
     So this test creates 1,101 marathon objects.
     """
-    _run_scale_test(ssh, marathon, f5mlb, num_svcs=100, num_srvs=10)
+    _run_scale_test(ssh, marathon, num_svcs=100, num_srvs=10)
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_f5mlb1_svc100_srv100(ssh, marathon, f5mlb):
+def test_f5mlb1_svc100_srv100(ssh, marathon):
     """Scale test: 1 f5mlb, 100 managed services (w/ 100 backend servers each).
 
     Each managed service has and 100 backend servers.
     So this test creates 10,101 marathon objects.
     """
-    _run_scale_test(ssh, marathon, f5mlb, num_svcs=100, num_srvs=100)
+    _run_scale_test(ssh, marathon, num_svcs=100, num_srvs=100)
 
 
 def _run_scale_test(
-        ssh, marathon, f5mlb, num_svcs, num_srvs,
-        svc_cpus=SVC_CPUS, svc_mem=SVC_MEM,
-        timeout=SVC_TIMEOUT):
+        ssh, marathon, num_svcs, num_srvs,
+        svc_cpus=SVC_CPUS, svc_mem=SVC_MEM, timeout=SVC_TIMEOUT):
     svc_inputs = []
     svcs = []
+
+    utils.create_f5mlb(marathon, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
 
     # - first, scale-up the appropriate services and instances
     for i in range(1, num_svcs + 1):
@@ -72,8 +72,6 @@ def _run_scale_test(
             'svc_mem': svc_mem,
             'timeout': timeout
         })
-    # FIXME (kevin): need to figure out why we get intermittent failures when
-    # the pool size for the "create managed service" phase is more than 1
     pool_size = 10
     slices = [
         svc_inputs[i:i+pool_size] for i in range(0, len(svc_inputs), pool_size)
@@ -153,6 +151,7 @@ def _wait_for_virtual_server(svc, ssh, timeout=VS_TIMEOUT):
     while not is_available() and duration < timeout:
         time.sleep(interval)
         duration += interval
+    time.sleep(interval)
     assert is_available()
 
 
