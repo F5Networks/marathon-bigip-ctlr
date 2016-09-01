@@ -3,9 +3,6 @@ f5-marathon-lb
 
 .. toctree::
     :hidden:
-    :glob:
-
-    self
 
 
 Part of the F5® Container Services Integration suite, f5-marathon-lb allows users to manage BIG-IP® devices in a  `Mesos <https://mesos.apache.org/>`_ / `Marathon <https://github.com/mesosphere/marathon>`_ environment.
@@ -48,15 +45,11 @@ The BIG-IP object types listed below are managed by the f5-marathon-lb applicati
 Launch in Marathon
 ------------------
 
-.. code-block:: shell
+.. code-block:: bash
 
-   curl -X POST -H "Content-Type: application/json" http://<marathon-ip-addr>:8080/v2/apps -d @f5-marathon-lb.json
+    curl -X POST -H "Content-Type: application/json" http://<marathon-ip-addr>:8080/v2/apps -d @f5-marathon-lb.json
 
-Above, we use the curl command to configure the f5-marathon-lb tool via the
-Marathon REST API. In this command, "f5-marathon-lb.json" refers to a file
-that contains details needed to deploy the f5-marathon-lb container in Marathon.
-You can use **args** variables in your json file to define the Marathon
-application labels.
+Above, we use the curl command to configure the f5-marathon-lb tool via the Marathon REST API. In this command, "f5-marathon-lb.json" refers to a file that contains details needed to deploy the f5-marathon-lb container in Marathon. You can use **args** variables in your json file to define the Marathon application labels.
 
 .. topic:: args
 
@@ -89,47 +82,47 @@ The following arguments are supported:
 
 .. code-block:: console
 
-      sse                   Use Server Sent Events instead of HTTP Callbacks [env
-                            var: F5_CSI_USE_SSE] (default: False)
-      -h, --help            show this help message and exit
-      --longhelp            Print out configuration details (default: False)
-      --marathon MARATHON [MARATHON ...], -m MARATHON [MARATHON ...]
-                            [required] Marathon endpoint, eg. -m
-                            http://marathon1:8080 http://marathon2:8080 [env var:
-                            MARATHON_URL] (default: None)
-      --listening LISTENING, -l LISTENING
-                            The address this script listens on for marathon events
-                            [env var: F5_CSI_LISTENING_ADDR] (default: None)
-      --callback-url CALLBACK_URL, -u CALLBACK_URL
-                            The HTTP address that Marathon can call this script
-                            back at (http://lb1:8080) [env var:
-                            F5_CSI_CALLBACK_URL] (default: None)
-      --hostname HOSTNAME   F5 BIG-IP hostname [env var: F5_CSI_BIGIP_HOSTNAME]
-                            (default: None)
-      --username USERNAME   F5 BIG-IP username [env var: F5_CSI_BIGIP_USERNAME]
-                            (default: None)
-      --password PASSWORD   F5 BIG-IP password [env var: F5_CSI_BIGIP_PASSWORD]
-                            (default: None)
-      --partition PARTITION
-                            [required] Only generate config for apps which match
-                            the specified partition. Use '*' to match all
-                            partitions. Can use this arg multiple times to specify
-                            multiple partitions [env var: F5_CSI_PARTITIONS]
-                            (default: [])
-      --health-check, -H    If set, respect Marathon's health check statuses
-                            before adding the app instance into the backend pool.
-                            [env var: F5_CSI_USE_HEALTHCHECK] (default: False)
-      --sse-timeout SSE_TIMEOUT, -t SSE_TIMEOUT
-                            Marathon event stream timeout [env var:
-                            F5_CSI_SSE_TIMEOUT] (default: 30)
-      --log-format LOG_FORMAT
-                            Set log message format [env var: F5_CSI_LOG_FORMAT]
-                            (default: %(asctime)s %(name)s: %(levelname) -8s:
-                            %(message)s)
-      --marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE
-                            Path to file containing a user/pass for the Marathon
-                            HTTP API in the format of 'user:pass'. [env var:
-                            F5_CSI_MARATHON_AUTH] (default: None)
+    sse                   Use Server Sent Events instead of HTTP Callbacks [env
+                        var: F5_CSI_USE_SSE] (default: False)
+    -h, --help            show this help message and exit
+    --longhelp            Print out configuration details (default: False)
+    --marathon MARATHON [MARATHON ...], -m MARATHON [MARATHON ...]
+                        [required] Marathon endpoint, eg. -m
+                        http://marathon1:8080 http://marathon2:8080 [env var:
+                        MARATHON_URL] (default: None)
+    --listening LISTENING, -l LISTENING
+                        The address this script listens on for marathon events
+                        [env var: F5_CSI_LISTENING_ADDR] (default: None)
+    --callback-url CALLBACK_URL, -u CALLBACK_URL
+                        The HTTP address that Marathon can call this script
+                        back at (http://lb1:8080) [env var:
+                        F5_CSI_CALLBACK_URL] (default: None)
+    --hostname HOSTNAME   F5 BIG-IP hostname [env var: F5_CSI_BIGIP_HOSTNAME]
+                        (default: None)
+    --username USERNAME   F5 BIG-IP username [env var: F5_CSI_BIGIP_USERNAME]
+                        (default: None)
+    --password PASSWORD   F5 BIG-IP password [env var: F5_CSI_BIGIP_PASSWORD]
+                        (default: None)
+    --partition PARTITION
+                        [required] Only generate config for apps which match
+                        the specified partition. Use '*' to match all
+                        partitions. Can use this arg multiple times to specify
+                        multiple partitions [env var: F5_CSI_PARTITIONS]
+                        (default: [])
+    --health-check, -H    If set, respect Marathon's health check statuses
+                        before adding the app instance into the backend pool.
+                        [env var: F5_CSI_USE_HEALTHCHECK] (default: False)
+    --sse-timeout SSE_TIMEOUT, -t SSE_TIMEOUT
+                        Marathon event stream timeout [env var:
+                        F5_CSI_SSE_TIMEOUT] (default: 30)
+    --log-format LOG_FORMAT
+                        Set log message format [env var: F5_CSI_LOG_FORMAT]
+                        (default: %(asctime)s %(name)s: %(levelname) -8s:
+                        %(message)s)
+    --marathon-auth-credential-file MARATHON_AUTH_CREDENTIAL_FILE
+                        Path to file containing a user/pass for the Marathon
+                        HTTP API in the format of 'user:pass'. [env var:
+                        F5_CSI_MARATHON_AUTH] (default: None)
 
 .. important:: The **marathon**, **hostname**, **username**, **password**, and **partition** arguments are mandatory.
 
@@ -139,8 +132,7 @@ Use the ``--partition`` argument multiple times to specify multiple BIG-IP parti
 
     .. code-block:: console
 
-         f5-marathon-lb.py --marathon http://marathon1:8080 http://marathon2:8080 --hostname https://10.190.4.187 --username admin --password admin --partition tenant_a
-
+        f5-marathon-lb.py --marathon http://marathon1:8080 http://marathon2:8080 --hostname https://10.190.4.187 --username admin --password admin --partition tenant_a
 
 
 Application Labels
@@ -387,7 +379,7 @@ The following example uses the "f5.http" iApp template to define an HTTP service
 
 .. note::
 
-    Only the the IAPP labels and the ``F5_PARTITION`` label are needed to deploy using an iApp template. For example, the ``F5_0_BIND_ADDR`` and ``F5_0_PORT`` parameters are accounted for by iApp variables (``pool__addr`` and ``pool__port``, respectively).
+    Only the the ``IAPP`` labels and the ``F5_PARTITION`` label are needed to deploy using an iApp template. For example, the ``F5_0_BIND_ADDR`` and ``F5_0_PORT`` parameters are accounted for by iApp variables (``pool__addr`` and ``pool__port``, respectively).
 
 
 .. code-block:: javascript
