@@ -9,17 +9,18 @@ namespace := velcro
 f5mlb_img := $(registry)/$(namespace)/f5-marathon-lb:master
 ssh_conf := testenv_symbols/testenv_ssh_config
 
-current_commit := $(shell git rev-parse HEAD | cut -c 1-8)
-export current_commit
+# - <nearest reachable tag>-<num commits since>-g<abbreviated commit id>
+version := $(shell git describe --long)
+export version
 timestamp := $(shell date +"%Y%m%d-%H%M%S")
 export timestamp
-results_dir := test_results/f5mlb/f5mlb-$(current_commit)-$(timestamp)
+results_dir := test_results/f5mlb/f5mlb-$(version)-$(timestamp)
 
 func_testenv_name := f5mlb_func
-func_session := $(func_testenv_name)_$(current_commit)
+func_session := $(func_testenv_name)_$(version)
 
 scale_testenv_name := f5mlb_scale
-scale_session := $(scale_testenv_name)_$(current_commit)
+scale_session := $(scale_testenv_name)_$(version)
 
 
 all: systest
