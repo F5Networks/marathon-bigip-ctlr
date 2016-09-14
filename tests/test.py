@@ -15,7 +15,7 @@ from mock import Mock
 from mock import patch
 from f5_marathon_lb import get_apps, parse_args
 from f5.bigip import BigIP
-from _f5 import MarathonBigIP
+from _f5 import CloudBigIP
 from StringIO import StringIO
 
 args_env = ['F5_CSI_SYSLOG_SOCKET',
@@ -416,8 +416,8 @@ class BigIPTest(unittest.TestCase):
         # Mock the call to _get_tmos_version(), which tries to make a
         # connection
         with patch.object(BigIP, '_get_tmos_version'):
-            self.bigip = MarathonBigIP('1.2.3.4', 'admin', 'default',
-                                       ['mesos'])
+            self.bigip = CloudBigIP('marathon', '1.2.3.4', 'admin', 'default',
+                                    ['mesos'])
 
         self.bigip.get_pool_member_list = \
             Mock(side_effect=self.mock_get_pool_member_list)
@@ -468,26 +468,26 @@ class BigIPTest(unittest.TestCase):
         self.assertFalse(self.bigip.regenerate_config_f5(apps))
 
         # BIG-IP related exception (retry)
-        self.bigip._apply_config_f5 = Mock(side_effect=self.raiseSDKError)
+        self.bigip._apply_config = Mock(side_effect=self.raiseSDKError)
         self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
         # BIG-IP related exception (retry)
-        self.bigip._apply_config_f5 = \
+        self.bigip._apply_config = \
             Mock(side_effect=self.raiseConnectionError)
         self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
         # BIG-IP related exception (retry)
-        self.bigip._apply_config_f5 = \
+        self.bigip._apply_config = \
             Mock(side_effect=self.raiseBigIPInvalidURL)
         self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
         # BIG-IP related exception (retry)
-        self.bigip._apply_config_f5 = \
+        self.bigip._apply_config = \
             Mock(side_effect=self.raiseBigiControlUnexpectedHTTPError)
         self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
         # Other exception types are raised
-        self.bigip._apply_config_f5 = Mock(side_effect=self.raiseTypeError)
+        self.bigip._apply_config = Mock(side_effect=self.raiseTypeError)
         self.assertRaises(TypeError, self.bigip.regenerate_config_f5, apps)
 
     def test_no_change(self, marathon_state='tests/marathon_two_apps.json',

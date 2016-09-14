@@ -24,7 +24,7 @@ from itertools import cycle
 from requests.exceptions import ConnectionError
 from common import (set_logging_args, set_marathon_auth_args, setup_logging,
                     get_marathon_auth_params)
-from _f5 import MarathonBigIP
+from _f5 import CloudBigIP
 
 import json
 import logging
@@ -670,8 +670,8 @@ if __name__ == '__main__':
     # parse args
     args = parse_args()
 
-    bigip = MarathonBigIP(args.hostname, args.username, args.password,
-                          args.partition)
+    bigip = CloudBigIP('marathon', args.hostname, args.username, args.password,
+                       args.partition)
 
     # Set request retries
     s = requests.Session()
