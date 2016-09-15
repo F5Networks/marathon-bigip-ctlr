@@ -1,9 +1,10 @@
-"""BIG-IP Configuration Manager for Marathon.
+"""BIG-IP Configuration Manager for the Cloud.
 
-The MarathonBigIP class (derived from f5.bigip) manages the state of a BIG-IP
-based upon changes in the state of apps and tasks in Marathon.
+The CloudBigIP class (derived from f5.bigip) manages the state of a BIG-IP
+based upon changes in the state of apps and tasks in Marathon; or services,
+nodes, and pods in Kubernetes.
 
-Marathon manages the following BIG-IP resources:
+CloudBigIP manages the following BIG-IP resources:
 
     * Virtual Servers
     * Virtual Addresses
@@ -63,47 +64,49 @@ def has_partition(partitions, app_partition):
     return False
 
 
-class MarathonBigIP(BigIP):
-    """MarathonBigIP class.
+class CloudBigIP(BigIP):
+    """CloudBigIP class.
 
     Generates a configuration for a BigIP based upon the apps/tasks managed
-    by the Marathon framework.
+    by Marathon or services/pods/nodes in Kubernetes.
 
-    - Matches Marathon apps by BigIP partition
-    - Creates a Virtual Server and pool for each app type that matches a BigIP
-      partition
-    - For each task, creates a pool member and adds the member to the pool
+    - Matches apps/sevices by BigIP partition
+    - Creates a Virtual Server and pool for each service type that matches a
+      BigIP partition
+    - For each backend (task, node, or pod), it creates a pool member and adds
+      the member to the pool
     - If the app has a Marathon Health Monitor configured, create a
       corresponding health monitor for the BigIP pool member
 
     Args:
+        cloud: cloud environment (marathon or kubernetes)
         hostname: IP address of BIG-IP
         username: BIG-IP username
         password: BIG-IP password
         partitions: List of BIG-IP partitions to manage
     """
 
-    def __init__(self, hostname, username, password, partitions):
-        """Initialize the MarathonBigIP object."""
-        super(MarathonBigIP, self).__init__(hostname, username, password)
+    def __init__(self, cloud, hostname, username, password, partitions):
+        """Initialize the CloudBigIP object."""
+        super(CloudBigIP, self).__init__(hostname, username, password)
+        self._cloud = cloud
         self._hostname = hostname
         self._username = username
         self._password = password
         self._partitions = partitions
 
-    def regenerate_config_f5(self, apps):
-        """Configure the BIG-IP based on the Marathon app list.
+    def regenerate_config_f5(self, cloud_state):
+        """Configure the BIG-IP based on the cloud state.
 
         Args:
-            apps: Marathon app list
+            cloud_state: Marathon or Kubernetes state
         """
-        logger.info("In regenerate_config_f5()")
-        logger.debug(apps)
-        for app in apps:
-            logger.debug(app.__hash__())
-
         try:
-            self._apply_config_f5(self._create_config_f5(apps))
+            if self._cloud == 'marathon':
+                cfg = self._create_config_marathon(cloud_state)
+            else:
+                cfg = self._create_config_kubernetes(cloud_state)
+            self._apply_config(cfg)
 
         # Handle F5/BIG-IP exceptions here
         except requests.exceptions.ConnectionError as e:
@@ -127,12 +130,28 @@ class MarathonBigIP(BigIP):
 
         return False
 
-    def _create_config_f5(self, apps):
+    def _create_config_kubernetes(self, svcs):
+        """Create a BIG-IP configuration from the Kubernetes svc list.
+
+        Args:
+            svcs: Kubernetes svc list
+        """
+        logger.info("Generating config for BIG-IP from Kubernetes state")
+        f5 = {}
+        # FIXME: Implement
+
+        return f5
+
+    def _create_config_marathon(self, apps):
         """Create a BIG-IP configuration from the Marathon app list.
 
         Args:
             apps: Marathon app list
         """
+        logger.debug(apps)
+        for app in apps:
+            logger.debug(app.__hash__())
+
         logger.info("Generating config for BIG-IP")
         f5 = {}
         # partitions this script is responsible for:
@@ -238,7 +257,7 @@ class MarathonBigIP(BigIP):
 
         return f5
 
-    def _apply_config_f5(self, config):
+    def _apply_config(self, config):
         """Apply the configuration to the BIG-IP.
 
         Args:
