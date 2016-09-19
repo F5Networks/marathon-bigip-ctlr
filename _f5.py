@@ -138,7 +138,69 @@ class CloudBigIP(BigIP):
         """
         logger.info("Generating config for BIG-IP from Kubernetes state")
         f5 = {}
-        # FIXME: Implement
+
+        # partitions this script is responsible for:
+        partitions = frozenset(self._partitions)
+
+        for svc in svcs:
+            f5_service = {
+                'virtual': {},
+                'nodes': {},
+                'health': {},
+                'partition': '',
+                'name': ''
+                }
+
+            backend = svc['virtualServer']['backend']
+            frontend = svc['virtualServer']['frontend']
+
+            # Only handle application if it's partition is one that this script
+            # is responsible for
+            if not has_partition(partitions, frontend['partition']):
+                continue
+
+            # No address for this port
+            if not frontend['virtualAddress']['bindAddr']:
+                continue
+
+            f5_service['partition'] = frontend['partition']
+
+            virt_addr = frontend['virtualAddress']['bindAddr']
+            frontend_name = "%s_%s_%d" % ((backend['serviceName']).lstrip('/'),
+                                          virt_addr,
+                                          frontend['virtualAddress']['port'])
+            f5_service['name'] = frontend_name
+
+            # Parse the SSL profile into partition and name
+            profile = [None, None]
+            if 'sslProfile' in frontend:
+                profile = frontend['sslProfile']['f5ProfileName'].split('/')
+                if len(profile) != 2:
+                    logger.error("Could not parse partition and name from SSL"
+                                 " profile: %s",
+                                 frontend['sslProfile']['f5ProfileName'])
+                    profile = [None, None]
+
+            f5_service['virtual'].update({
+                'id': backend['serviceName'],
+                'name': frontend_name,
+                'destination': frontend['virtualAddress']['bindAddr'],
+                'port': frontend['virtualAddress']['port'],
+                'protocol': frontend['mode'],
+                'balance': frontend['balance'],
+                'profile': {'partition': profile[0], 'name': profile[1]}
+                })
+
+            for node in backend['nodes']:
+                nodePort = backend['nodePort']
+                f5_node_name = node + ':' + str(nodePort)
+                f5_service['nodes'].update({f5_node_name: {
+                    'name': node + ':' + str(nodePort),
+                    'host': node,
+                    'port': nodePort
+                }})
+
+            f5.update({frontend_name: f5_service})
 
         return f5
 
@@ -551,7 +613,7 @@ class CloudBigIP(BigIP):
             partition=partition
         )
 
-        if 'health' in data:
+        if 'health' in data and data['health']:
             logger.debug("adding healthcheck '%s' to pool", pool)
             p.monitor = pool
             p.update()
