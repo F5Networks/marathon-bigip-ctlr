@@ -191,11 +191,11 @@ class CloudBigIP(BigIP):
                 'profile': {'partition': profile[0], 'name': profile[1]}
                 })
 
+            nodePort = backend['nodePort']
             for node in backend['nodes']:
-                nodePort = backend['nodePort']
                 f5_node_name = node + ':' + str(nodePort)
                 f5_service['nodes'].update({f5_node_name: {
-                    'name': node + ':' + str(nodePort),
+                    'name': f5_node_name,
                     'host': node,
                     'port': nodePort
                 }})
