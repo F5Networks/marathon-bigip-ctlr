@@ -74,6 +74,8 @@ dockerize:
 # Push changes to the f5-ci-docs GitHub repo on successful builds
 github_update:
   stage: deploy
+  only:
+      - master@velcro/f5-marathon-lb
   script:
     # Run ssh-agent (inside the build environment)
     - eval $(ssh-agent -s)
@@ -83,13 +85,15 @@ github_update:
     - chmod a+x /tmp/ssh
     - export GIT_SSH=/tmp/ssh
     # Clone f5-ci-docs from GitHub and push updated README and docs
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
-    -   git clone -b gitlab-ci git@github.com:F5Networks/f5-ci-docs.git
-    -   cd f5-ci-docs/
-    -   git config user.email "gitlab-runner@gitlab-shared-runner-01.com"
-    -   git config user.name "gitlab-runner"
-    -   cp ../README.rst ./docs/csi/
-    -   git status
+    - git clone -b gitlab-ci git@github.com:F5Networks/f5-ci-docs.git
+    - cd f5-ci-docs/
+    - git config user.email "gitlab-runner@gitlab-shared-runner-01.com"
+    - git config user.name "gitlab-runner"
+    - cp ../README.rst ./docs/csi/
+    - git status
+    - if git diff-index --quiet HEAD --; then
+    -   echo "No doc changes to publish"
+    - else
     -   git add docs/csi/README.rst
     -   git commit -m "changes pushed to GitHub by gitlab-ci for commit {$CI_BUILD_REF}, build ID {$CI_BUILD_ID}"
     -   git push origin gitlab-ci
