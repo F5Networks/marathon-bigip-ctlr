@@ -1,4 +1,4 @@
-"""Test suite to verify iApp scenarios in a marathon environment."""
+"""Test suite to verify iApp scenarios in an orchestration environment."""
 
 
 from pytest import meta_suite, meta_test
@@ -6,11 +6,11 @@ from pytest import meta_suite, meta_test
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "https"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "https"])
 
 
 @meta_test(id="f5mlb-63", tags=[])
-def test_iapp_f5_http(ssh, marathon, bigip, f5mlb):
+def test_iapp_f5_http(ssh, orchestration, bigip, f5mlb):
     """Basic iApp config."""
     # - start managed service
     CREATE_NEW = "/#create_new#"
@@ -44,7 +44,7 @@ def test_iapp_f5_http(ssh, marathon, bigip, f5mlb):
         'F5_0_IAPP_VARIABLE_server__ntlm': "/#do_not_use#",
     }
     svc = utils.create_managed_service(
-        marathon,
+        orchestration,
         labels=labels,
         health_checks=utils.DEFAULT_SVC_HEALTH_CHECKS_TCP
     )

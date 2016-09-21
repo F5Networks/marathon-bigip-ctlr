@@ -1,4 +1,4 @@
-"""Test suite to verify https scenarios in a marathon environment."""
+"""Test suite to verify https scenarios in an orchestration environment."""
 
 
 import copy
@@ -9,17 +9,17 @@ from pytest import symbols
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "https"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "https"])
 
 
 @meta_test(id="f5mlb-62", tags=[])
-def test_https(ssh, marathon, bigip, f5mlb):
+def test_https(ssh, orchestration, bigip, f5mlb):
     """Verify system behavior with basic https config."""
     # - start managed service
     labels = copy.deepcopy(utils.DEFAULT_SVC_LABELS)
     labels['F5_0_SSL_PROFILE'] = utils.DEFAULT_SVC_SSL_PROFILE
     svc = utils.create_managed_service(
-        marathon,
+        orchestration,
         labels=labels,
         health_checks=utils.DEFAULT_SVC_HEALTH_CHECKS_TCP
     )

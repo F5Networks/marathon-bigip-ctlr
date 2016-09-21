@@ -1,4 +1,4 @@
-"""Test suite to verify end-to-end scenarios in a marathon environment."""
+"""Test suite to verify end-to-end scenarios."""
 
 
 from pytest import meta_suite, meta_test
@@ -6,28 +6,28 @@ from pytest import meta_suite, meta_test
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "e2e"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "e2e"])
 
 
 @meta_test(id="f5mlb-1", tags=[])
-def test_e2e(ssh, marathon, bigip, f5mlb):
+def test_e2e(ssh, orchestration, bigip, f5mlb):
     """End-to-end f5mlb test.
 
     Verify the most common f5mlb operations and interactions.
     """
-    assert marathon.app.exists(f5mlb.id)
+    assert orchestration.app.exists(f5mlb.id)
     assert f5mlb.instances.count() == 1
     # - verify no bigip objects exist
     assert utils.get_backend_objects(bigip) == {}
 
     # - start unmanaged service (no f5mlb labels)
-    utils.create_unmanaged_service(marathon, "svc-1")
+    utils.create_unmanaged_service(orchestration, "svc-1")
     # - verify no bigip objects created for unmanaged service
     utils.wait_for_f5mlb()
     assert utils.get_backend_objects(bigip) == {}
 
     # - start managed service (has f5mlb labels)
-    svc_2 = utils.create_managed_service(marathon, "svc-2")
+    svc_2 = utils.create_managed_service(orchestration, "svc-2")
     # - verify new bigip objects created for managed service
     utils.wait_for_f5mlb()
     backend_objs_exp = utils.get_backend_objects_exp(svc_2)
@@ -81,5 +81,5 @@ def test_e2e(ssh, marathon, bigip, f5mlb):
     utils.wait_for_f5mlb()
     assert utils.get_backend_objects(bigip) == {}
     # - verify f5mlb app remains
-    assert marathon.app.exists(f5mlb.id)
+    assert orchestration.app.exists(f5mlb.id)
     assert f5mlb.instances.count() == 1

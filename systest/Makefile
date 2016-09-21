@@ -35,7 +35,7 @@ functest-install scaletest-install:
 	@echo "installing system tests ..."
 	scp -F $(ssh_conf) \
 		$(systest_pkg)/scripts/install_systests.sh bastion:~/
-	ssh -F $(ssh_conf) bastion \
+	ssh -tF $(ssh_conf) bastion \
 		"~/install_systests.sh $(repo) $(systest_pkg)"
 
 functest-setup:
@@ -50,7 +50,7 @@ functest-setup:
 functest-run:
 	@echo "running functional tests ..."
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
-	ssh -F $(ssh_conf) bastion \
+	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh $(systest_pkg) $(func_session) func" \
 		|| true
 
@@ -76,7 +76,7 @@ scaletest-setup:
 scaletest-run:
 	@echo "running scale tests ..."
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
-	ssh -F $(ssh_conf) bastion \
+	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh $(systest_pkg) $(scale_session) scale" \
 		|| true
 
