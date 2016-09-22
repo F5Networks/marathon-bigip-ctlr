@@ -6,13 +6,13 @@ from pytest import meta_suite, meta_test
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "restore"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "restore"])
 
 RESTORE_TIMEOUT = 10
 
 
 @meta_test(id="f5mlb-2", tags=[])
-def test_restore_after_backend_create(marathon, bigip, f5mlb):
+def test_restore_after_backend_create(orchestration, bigip, f5mlb):
     """Verify response when unmanaged bigip objects are added.
 
     When it realizes that unmanaged bigip objects have been added, f5mlb will
@@ -45,7 +45,7 @@ def test_restore_after_backend_create(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-3", tags=[])
-def test_restore_after_virtual_server_update(marathon, bigip, f5mlb):
+def test_restore_after_virtual_server_update(orchestration, bigip, f5mlb):
     """Verify response when managed virtual server is modified.
 
     When it realizes that a managed virtual server was modified, f5mlb will
@@ -53,7 +53,7 @@ def test_restore_after_virtual_server_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -72,7 +72,7 @@ def test_restore_after_virtual_server_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-4", tags=[])
-def test_restore_after_virtual_address_update(marathon, bigip, f5mlb):
+def test_restore_after_virtual_address_update(orchestration, bigip, f5mlb):
     """Verify response when managed virtual address is modified.
 
     When it realizes that a managed virtual address was modified, f5mlb will
@@ -80,7 +80,7 @@ def test_restore_after_virtual_address_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
 
     # - modify managed virtual address and verify reset
@@ -98,7 +98,7 @@ def test_restore_after_virtual_address_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-5", tags=[])
-def test_restore_after_pool_update(marathon, bigip, f5mlb):
+def test_restore_after_pool_update(orchestration, bigip, f5mlb):
     """Verify response when managed pool is modified.
 
     When it realizes that a managed pool was modified, f5mlb will
@@ -106,7 +106,7 @@ def test_restore_after_pool_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -123,7 +123,7 @@ def test_restore_after_pool_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-6", tags=["incomplete"])
-def test_restore_after_pool_member_update(marathon, bigip, f5mlb):
+def test_restore_after_pool_member_update(orchestration, bigip, f5mlb):
     """Verify response when managed pool member is modified.
 
     When it realizes that a managed pool member was modified, f5mlb will
@@ -131,7 +131,7 @@ def test_restore_after_pool_member_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     instances = svc.instances.get()
     obj_name = utils.get_backend_object_name(svc)
@@ -153,7 +153,7 @@ def test_restore_after_pool_member_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-7", tags=[])
-def test_restore_after_node_update(marathon, bigip, f5mlb):
+def test_restore_after_node_update(orchestration, bigip, f5mlb):
     """Verify response when managed node is modified.
 
     When it realizes that a managed node was modified, f5mlb will
@@ -161,7 +161,7 @@ def test_restore_after_node_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     instances = svc.instances.get()
 
@@ -180,7 +180,7 @@ def test_restore_after_node_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-8", tags=[])
-def test_restore_after_health_monitor_update(marathon, bigip, f5mlb):
+def test_restore_after_health_monitor_update(orchestration, bigip, f5mlb):
     """Verify response when managed health monitor is modified.
 
     When it realizes that a managed health monitor was modified, f5mlb will
@@ -188,7 +188,7 @@ def test_restore_after_health_monitor_update(marathon, bigip, f5mlb):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -207,14 +207,14 @@ def test_restore_after_health_monitor_update(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-9", tags=[])
-def test_restore_after_virtual_server_delete(marathon, bigip, f5mlb):
+def test_restore_after_virtual_server_delete(orchestration, bigip, f5mlb):
     """Verify response when managed virtual server is deleted.
 
     When it realizes that a managed virtual server is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -229,14 +229,14 @@ def test_restore_after_virtual_server_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-10", tags=[])
-def test_restore_after_virtual_address_delete(marathon, bigip, f5mlb):
+def test_restore_after_virtual_address_delete(orchestration, bigip, f5mlb):
     """Verify response when managed virtual address is deleted.
 
     When it realizes that a managed virtual address is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -259,14 +259,14 @@ def test_restore_after_virtual_address_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-11", tags=[])
-def test_restore_after_pool_delete(marathon, bigip, f5mlb):
+def test_restore_after_pool_delete(orchestration, bigip, f5mlb):
     """Verify response when managed pool is deleted.
 
     When it realizes that a managed pool is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -284,14 +284,14 @@ def test_restore_after_pool_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-12", tags=[])
-def test_restore_after_pool_member_delete(marathon, bigip, f5mlb):
+def test_restore_after_pool_member_delete(orchestration, bigip, f5mlb):
     """Verify response when managed pool member is deleted.
 
     When it realizes that a managed pool member is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     instances = svc.instances.get()
     obj_name = "%s:%d" % (instances[0].host, instances[0].ports[0])
@@ -305,14 +305,14 @@ def test_restore_after_pool_member_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-13", tags=[])
-def test_restore_after_node_delete(marathon, bigip, f5mlb):
+def test_restore_after_node_delete(orchestration, bigip, f5mlb):
     """Verify response when managed node is deleted.
 
     When it realizes that a managed node is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     instances = svc.instances.get()
     obj_name = instances[0].host
@@ -328,14 +328,14 @@ def test_restore_after_node_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-14", tags=[])
-def test_restore_after_health_monitor_delete(marathon, bigip, f5mlb):
+def test_restore_after_health_monitor_delete(orchestration, bigip, f5mlb):
     """Verify response when managed health monitor is deleted.
 
     When it realizes that a managed health monitor is deleted, f5mlb will
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     utils.wait_for_f5mlb()
     obj_name = utils.get_backend_object_name(svc)
 
@@ -360,13 +360,13 @@ def test_restore_after_health_monitor_delete(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-15", tags=[])
-def test_restore_after_f5mlb_delete(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_delete(orchestration, bigip, f5mlb):
     """Verify response when f5mlb is deleted (no other changes occur).
 
     Neither the bigip nor managed service are changed while f5mlb is gone, so
     there's nothing for f5mlb to do when it comes back online.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_svc = svc.freeze()
@@ -376,44 +376,46 @@ def test_restore_after_f5mlb_delete(marathon, bigip, f5mlb):
     assert svc.diff(old_svc) == {}
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert svc.diff(old_svc) == {}
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
 
 @meta_test(id="f5mlb-16", tags=[])
-def test_restore_after_f5mlb_delete_then_svc_delete(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_delete_then_svc_delete(
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb and the managed service are deleted.
 
     When the f5mlb comes back online, it realizes that the managed bigip
     objects are orphaned and reaps them.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     f5mlb.delete()
     # - delete the managed service
     svc.delete()
     utils.wait_for_f5mlb()
-    assert not marathon.app.exists(svc.id)
+    assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
-    assert not marathon.app.exists(svc.id)
+    assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == {}
 
 
 @meta_test(id="f5mlb-17", tags=[])
-def test_restore_after_f5mlb_delete_then_svc_update(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_delete_then_svc_update(
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb deleted, then managed service is changed.
 
     When the f5mlb comes back online, it realizes that the managed bigip
     objects are orphaned (because the managed service is no longer properly
     configured to register with f5mlb) and reaps them.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     f5mlb.delete()
@@ -422,20 +424,20 @@ def test_restore_after_f5mlb_delete_then_svc_update(marathon, bigip, f5mlb):
     svc.update()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert utils.get_backend_objects(bigip) == {}
 
 
 @meta_test(id="f5mlb-18", tags=[])
 def test_restore_after_f5mlb_delete_then_backend_delete(
-        marathon, bigip, f5mlb):
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb and backend objects are deleted.
 
     When the f5mlb comes back online, it realizes that managed bigip objects
     are missing, so it creates new ones.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     f5mlb.delete()
     # - delete the managed virtual server
@@ -447,7 +449,7 @@ def test_restore_after_f5mlb_delete_then_backend_delete(
     orig_va_list = backend_objs_exp.pop('virtual_addresses')
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate f5mlb and verify restoration
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     backend_objs_exp['virtual_servers'] = orig_vs_list
     backend_objs_exp['virtual_addresses'] = orig_va_list
@@ -456,14 +458,14 @@ def test_restore_after_f5mlb_delete_then_backend_delete(
 
 @meta_test(id="f5mlb-19", tags=[])
 def test_restore_after_f5mlb_delete_then_backend_update(
-        marathon, bigip, f5mlb):
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb deleted, then backend objects are changed.
 
     When the f5mlb comes back online, it realizes that managed bigip objects
     were modified, so it resets the properties that it cares about and ignores
     the properties that it doesn't care about.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     f5mlb.delete()
     # - change the managed virtual server
@@ -485,7 +487,7 @@ def test_restore_after_f5mlb_delete_then_backend_update(
     assert virtual_server.destination == new_dest
     assert virtual_server.description == new_desc
     # - recreate f5mlb and verify restoration
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     virtual_server.refresh()
     assert virtual_server.destination == old_dest
@@ -495,13 +497,13 @@ def test_restore_after_f5mlb_delete_then_backend_update(
 
 
 @meta_test(id="f5mlb-20", tags=[])
-def test_restore_after_f5mlb_suspend(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_suspend(orchestration, bigip, f5mlb):
     """Verify response when f5mlb is suspended (no other changes occur).
 
     Neither the bigip nor managed service are changed while f5mlb is gone, so
     there's nothing for f5mlb to do when it comes back online.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_svc = svc.freeze()
@@ -518,37 +520,39 @@ def test_restore_after_f5mlb_suspend(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-21", tags=[])
-def test_restore_after_f5mlb_suspend_then_svc_delete(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_suspend_then_svc_delete(
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb suspended, then managed service is deleted.
 
     When the f5mlb comes back online, it realizes that the managed bigip
     objects are orphaned and reaps them.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     f5mlb.suspend()
     # - delete the managed service
     svc.delete()
     utils.wait_for_f5mlb()
-    assert not marathon.app.exists(svc.id)
+    assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume f5mlb and verify restoration
     f5mlb.resume()
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
-    assert not marathon.app.exists(svc.id)
+    assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == {}
 
 
 @meta_test(id="f5mlb-22", tags=[])
-def test_restore_after_f5mlb_suspend_then_svc_update(marathon, bigip, f5mlb):
+def test_restore_after_f5mlb_suspend_then_svc_update(
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb suspended, then managed service is changed.
 
     When the f5mlb comes back online, it realizes that the managed bigip
     objects are orphaned (because the managed service is no longer properly
     configured to register with f5mlb) and reaps them.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     f5mlb.suspend()
@@ -564,13 +568,13 @@ def test_restore_after_f5mlb_suspend_then_svc_update(marathon, bigip, f5mlb):
 
 @meta_test(id="f5mlb-23", tags=[])
 def test_restore_after_f5mlb_suspend_then_backend_delete(
-        marathon, bigip, f5mlb):
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb suspended, then backend objects are deleted.
 
     When the f5mlb comes back online, it realizes that managed bigip objects
     are missing, so it creates new ones.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     f5mlb.suspend()
     # - delete the managed virtual server
@@ -590,14 +594,14 @@ def test_restore_after_f5mlb_suspend_then_backend_delete(
 
 @meta_test(id="f5mlb-24", tags=[])
 def test_restore_after_f5mlb_suspend_then_backend_update(
-        marathon, bigip, f5mlb):
+        orchestration, bigip, f5mlb):
     """Verify response when f5mlb suspended, then backend objects are changed.
 
     When the f5mlb comes back online, it realizes that managed bigip objects
     were modified, so it resets the properties that it cares about and ignores
     the properties that it doesn't care about.
     """
-    svc = utils.create_managed_service(marathon)
+    svc = utils.create_managed_service(orchestration)
     backend_objs_exp = utils.get_backend_objects_exp(svc)
     f5mlb.suspend()
     # - change the managed virtual server
@@ -629,8 +633,9 @@ def test_restore_after_f5mlb_suspend_then_backend_update(
 
 
 @meta_test(id="f5mlb-25", tags=["incomplete"])
-def test_restore_after_partition_delete_has_backup(marathon, bigip, f5mlb):
-    """Verify response when one of the partitions with f5mlb objects is deleted.
+def test_restore_after_partition_delete_has_backup(
+        orchestration, bigip, f5mlb):
+    """Check response when one of the partitions with f5mlb objects is deleted.
 
     When it realizes that a partition with managed objects was deleted, f5mlb
     will recreate them on the next available managed partition.
@@ -639,7 +644,7 @@ def test_restore_after_partition_delete_has_backup(marathon, bigip, f5mlb):
 
 
 @meta_test(id="f5mlb-26", tags=["incomplete"])
-def test_restore_after_partition_delete_no_backup(marathon, bigip, f5mlb):
+def test_restore_after_partition_delete_no_backup(orchestration, bigip, f5mlb):
     """Verify response when sole partition with f5mlb objects is deleted.
 
     When it realizes that a partition with managed objects was deleted, f5mlb

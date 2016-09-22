@@ -1,4 +1,4 @@
-"""Helper functions for marathon tests."""
+"""Helper functions for orchestration tests."""
 
 
 import time
@@ -56,16 +56,16 @@ DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
 
 
 def create_managed_service(
-        marathon, id="test-svc",
+        orchestration, id="test-svc",
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         labels=DEFAULT_SVC_LABELS,
         timeout=DEFAULT_SVC_TIMEOUT,
         health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP,
         num_instances=DEFAULT_SVC_INSTANCES):
-    """Create a marathon app with f5mlb decorations."""
+    """Create an app with f5mlb decorations."""
     # FIXME (kevin): merge user-provided labels w/ default labels
-    return marathon.app.create(
+    return orchestration.app.create(
         id=id,
         cpus=cpus,
         mem=mem,
@@ -87,10 +87,10 @@ def create_managed_service(
 
 
 def create_f5mlb(
-        marathon, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
+        orchestration, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
         mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_F5MLB_TIMEOUT):
     """Create an f5mlb app."""
-    return marathon.app.create(
+    return orchestration.app.create(
         id=id,
         cpus=cpus,
         mem=mem,
@@ -108,9 +108,9 @@ def create_f5mlb(
     )
 
 
-def create_unmanaged_service(marathon, id, labels={}):
-    """Create a marathon app with no f5mlb decorations."""
-    return marathon.app.create(
+def create_unmanaged_service(orchestration, id, labels={}):
+    """Create an app with no f5mlb decorations."""
+    return orchestration.app.create(
         id=id,
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,

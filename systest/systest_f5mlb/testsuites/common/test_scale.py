@@ -1,4 +1,4 @@
-"""Test suite to verify scale test scenarios in a marathon environment."""
+"""Test suite to verify scale test scenarios."""
 
 
 import multiprocessing
@@ -11,7 +11,7 @@ from pytest import symbols
 from . import utils
 
 
-pytestmark = meta_suite(tags=["scale", "marathon"])
+pytestmark = meta_suite(tags=["scale", "marathon", "k8s"])
 
 F5MLB_CPUS = 0.5
 F5MLB_MEM = 128
@@ -24,49 +24,49 @@ VS_TIMEOUT = 5 * 60
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_f5mlb1_svc10_srv100(ssh, marathon):
+def test_f5mlb1_svc10_srv100(ssh, orchestration):
     """Scale test: 1 f5mlb, 10 managed services (w/ 100 backend servers each).
 
     Each managed service has 100 backend servers.
-    So this test creates 1,011 marathon objects.
+    So this test creates 1,011 application instances.
     """
-    _run_scale_test(ssh, marathon, num_svcs=10, num_srvs=100)
+    _run_scale_test(ssh, orchestration, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_f5mlb1_svc100_srv10(ssh, marathon):
+def test_f5mlb1_svc100_srv10(ssh, orchestration):
     """Scale test: 1 f5mlb, 100 managed services (w/ 10 backend servers each).
 
     Each managed service has 10 backend servers.
-    So this test creates 1,101 marathon objects.
+    So this test creates 1,101 application instances.
     """
-    _run_scale_test(ssh, marathon, num_svcs=100, num_srvs=10)
+    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=10)
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_f5mlb1_svc100_srv100(ssh, marathon):
+def test_f5mlb1_svc100_srv100(ssh, orchestration):
     """Scale test: 1 f5mlb, 100 managed services (w/ 100 backend servers each).
 
     Each managed service has and 100 backend servers.
-    So this test creates 10,101 marathon objects.
+    So this test creates 10,101 application instances.
     """
-    _run_scale_test(ssh, marathon, num_svcs=100, num_srvs=100)
+    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=100)
 
 
 def _run_scale_test(
-        ssh, marathon, num_svcs, num_srvs,
+        ssh, orchestration, num_svcs, num_srvs,
         svc_cpus=SVC_CPUS, svc_mem=SVC_MEM, timeout=SVC_TIMEOUT):
     svc_inputs = []
     svcs = []
 
-    utils.create_f5mlb(marathon, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
+    utils.create_f5mlb(orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
 
     # - first, scale-up the appropriate services and instances
     for i in range(1, num_svcs + 1):
         svc_inputs.append({
             'idx': i,
             'ssh': ssh,
-            'marathon': marathon,
+            'orchestration': orchestration,
             'num_srvs': num_srvs,
             'svc_cpus': svc_cpus,
             'svc_mem': svc_mem,
@@ -92,8 +92,9 @@ def _run_scale_test(
 
 
 def _create_svc(kwargs):
-    # - wait a pseudo-random number of seconds (to prevent the marathon server
-    #   from being inundated with simultaneous app creation/scaling requests)
+    # - wait a pseudo-random number of seconds (to prevent the orchestration
+    #   server from being inundated with simultaneous app creation/scaling
+    #   requests)
     time.sleep(random.randint(1, 20) + ((kwargs['idx'] * 5) % 30))
 
     # - create a managed service
@@ -105,7 +106,7 @@ def _create_svc(kwargs):
         'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
     }
     svc = utils.create_managed_service(
-        kwargs['marathon'],
+        kwargs['orchestration'],
         svc_name,
         labels=svc_labels,
         cpus=kwargs['svc_cpus'],
@@ -117,7 +118,7 @@ def _create_svc(kwargs):
     return {
         'svc_name': svc_name,
         'ssh': kwargs['ssh'],
-        'marathon': kwargs['marathon']
+        'orchestration': kwargs['orchestration']
     }
 
 
@@ -156,9 +157,9 @@ def _wait_for_virtual_server(svc, ssh, timeout=VS_TIMEOUT):
 
 
 def _verify_f5mlb(kwargs):
-    marathon = kwargs['marathon']
+    orchestration = kwargs['orchestration']
     ssh = kwargs['ssh']
-    svc = marathon.app.get(kwargs['svc_name'])
+    svc = orchestration.app.get(kwargs['svc_name'])
     svc_url = (
         "http://%s:%s"
         % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
@@ -170,7 +171,7 @@ def _verify_f5mlb(kwargs):
         potential_responses.append("Hello from %s :0)" % member)
     num_requests = 20
     curl_cmd = "curl -s %s" % svc_url
-    for i in range(num_requests):
+    for _ in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
         assert res in potential_responses
         if res not in actual_responses:

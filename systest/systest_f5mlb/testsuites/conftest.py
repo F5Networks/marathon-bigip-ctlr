@@ -9,22 +9,22 @@ import systest_common.src as common
 from . import utils
 
 
-MARATHON_DELETE_TIMEOUT = 2 * 60
+DELETE_TIMEOUT = 2 * 60
 
 
-@pytest.fixture(scope='module', autouse=True)
-def marathon(request):
-    """Provide a marathon connection."""
-    return common.marathon.connect(symbols.marathon_url)
+@pytest.fixture(scope='session', autouse=True)
+def orchestration(request):
+    """Provide an orchestration connection."""
+    return common.orchestration.connect(**vars(symbols))
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope='session', autouse=True)
 def ssh(request):
     """Provide an ssh connection - via the bastion host."""
     return common.ssh.connect(gateway=symbols.bastion)
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope='session', autouse=True)
 def bigip(request):
     """Provide a bigip connection."""
     return common.bigip.connect(
@@ -35,11 +35,11 @@ def bigip(request):
 
 
 @pytest.fixture(scope='function', autouse=True)
-def default_test_fx(request, marathon, bigip):
+def default_test_fx(request, orchestration, bigip):
     """Default test fixture.
 
     Create a test partition on test setup.
-    Delete all marathon apps on test teardown.
+    Delete all orchestration apps on test teardown.
     Delete test partition on test teardown.
     """
     partition = utils.DEFAULT_F5MLB_PARTITION
@@ -53,8 +53,8 @@ def default_test_fx(request, marathon, bigip):
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        marathon.apps.delete(timeout=MARATHON_DELETE_TIMEOUT)
-        marathon.deployments.delete(timeout=MARATHON_DELETE_TIMEOUT)
+        orchestration.apps.delete(timeout=DELETE_TIMEOUT)
+        orchestration.deployments.delete(timeout=DELETE_TIMEOUT)
         bigip.iapps.delete(partition=partition)
         bigip.virtual_servers.delete(partition=partition)
         bigip.virtual_addresses.delete(partition=partition)
@@ -67,9 +67,9 @@ def default_test_fx(request, marathon, bigip):
 
 
 @pytest.fixture(scope='function')
-def f5mlb(request, marathon):
+def f5mlb(request, orchestration):
     """Provide a default f5mlb app."""
-    f5mlb = utils.create_f5mlb(marathon)
+    f5mlb = utils.create_f5mlb(orchestration)
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
