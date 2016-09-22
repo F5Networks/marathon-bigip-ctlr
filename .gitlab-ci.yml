@@ -91,6 +91,7 @@ github_update:
     - git config user.name "gitlab-runner"
     - rm -rf ./docs/f5mlb
     - cp -R ../docs ./docs/f5mlb
+    - git add ./docs/f5mlb
     - git status
     - if git commit -m "changes pushed to GitHub by gitlab-ci for commit {$CI_BUILD_REF}, build ID {$CI_BUILD_ID}"; then
     -   git push origin gitlab-ci
