@@ -30,30 +30,20 @@ all:
 	@printf "      Valid values: marathon, k8s.\n"
 
 VALID_ORCHESTRATIONS := marathon k8s
-export VALID_ORCHESTRATIONS
 VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s)
-export VALID_ORCHESTRATIONS_MSG
 
-define ORCHESTRATION_PROMPT
-Enter orchestration system $(VALID_ORCHESTRATIONS_MSG):  
-endef
-
+# - handle blank target and "all" separately because they do *not* require
+#   the user to provide an orchestration value
 ifeq ("$(MAKECMDGOALS)", "")
   $(NOOP)
 else ifeq ($(MAKECMDGOALS), all)
   $(NOOP)
 else
-  # - prompt for orchestration value if not provided
-  ifndef orchestration
-    orchestration := $(shell bash -c 'read -p "$(ORCHESTRATION_PROMPT)" val; echo $$val')
-    export orchestration
-  endif
-
   # - validate orchestration value
   ifndef orchestration
     $(error ERROR: Orchestration value not provided $(VALID_ORCHESTRATIONS_MSG))
   else ifeq ($(orchestration), $(filter $(orchestration), $(VALID_ORCHESTRATIONS)))
-    @echo "orchestration system = $(orchestration)"
+    $(NOOP)
   else
     $(error ERROR: Invalid orchestration value '$(orchestration)' $(VALID_ORCHESTRATIONS_MSG))
   endif
@@ -97,14 +87,14 @@ scaletest:
 	@$(MAKE) scaletest-teardown
 
 functest-install scaletest-install:
-	@echo "installing system tests ..."
+	@echo "installing $(orchestration) system tests ..."
 	scp -F $(ssh_conf) \
 		$(systest_pkg)/scripts/install_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/install_systests.sh $(repo) $(systest_pkg)"
 
 functest-setup:
-	@echo "setting up functional test environment ..."
+	@echo "setting up $(orchestration) functional test environment ..."
 	testenv create --name $(func_testenv_name) \
 		--config mesos.testenv.yaml \
 		--requires bigip \
@@ -112,23 +102,23 @@ functest-setup:
 		--vars f5mlb_img:"$(f5mlb_img)"
 
 functest-run:
-	@echo "running functional tests ..."
+	@echo "running $(orchestration) functional tests ..."
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
 		$(systest_pkg) $(func_session) func $(orchestration)"
 
 functest-teardown:
-	@echo "downloading functional test results ..."
+	@echo "downloading $(orchestration) functional test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
 		bastion:~/test_results/$(func_session)/* $(results_dir)/
 
-	@echo "tearing down functional test environment ..."
+	@echo "tearing down $(orchestration) functional test environment ..."
 	testenv delete --name $(func_testenv_name)
 
 scaletest-setup:
-	@echo "setting up scale test environment ..."
+	@echo "setting up $(orchestration) scale test environment ..."
 	testenv create --name $(scale_testenv_name) \
 		--config mesos.testenv.yaml \
 		--requires bigip \
@@ -136,17 +126,17 @@ scaletest-setup:
 		--vars f5mlb_img:"$(f5mlb_img)"
 
 scaletest-run:
-	@echo "running scale tests ..."
+	@echo "running $(orchestration) scale tests ..."
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
 		$(systest_pkg) $(scale_session) scale $(orchestration)"
 
 scaletest-teardown:
-	@echo "downloading scale test results ..."
+	@echo "downloading $(orchestration) scale test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
 		bastion:~/test_results/$(scale_session)/* $(results_dir)/
 
-	@echo "tearing down scale test environment ..."
+	@echo "tearing down $(orchestration) scale test environment ..."
 	testenv delete --name $(scale_testenv_name)
