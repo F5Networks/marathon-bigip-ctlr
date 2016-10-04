@@ -143,13 +143,9 @@ class CloudBigIP(BigIP):
         partitions = frozenset(self._partitions)
 
         for svc in svcs:
-            f5_service = {
-                'virtual': {},
-                'nodes': {},
-                'health': {},
-                'partition': '',
-                'name': ''
-                }
+            # FIXME(yacobucci) we need better validation here, a schema exists
+            # it just needs to be validated against
+            f5_service = {}
 
             backend = svc['virtualServer']['backend']
             frontend = svc['virtualServer']['frontend']
@@ -160,45 +156,62 @@ class CloudBigIP(BigIP):
                 continue
 
             # No address for this port
-            if not frontend['virtualAddress']['bindAddr']:
+            if (('virtualAddress' not in frontend or
+                 'bindAddr' not in frontend['virtualAddress']) and
+                    'iapp' not in frontend):
                 continue
+
+            virt_addr = ('iapp' if 'iapp' in frontend else
+                         frontend['virtualAddress']['bindAddr'])
+            port = (backend['servicePort'] if 'virtualAddress' not in frontend
+                    else frontend['virtualAddress']['port'])
+            frontend_name = "{0}_{1}_{2}".format(
+                    backend['serviceName'].strip('/'),
+                    virt_addr, port)
+
+            f5_service['name'] = frontend_name
 
             f5_service['partition'] = frontend['partition']
 
-            virt_addr = frontend['virtualAddress']['bindAddr']
-            frontend_name = "%s_%s_%d" % ((backend['serviceName']).lstrip('/'),
-                                          virt_addr,
-                                          frontend['virtualAddress']['port'])
-            f5_service['name'] = frontend_name
+            if 'iapp' in frontend:
+                f5_service['iapp'] = {'template': frontend['iapp'],
+                                      'tableName': frontend['iappTableName'],
+                                      'variables': frontend['iappVariables'],
+                                      'options': frontend['iappOptions']}
+            else:
+                f5_service['virtual'] = {}
+                f5_service['nodes'] = {}
+                f5_service['health'] = {}
 
-            # Parse the SSL profile into partition and name
-            profile = [None, None]
-            if 'sslProfile' in frontend:
-                profile = frontend['sslProfile']['f5ProfileName'].split('/')
-                if len(profile) != 2:
-                    logger.error("Could not parse partition and name from SSL"
-                                 " profile: %s",
-                                 frontend['sslProfile']['f5ProfileName'])
-                    profile = [None, None]
+                # Parse the SSL profile into partition and name
+                profile = [None, None]
+                if 'sslProfile' in frontend:
+                    profile = (frontend['sslProfile']['f5ProfileName'].
+                               split('/'))
+                    if len(profile) != 2:
+                        logger.error("Could not parse partition and name from "
+                                     "SSL profile: %s",
+                                     frontend['sslProfile']['f5ProfileName'])
+                        profile = [None, None]
 
-            f5_service['virtual'].update({
-                'id': backend['serviceName'],
-                'name': frontend_name,
-                'destination': frontend['virtualAddress']['bindAddr'],
-                'port': frontend['virtualAddress']['port'],
-                'protocol': frontend['mode'],
-                'balance': frontend['balance'],
-                'profile': {'partition': profile[0], 'name': profile[1]}
-                })
+                f5_service['virtual'].update({
+                    'id': backend['serviceName'],
+                    'name': frontend_name,
+                    'destination': frontend['virtualAddress']['bindAddr'],
+                    'port': frontend['virtualAddress']['port'],
+                    'protocol': frontend['mode'],
+                    'balance': frontend['balance'],
+                    'profile': {'partition': profile[0], 'name': profile[1]}
+                    })
 
-            nodePort = backend['nodePort']
-            for node in backend['nodes']:
-                f5_node_name = node + ':' + str(nodePort)
-                f5_service['nodes'].update({f5_node_name: {
-                    'name': f5_node_name,
-                    'host': node,
-                    'port': nodePort
-                }})
+                nodePort = backend['nodePort']
+                for node in backend['nodes']:
+                    f5_node_name = node + ':' + str(nodePort)
+                    f5_service['nodes'].update({f5_node_name: {
+                        'name': f5_node_name,
+                        'host': node,
+                        'port': nodePort
+                    }})
 
             f5.update({frontend_name: f5_service})
 
