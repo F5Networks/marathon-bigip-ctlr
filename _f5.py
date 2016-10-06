@@ -180,7 +180,6 @@ class CloudBigIP(BigIP):
                                       'options': frontend['iappOptions']}
             else:
                 f5_service['virtual'] = {}
-                f5_service['nodes'] = {}
                 f5_service['health'] = {}
 
                 # Parse the SSL profile into partition and name
@@ -204,14 +203,15 @@ class CloudBigIP(BigIP):
                     'profile': {'partition': profile[0], 'name': profile[1]}
                     })
 
-                nodePort = backend['nodePort']
-                for node in backend['nodes']:
-                    f5_node_name = node + ':' + str(nodePort)
-                    f5_service['nodes'].update({f5_node_name: {
-                        'name': f5_node_name,
-                        'host': node,
-                        'port': nodePort
-                    }})
+            f5_service['nodes'] = {}
+            nodePort = backend['nodePort']
+            for node in backend['nodes']:
+                f5_node_name = node + ':' + str(nodePort)
+                f5_service['nodes'].update({f5_node_name: {
+                    'name': f5_node_name,
+                    'host': node,
+                    'port': nodePort
+                }})
 
             f5.update({frontend_name: f5_service})
 
