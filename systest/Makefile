@@ -115,7 +115,7 @@ functest-teardown:
 		bastion:~/test_results/$(func_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) functional test environment ..."
-	testenv delete --name $(func_testenv_name)
+	testenv delete --name $(func_testenv_name) mesos
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
@@ -139,4 +139,4 @@ scaletest-teardown:
 		bastion:~/test_results/$(scale_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) scale test environment ..."
-	testenv delete --name $(scale_testenv_name)
+	testenv delete --name $(scale_testenv_name) mesos
