@@ -98,7 +98,7 @@ functest-setup:
 	testenv create --name $(func_testenv_name) \
 		--config mesos.testenv.yaml \
 		--requires bigip \
-		--params num_masters:1 num_workers:1 \
+		--param num_masters:1 --param num_workers:1 \
 		--vars f5mlb_img:"$(f5mlb_img)"
 
 functest-run:
@@ -122,7 +122,7 @@ scaletest-setup:
 	testenv create --name $(scale_testenv_name) \
 		--config mesos.testenv.yaml \
 		--requires bigip \
-		--params num_masters:1 num_workers:6 \
+		--param num_masters:1 --param num_workers:6 \
 		--vars f5mlb_img:"$(f5mlb_img)"
 
 scaletest-run:
