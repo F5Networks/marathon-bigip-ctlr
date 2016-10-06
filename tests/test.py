@@ -1409,5 +1409,43 @@ class KubernetesTest(BigIPTest):
         self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
                           expected_name)
 
+    def test_delete_iapp(self, cloud_state='tests/kubernetes_no_apps.json',
+                         bigip_state='tests/bigip_test_blank.json',
+                         hm_state='tests/bigip_test_blank.json'):
+        """Test: Delete Kubernetes app associated with iApp."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        self.bigip.get_iapp_list = \
+            Mock(side_effect=self.mock_get_iapp_list)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+
+        self.assertTrue(self.bigip.iapp_delete.called)
+        self.assertEquals(self.bigip.iapp_delete.call_count, 1)
+
+        expected_name = 'server-app2_iapp_10000_vs'
+        self.assertEquals(self.bigip.iapp_delete.call_args_list[0][0][1],
+                          expected_name)
+
 if __name__ == '__main__':
     unittest.main()
