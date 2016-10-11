@@ -214,19 +214,16 @@ class MarathonBigIP(BigIP):
                              backendServer.port,
                              app.appId)
 
-                f5_node_name = backendServer.host + ':' + \
-                    str(backendServer.port)
-                f5_service['nodes'].update({f5_node_name: {
-                    'name': backendServer.host + ':' + str(backendServer.port),
-                    'host': backendServer.host,
-                    'port': backendServer.port
-                }})
-
+                # Resolve backensServer hostmane to IP address
                 ipv4 = resolve_ip(backendServer.host)
 
                 if ipv4 is not None:
-                    # TODO:?  Handle hostnames instead of IPs
-                    pass
+                    f5_node_name = ipv4 + ':' + str(backendServer.port)
+                    f5_service['nodes'].update({f5_node_name: {
+                        'name': f5_node_name,
+                        'host': ipv4,
+                        'port': backendServer.port
+                    }})
                 else:
                     logger.warning("Could not resolve ip for host %s, "
                                    "ignoring this backend",
