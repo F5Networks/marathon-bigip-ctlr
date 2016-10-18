@@ -49,6 +49,13 @@ else
   endif
 endif
 
+# - set testenv config file
+ifeq ($(orchestration), marathon)
+  testenv_config := mesos.testenv.yaml
+else ifeq ($(orchestration), k8s)
+  testenv_config := k8s.testenv.yaml
+endif
+
 repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/f5-marathon-lb.git
 systest_pkg := systest_f5mlb
 registry := docker-registry.pdbld.f5net.com
@@ -96,7 +103,7 @@ functest-install scaletest-install:
 functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
 	testenv create --name $(func_testenv_name) \
-		--config mesos.testenv.yaml \
+		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:1 \
 		--vars f5mlb_img:"$(f5mlb_img)"
@@ -115,12 +122,12 @@ functest-teardown:
 		bastion:~/test_results/$(func_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) functional test environment ..."
-	testenv delete --name $(func_testenv_name) mesos
+	testenv delete --name $(func_testenv_name) --config $(testenv_config)
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
 	testenv create --name $(scale_testenv_name) \
-		--config mesos.testenv.yaml \
+		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:6 \
 		--vars f5mlb_img:"$(f5mlb_img)"
@@ -139,4 +146,4 @@ scaletest-teardown:
 		bastion:~/test_results/$(scale_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) scale test environment ..."
-	testenv delete --name $(scale_testenv_name) mesos
+	testenv delete --name $(scale_testenv_name) --config $(testenv_config)
