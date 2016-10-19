@@ -121,7 +121,7 @@ In step 3, above, we use the command ``curl -X POST -H "Content-Type: applicatio
             }
           },
           "args": [
-            "sse",
+            "--sse",
             "--marathon", "http://10.141.141.10:8080",
             "--partition", "mesos_1",
             "--hostname", "10.128.1.145",
