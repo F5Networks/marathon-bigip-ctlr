@@ -98,7 +98,8 @@ def create_f5mlb(
         container_img=symbols.f5mlb_img,
         container_force_pull_image=True,
         args=[
-            "sse",
+            "--sse",
+            "--syslog-socket", "/dev/null",
             "--marathon", symbols.marathon_url,
             "--partition", DEFAULT_F5MLB_PARTITION,
             "--hostname", symbols.bigip_mgmt_ip,

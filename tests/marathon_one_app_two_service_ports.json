@@ -192,7 +192,7 @@
     {
         "acceptedResourceRoles": null,
         "args": [
-            "sse",
+            "--sse",
             "--marathon",
             "http://10.141.141.10:8080",
             "--partition",
