@@ -32,24 +32,23 @@ git@bldr-git.int.lineratesystes.com:velcro/f5-marathon-lb.git
 Manual environment setup
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+Python requirements should be installed into a virtualenv. Follow these links for more in-depth discussion of dependency management via `Virtualenv <https://virtualenv.pypa.io/en/stable/>`_ and this `How-to Guide <http://docs.python-guide.org/en/latest/dev/virtualenvs/>`_.
+
+To test, format, and lint this project; install these packages: flake8, flake8_docstrings, and mock.
+
+To check formatting and lint: ``flake8 --exclude=docs/ ./``.
+
+To run unit tests: ``python -m unittest discover -v``.
+
 .. code-block:: bash
 
-    $ sudo apt-get update
-    $ sudo apt-get install gcc git python python-dev python-pip
-    $ git clone [gitlab F5MLB project]
-    $ cd f5-marathon-lb
-    # Install python requirements using sudo or create a virtualenv workspace.
-    $ sudo pip install -r requirements.txt
-    # The gitlab-ci unit-test target will validate source code against 'flake8'
-    # and flake8_docstrings. To prevent failures you can install and run:
-    #   flake8 --exclude=docs/ ./
-    # from the project directory.
-    $ sudo pip install flake8 flake8_docstrings
-    # The gitlab-ci unit-test target will run pytest unit tests. The unit tests
-    # depend on the 'mock' module. To prevent failures you can install and run:
-    #   python -m unittest discover -v
-    # from the project directory.
-    $ sudo pip install mock
+    # First create and activate a virtualenv according to provided links
+    sudo apt-get update
+    sudo apt-get install gcc git python python-dev python-pip
+    git clone [gitlab F5MLB project]
+    cd f5-marathon-lb
+    pip install -r requirements.txt
+    pip install flake8 flake8_docstrings mock
 
 Docker environment setup
 ~~~~~~~~~~~~~~~~~~~~~~~~
