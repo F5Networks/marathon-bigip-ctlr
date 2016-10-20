@@ -27,7 +27,7 @@ def test_iapp_f5_http(ssh, orchestration, bigip, f5mlb):
         'F5_0_IAPP_VARIABLE_pool__pool_to_use': CREATE_NEW,
         'F5_0_IAPP_VARIABLE_pool__lb_method': "round-robin",
         'F5_0_IAPP_VARIABLE_pool__http': CREATE_NEW,
-        'F5_0_IAPP_VARIABLE_pool__mask': "",
+        'F5_0_IAPP_VARIABLE_pool__mask': "255.255.255.255",
         'F5_0_IAPP_VARIABLE_pool__persist': DONT_USE,
         'F5_0_IAPP_VARIABLE_monitor__monitor': CREATE_NEW,
         'F5_0_IAPP_VARIABLE_monitor__uri': "/",
@@ -72,7 +72,6 @@ def test_iapp_f5_http(ssh, orchestration, bigip, f5mlb):
         k.replace(lbl_prefix, ""): v for k, v in labels.iteritems()
         if k.startswith(lbl_prefix)
     }
-    vars_exp['pool__mask'] = "none"
     assert vars_act == vars_exp
 
     # - verify round-robin load balancing

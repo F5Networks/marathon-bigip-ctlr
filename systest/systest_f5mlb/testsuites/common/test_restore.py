@@ -8,7 +8,7 @@ from . import utils
 
 pytestmark = meta_suite(tags=["func", "marathon", "k8s", "restore"])
 
-RESTORE_TIMEOUT = 10
+RESTORE_TIMEOUT = 5
 
 
 @meta_test(id="f5mlb-2", tags=[])
@@ -31,17 +31,9 @@ def test_restore_after_backend_create(orchestration, bigip, f5mlb):
     bigip.health_monitor.tcp.create(
         name="tst-health-monitor", partition=default_partition)
 
-    # - verify unmanaged backend objects are left intact
+    # - verify unmanaged backend objects are deleted
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
-    backend_objs_exp = {
-        'virtual_servers': ["tst-virtual-server"],
-        'virtual_addresses': ["192.168.100.1"],
-        'pools': ["tst-pool"],
-        'pool_members': ["192.168.200.1:80"],
-        'nodes': ["192.168.200.1"],
-        'health_monitors': ["tst-health-monitor"]
-    }
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    assert utils.get_backend_objects(bigip) == {}
 
 
 @meta_test(id="f5mlb-3", tags=[])
@@ -144,8 +136,7 @@ def test_restore_after_pool_member_update(orchestration, bigip, f5mlb):
     )
     member_state_orig = pool_member.state
     pool_member.description = "test-description"
-    pool_member.update(state=None)
-#    pool_member.update(state="user-down")
+    pool_member.update(state="user-down", session="user-disabled")
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     pool_member.refresh()
     assert pool_member.state == member_state_orig
@@ -222,7 +213,6 @@ def test_restore_after_virtual_server_delete(orchestration, bigip, f5mlb):
     assert \
         bigip.virtual_servers.list(partition=default_partition) == [obj_name]
     bigip.virtual_server.delete(obj_name, partition=default_partition)
-    assert bigip.virtual_servers.list(partition=default_partition) == []
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert \
         bigip.virtual_servers.list(partition=default_partition) == [obj_name]
@@ -254,8 +244,10 @@ def test_restore_after_virtual_address_delete(orchestration, bigip, f5mlb):
     assert \
         bigip.virtual_addresses.list(partition=default_partition) == [new_addr]
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
+    # FIXME (darzins) Virtual Addresses should auto-delete when unreferenced,
+    # but that doesn't happen (Bug 590377)
     assert \
-        bigip.virtual_addresses.list(partition=default_partition) == [old_addr]
+        old_addr in bigip.virtual_addresses.list(partition=default_partition)
 
 
 @meta_test(id="f5mlb-11", tags=[])
@@ -278,7 +270,6 @@ def test_restore_after_pool_delete(orchestration, bigip, f5mlb):
     virtual_server.pool = "None"
     virtual_server.update()
     bigip.pool.delete(name=obj_name, partition=default_partition)
-    assert bigip.pools.list(partition=default_partition) == []
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.pools.list(partition=default_partition) == [obj_name]
 
@@ -299,7 +290,6 @@ def test_restore_after_pool_member_delete(orchestration, bigip, f5mlb):
     # - delete managed pool member and verify recreate
     assert bigip.pool_members.list(partition=default_partition) == [obj_name]
     bigip.pool_member.delete(name=obj_name, partition=default_partition)
-    assert bigip.pool_members.list(partition=default_partition) == []
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.pool_members.list(partition=default_partition) == [obj_name]
 
@@ -322,7 +312,6 @@ def test_restore_after_node_delete(orchestration, bigip, f5mlb):
     assert bigip.nodes.list(partition=default_partition) == [obj_name]
     bigip.pool_member.delete(name=member_name, partition=default_partition)
     bigip.node.delete(obj_name, partition=default_partition)
-    assert bigip.nodes.list(partition=default_partition) == []
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert bigip.nodes.list(partition=default_partition) == [obj_name]
 
@@ -350,8 +339,6 @@ def test_restore_after_health_monitor_delete(orchestration, bigip, f5mlb):
     bigip.health_monitor.http.delete(
         name=obj_name, partition=default_partition
     )
-    assert \
-        bigip.health_monitors.http.list(partition=default_partition) == []
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
     assert (
         bigip.health_monitors.http.list(partition=default_partition) ==

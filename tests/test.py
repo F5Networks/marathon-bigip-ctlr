@@ -70,6 +70,7 @@ class ArgTest(unittest.TestCase):
                       [--hostname HOSTNAME] [--username USERNAME]
                       [--password PASSWORD] [--partition PARTITION] [--sse]
                       [--health-check] [--sse-timeout SSE_TIMEOUT]
+                      [--verify-interval VERIFY_INTERVAL]
                       [--syslog-socket SYSLOG_SOCKET]
                       [--log-format LOG_FORMAT]
                       [--marathon-auth-credential-file""" \
@@ -317,6 +318,118 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.sse_timeout, timeout)
 
+    def test_verify_interval_arg(self):
+        """Test: 'Verify Interval' arg."""
+        timeout = 45
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--verify-interval', str(timeout)]
+        args = parse_args()
+        self.assertEqual(args.verify_interval, timeout)
+
+        # test default value
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.verify_interval, 30)
+
+        # test via env var
+        os.environ['F5_CSI_VERIFY_INTERVAL'] = str(timeout)
+        args = parse_args()
+        self.assertEqual(args.verify_interval, timeout)
+
+
+class Pool():
+    """A mock BIG-IP Pool."""
+
+    def __init__(self, name, **kwargs):
+        """Initialize the object."""
+        self.name = name
+        self.monitor = kwargs.get('monitor', None)
+        self.loadBalancingMode = kwargs.get('balance', None)
+
+    def modify(self, **kwargs):
+        """Placeholder: This will be mocked."""
+        pass
+
+
+class Member():
+    """A mock BIG-IP Pool Member."""
+
+    def __init__(self, name, **kwargs):
+        """Initialize the object."""
+        self.name = name
+        self.session = kwargs.get('session', None)
+        if kwargs.get('state', None) == 'user-up':
+            self.state = 'up'
+        else:
+            self.state = 'user-down'
+
+    def modify(self, **kwargs):
+        """Placeholder: This will be mocked."""
+        pass
+
+
+class Profiles():
+    """A container of Virtual Server Profiles."""
+
+    def __init__(self, **kwargs):
+        """Initialize the object."""
+        self.profiles = kwargs.get('profiles', [])
+
+    def exists(self, name, partition):
+        """Check for the existance of a profile."""
+        for p in self.profiles:
+            if p['name'] == name and p['partition'] == partition:
+                return True
+
+        return False
+
+    def create(self, name, partition):
+        """Placeholder: This will be mocked."""
+        pass
+
+
+class ProfileSet():
+    """A set of Virtual Server Profiles."""
+
+    def __init__(self, **kwargs):
+        """Initialize the object."""
+        self.profiles = Profiles(**kwargs)
+
+
+class Virtual():
+    """A mock BIG-IP Virtual Server."""
+
+    def __init__(self, name, **kwargs):
+        """Initialize the object."""
+        self.profiles_s = ProfileSet(**kwargs)
+        self.name = name
+        self.enabled = kwargs.get('enabled', None)
+        self.disabled = kwargs.get('disabled', None)
+        self.ipProtocol = kwargs.get('ipProtocol', None)
+        self.destination = kwargs.get('destination', None)
+        self.pool = kwargs.get('pool', None)
+        self.sourceAddressTranslation = kwargs.get('sourceAddressTranslation',
+                                                   None)
+        self.profiles = kwargs.get('profiles', [])
+
+    def modify(self, **kwargs):
+        """Placeholder: This will be mocked."""
+        pass
+
+
+class HealthCheck():
+    """A mock BIG-IP Health Monitor."""
+
+    def __init__(self, name, **kwargs):
+        """Initialize the object."""
+        self.interval = kwargs.get('interval', None)
+        self.timeout = kwargs.get('timeout', None)
+        self.send = kwargs.get('send', None)
+
+    def modify(self, **kwargs):
+        """Placeholder: This will be mocked."""
+        pass
+
 
 class BigIPTest(unittest.TestCase):
     """BIG-IP configuration tests.
@@ -324,6 +437,12 @@ class BigIPTest(unittest.TestCase):
     Test BIG-IP configuration given various cloud states and existing
     BIG-IP states
     """
+
+    virtuals = {}
+    pools = {}
+    virtuals = {}
+    members = {}
+    healthchecks = {}
 
     def mock_get_pool_member_list(self, partition, pool):
         """Mock: Get a mocked list of pool members."""
@@ -354,6 +473,55 @@ class BigIPTest(unittest.TestCase):
             return ['mesos', 'mesos2']
         else:
             return partitions
+
+    def create_mock_pool(self, name, **kwargs):
+        """Create a mock pool server object."""
+        pool = Pool(name, **kwargs)
+        self.pools[name] = pool
+        pool.modify = Mock()
+        return pool
+
+    def create_mock_virtual(self, name, **kwargs):
+        """Create a mock virtual server object."""
+        virtual = Virtual(name, **kwargs)
+        self.virtuals[name] = virtual
+        virtual.modify = Mock()
+        virtual.profiles_s.profiles.create = Mock()
+        return virtual
+
+    def create_mock_pool_member(self, name, **kwargs):
+        """Create a mock pool member object."""
+        member = Member(name, **kwargs)
+        self.members[name] = member
+        member.modify = Mock()
+        return member
+
+    def create_mock_healthcheck(self, name, **kwargs):
+        """Create a mock healthcheck object."""
+        healthcheck = HealthCheck(name, **kwargs)
+        self.healthchecks[name] = healthcheck
+        healthcheck.modify = Mock()
+        return healthcheck
+
+    def mock_get_pool(self, partition, name):
+        """Lookup a mock pool object by name."""
+        return self.pools.get(name, None)
+
+    def mock_get_virtual(self, partition, name):
+        """Lookup a mock virtual server object by name."""
+        return self.virtuals.get(name, None)
+
+    def mock_get_virtual_address(self, partition, name):
+        """Lookup a mock virtual Address object by name."""
+        return name
+
+    def mock_get_member(self, partition, pool, name):
+        """Lookup a mock pool member object by name."""
+        return self.members.get(name, None)
+
+    def mock_get_healthcheck(self, partition, hc, hc_type):
+        """Lookup a mock healthcheck object by name."""
+        return self.healthchecks.get(hc, None)
 
     def read_test_vectors(self, cloud_state, bigip_state, hm_state):
         """Read test vectors for cloud, BIG-IP, and Health Monitor state."""
@@ -406,6 +574,13 @@ class BigIPTest(unittest.TestCase):
         self.bigip.get_iapp_list = \
             Mock(side_effect=self.mock_get_iapp_empty_list)
 
+        # Save the original update functions (to be restored when needed)
+        self.bigip.pool_update_orig = self.bigip.pool_update
+        self.bigip.virtual_update_orig = self.bigip.virtual_update
+        self.bigip.member_update_orig = self.bigip.member_update
+        self.bigip.healthcheck_update_orig = self.bigip.healthcheck_update
+
+        self.bigip.get_node = Mock()
         self.bigip.pool_create = Mock()
         self.bigip.pool_delete = Mock()
         self.bigip.pool_update = Mock()
@@ -417,6 +592,9 @@ class BigIPTest(unittest.TestCase):
         self.bigip.virtual_create = Mock()
         self.bigip.virtual_delete = Mock()
         self.bigip.virtual_update = Mock()
+
+        self.bigip.virtual_address_create = Mock()
+        self.bigip.virtual_address_update = Mock()
 
         self.bigip.member_create = Mock()
         self.bigip.member_delete = Mock()
@@ -881,10 +1059,10 @@ class MarathonTest(BigIPTest):
         self.assertEquals(self.bigip.pool_create.call_args_list[1][0][1],
                           expected_name2)
         self.assertEquals(
-            self.bigip.healthcheck_create.call_args_list[0][0][1],
+            self.bigip.healthcheck_create.call_args_list[0][0][1]['name'],
             expected_name1)
         self.assertEquals(
-            self.bigip.healthcheck_create.call_args_list[1][0][1],
+            self.bigip.healthcheck_create.call_args_list[1][0][1]['name'],
             expected_name2)
 
     def start_two_apps_with_two_partitions(
@@ -927,24 +1105,20 @@ class MarathonTest(BigIPTest):
             self.assertEquals(
                 self.bigip.virtual_create.call_args_list[0][0][1],
                 expected_name1)
+            self.assertEquals(self.bigip.pool_create.call_args_list[0][0][1],
+                              expected_name1)
             self.assertEquals(
-                self.bigip.pool_create.call_args_list[0][0][1],
-                expected_name1)
-            self.assertEquals(
-                self.bigip.healthcheck_create.call_args_list[0][0][1],
+                self.bigip.healthcheck_create.call_args_list[0][0][1]['name'],
                 expected_name1)
 
         if expected_name2:
             create_call_count += 1
-            self.assertEquals(
-                self.bigip.virtual_create.call_args_list[
-                    create_call_count-1][0][1], expected_name2)
-            self.assertEquals(
-                self.bigip.pool_create.call_args_list[
-                    create_call_count-1][0][1], expected_name2)
-            self.assertEquals(
-                self.bigip.healthcheck_create.call_args_list[
-                    create_call_count-1][0][1], expected_name2)
+            self.assertEquals(self.bigip.virtual_create.call_args_list[
+                create_call_count - 1][0][1], expected_name2)
+            self.assertEquals(self.bigip.pool_create.call_args_list[
+                create_call_count - 1][0][1], expected_name2)
+            self.assertEquals(self.bigip.healthcheck_create.call_args_list[
+                create_call_count - 1][0][1]['name'], expected_name2)
 
         if create_call_count > 0:
             self.assertTrue(self.bigip.virtual_create.called)
@@ -1058,10 +1232,10 @@ class MarathonTest(BigIPTest):
         self.assertEquals(self.bigip.pool_create.call_args_list[1][0][1],
                           expected_name2)
         self.assertEquals(
-            self.bigip.healthcheck_create.call_args_list[0][0][1],
+            self.bigip.healthcheck_create.call_args_list[0][0][1]['name'],
             expected_name1)
         self.assertEquals(
-            self.bigip.healthcheck_create.call_args_list[1][0][1],
+            self.bigip.healthcheck_create.call_args_list[1][0][1]['name'],
             expected_name2)
 
     def test_destroy_all_apps(
@@ -1267,6 +1441,157 @@ class MarathonTest(BigIPTest):
 
         self.assertEqual(https_app_count, 1)
 
+    def test_updates(self,
+                     cloud_state='tests/marathon_one_app_https.json',
+                     bigip_state='tests/bigip_test_one_app.json',
+                     hm_state='tests/bigip_test_one_monitor.json'):
+        """Test: Verify BIG-IP updates.
+
+        Verify that resources are only updated when the state
+        of the resource changes.
+        """
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.cloud_data, True)
+
+        # Restore the mocked 'update' functions to their original state
+        self.bigip.pool_update = self.bigip.pool_update_orig
+        self.bigip.virtual_update = self.bigip.virtual_update_orig
+        self.bigip.member_update = self.bigip.member_update_orig
+        self.bigip.healthcheck_update = self.bigip.healthcheck_update_orig
+
+        # Mock the 'get' resource functions. We will use these to supply
+        # mocked resources
+        self.bigip.get_pool = Mock(side_effect=self.mock_get_pool)
+        self.bigip.get_virtual = Mock(side_effect=self.mock_get_virtual)
+        self.bigip.get_member = Mock(side_effect=self.mock_get_member)
+        self.bigip.get_healthcheck = Mock(
+            side_effect=self.mock_get_healthcheck)
+        self.bigip.get_virtual_address = Mock(
+            side_effect=self.mock_get_virtual_address)
+
+        # Create a mock Pool
+        pool_data_unchanged = {'monitor': '/mesos/server-app_10.128.10.240_80',
+                               'balance': 'round-robin'}
+        pool = self.create_mock_pool('server-app_10.128.10.240_80',
+                                     **pool_data_unchanged)
+
+        # Create a mock Virtual
+        virtual_data_unchanged = {'enabled': True,
+                                  'disabled': False,
+                                  'ipProtocol': 'tcp',
+                                  'destination': '/mesos/10.128.10.240:80',
+                                  'pool': '/mesos/server-app_10.128.10.240_80',
+                                  'sourceAddressTranslation':
+                                  {'type': 'automap'},
+                                  'profiles': [{'partition': 'Common',
+                                                'name': u'clientssl'},
+                                               {'partition': 'Common',
+                                                'name': 'http'}]}
+        virtual = self.create_mock_virtual('server-app_10.128.10.240_80',
+                                           **virtual_data_unchanged)
+
+        # Create mock Pool Members
+        member_data_unchanged = {'state': 'user-up', 'session': 'user-enabled'}
+        member = self.create_mock_pool_member('10.141.141.10:31132',
+                                              **member_data_unchanged)
+        member = self.create_mock_pool_member('10.141.141.10:31615',
+                                              **member_data_unchanged)
+        member = self.create_mock_pool_member('10.141.141.10:31982',
+                                              **member_data_unchanged)
+        member = self.create_mock_pool_member('10.141.141.10:31972',
+                                              **member_data_unchanged)
+
+        # Create a mock Healthcheck
+        health_data_unchanged = {
+            'interval': 20,
+            'timeout': 61,
+            'send': 'GET /'
+        }
+        healthcheck = self.create_mock_healthcheck(
+            'server-app_10.128.10.240_80', **health_data_unchanged)
+
+        # Pool, Virtual, Member, and Healthcheck are not modified
+        self.bigip.regenerate_config_f5(apps)
+        self.assertFalse(pool.modify.called)
+        self.assertFalse(virtual.modify.called)
+        self.assertFalse(virtual.profiles_s.profiles.create.called)
+        self.assertFalse(member.modify.called)
+        self.assertFalse(healthcheck.modify.called)
+
+        # Pool is modified
+        pool_data_changed = {
+            'balance': 'least-connections',
+            'monitor': 'server-app_10.128.10.240_8080'
+        }
+        for key in pool_data_changed:
+            data = pool_data_unchanged
+            # Change one thing
+            data[key] = pool_data_changed[key]
+            pool = self.create_mock_pool('server-app_10.128.10.240_80', **data)
+            self.bigip.regenerate_config_f5(apps)
+            self.assertTrue(pool.modify.called)
+
+        # Virtual is modified
+        virtual_data_changed = {
+            'enabled': False,
+            'disabled': True,
+            'ipProtocol': 'udp',
+            'destination': '/Common/10.128.10.240:80',
+            'pool': '/Common/server-app_10.128.10.240_80',
+            'sourceAddressTranslation': {'type': 'snat'}
+        }
+        for key in virtual_data_changed:
+            data = virtual_data_unchanged
+            # Change one thing
+            data[key] = virtual_data_changed[key]
+            virtual = self.create_mock_virtual('server-app_10.128.10.240_80',
+                                               **data)
+            self.bigip.regenerate_config_f5(apps)
+            self.assertTrue(virtual.modify.called)
+
+        # Member is modified
+        member_data_changed = {
+            'state': 'user-down',
+            'session': 'user-disabled'
+        }
+        for key in member_data_changed:
+            data = member_data_unchanged
+            # Change one thing
+            data[key] = member_data_changed[key]
+            member = self.create_mock_pool_member('10.141.141.10:31132',
+                                                  **data)
+            self.bigip.regenerate_config_f5(apps)
+            self.assertTrue(member.modify.called)
+
+        # Healthcheck is modified
+        health_data_changed = {
+            'interval': 10,
+            'timeout': 30,
+            'send': 'GET /mypath'
+        }
+        for key in health_data_changed:
+            data = health_data_unchanged
+            # Change one thing
+            data[key] = health_data_changed[key]
+            healthcheck = self.create_mock_healthcheck(
+                'server-app_10.128.10.240_80', **data)
+            self.bigip.regenerate_config_f5(apps)
+            self.assertTrue(healthcheck.modify.called)
+
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.member_delete.called)
+
 
 class KubernetesTest(BigIPTest):
     """Kubernetes/Big-IP configuration tests.
@@ -1446,6 +1771,7 @@ class KubernetesTest(BigIPTest):
         expected_name = 'server-app2_iapp_10000_vs'
         self.assertEquals(self.bigip.iapp_delete.call_args_list[0][0][1],
                           expected_name)
+
 
 if __name__ == '__main__':
     unittest.main()

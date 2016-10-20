@@ -31,6 +31,23 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 # common
 
 
+def healthcheck_timeout_calculate(data):
+    """Calculate a BIG-IP Health Monitor timeout.
+
+    Args:
+        data: BIG-IP config dict
+    """
+    # Calculate timeout
+    # See the f5 monitor docs for explanation of settings:
+    # https://goo.gl/JJWUIg
+    # Formula to match up marathon settings with f5 settings:
+    # (( maxConsecutiveFailures - 1) * intervalSeconds )
+    # + timeoutSeconds + 1
+    timeout = (((data['maxConsecutiveFailures'] - 1) * data['intervalSeconds'])
+               + data['timeoutSeconds'] + 1)
+    return timeout
+
+
 def get_protocol(protocol):
     """Return the protocol (tcp or udp)."""
     if str(protocol).lower() == 'tcp':
@@ -166,8 +183,7 @@ class CloudBigIP(BigIP):
             port = (backend['servicePort'] if 'virtualAddress' not in frontend
                     else frontend['virtualAddress']['port'])
             frontend_name = "{0}_{1}_{2}".format(
-                    backend['serviceName'].strip('/'),
-                    virt_addr, port)
+                backend['serviceName'].strip('/'), virt_addr, port)
 
             f5_service['name'] = frontend_name
 
@@ -181,36 +197,45 @@ class CloudBigIP(BigIP):
             else:
                 f5_service['virtual'] = {}
                 f5_service['health'] = {}
+                f5_service['pool'] = {}
 
                 # Parse the SSL profile into partition and name
-                profile = [None, None]
+                profiles = []
                 if 'sslProfile' in frontend:
-                    profile = (frontend['sslProfile']['f5ProfileName'].
-                               split('/'))
+                    profile = (
+                        frontend['sslProfile']['f5ProfileName'].split('/'))
                     if len(profile) != 2:
                         logger.error("Could not parse partition and name from "
                                      "SSL profile: %s",
                                      frontend['sslProfile']['f5ProfileName'])
-                        profile = [None, None]
+                    else:
+                        profiles.append({'partition': profile[0],
+                                         'name': profile[1]})
 
                 f5_service['virtual'].update({
-                    'id': backend['serviceName'],
-                    'name': frontend_name,
-                    'destination': frontend['virtualAddress']['bindAddr'],
-                    'port': frontend['virtualAddress']['port'],
-                    'protocol': frontend['mode'],
-                    'balance': frontend['balance'],
-                    'profile': {'partition': profile[0], 'name': profile[1]}
-                    })
+                    'enabled': True,
+                    'disabled': False,
+                    'ipProtocol': get_protocol(frontend['mode']),
+                    'destination':
+                    "/%s/%s:%d" % (frontend['partition'],
+                                   frontend['virtualAddress']['bindAddr'],
+                                   frontend['virtualAddress']['port']),
+                    'pool': "/%s/%s" % (frontend['partition'], frontend_name),
+                    'sourceAddressTranslation': {'type': 'automap'},
+                    'profiles': profiles
+                })
+                f5_service['pool'].update({
+                    'monitor': None,
+                    'loadBalancingMode': frontend['balance']
+                })
 
             f5_service['nodes'] = {}
             nodePort = backend['nodePort']
             for node in backend['nodes']:
                 f5_node_name = node + ':' + str(nodePort)
                 f5_service['nodes'].update({f5_node_name: {
-                    'name': f5_node_name,
-                    'host': node,
-                    'port': nodePort
+                    'state': 'user-up',
+                    'session': 'user-enabled'
                 }})
 
             f5.update({frontend_name: f5_service})
@@ -235,11 +260,12 @@ class CloudBigIP(BigIP):
         for app in sorted(apps, key=attrgetter('appId', 'servicePort')):
             f5_service = {
                 'virtual': {},
+                'pool': {},
                 'nodes': {},
                 'health': {},
                 'partition': '',
                 'name': ''
-                }
+            }
             # Only handle application if it's partition is one that this script
             # is responsible for
             if not has_partition(partitions, app.partition):
@@ -257,8 +283,8 @@ class CloudBigIP(BigIP):
                                       'variables': app.iappVariables,
                                       'options': app.iappOptions}
 
-            logger.info("Configuring app %s, partition %s",
-                        app.appId, app.partition)
+            logger.info("Configuring app %s, partition %s", app.appId,
+                        app.partition)
             backend = app.appId[1:].replace('/', '_') + '_' + \
                 str(app.servicePort)
 
@@ -267,61 +293,79 @@ class CloudBigIP(BigIP):
                                           app.servicePort)
             f5_service['name'] = frontend_name
             if app.bindAddr:
-                logger.debug("Frontend at %s:%d with backend %s",
-                             app.bindAddr, app.servicePort, backend)
-
-            # Parse the SSL profile into partition and name
-            profile = [None, None]
-            if app.profile:
-                profile = app.profile.split('/')
-                if len(profile) != 2:
-                    logger.error("Could not parse partition and name from SSL"
-                                 " profile: %s", app.profile)
-                    profile = [None, None]
-
-            f5_service['virtual'].update({
-                'id': (app.appId).lstrip('/'),
-                'name': frontend_name,
-                'destination': app.bindAddr,
-                'port': app.servicePort,
-                'protocol': app.mode,
-                'balance': app.balance,
-                'profile': {'partition': profile[0], 'name': profile[1]}
-                })
+                logger.debug("Frontend at %s:%d with backend %s", app.bindAddr,
+                             app.servicePort, backend)
 
             if app.healthCheck:
-                logger.debug("Healthcheck for app '%s': %s",
-                             app.appId, app.healthCheck)
+                logger.debug("Healthcheck for app '%s': %s", app.appId,
+                             app.healthCheck)
                 f5_service['health'] = app.healthCheck
-                f5_service['health']['name'] = \
-                    "%s_%s" % (frontend_name, app.healthCheck['protocol'])
+                f5_service['health']['name'] = frontend_name
 
                 # normalize healtcheck protocol name to lowercase
                 if 'protocol' in f5_service['health']:
                     f5_service['health']['protocol'] = \
                         (f5_service['health']['protocol']).lower()
+                f5_service['health'].update({
+                    'interval': app.healthCheck['intervalSeconds']
+                    if app.healthCheck else None,
+                    'timeout': healthcheck_timeout_calculate(app.healthCheck)
+                    if app.healthCheck else None,
+                    'send': self.healthcheck_sendstring(app.healthCheck)
+                    if app.healthCheck else None
+                })
+
+            # Parse the SSL profile into partition and name
+            profiles = []
+            if app.profile:
+                profile = app.profile.split('/')
+                if len(profile) != 2:
+                    logger.error("Could not parse partition and name from SSL"
+                                 " profile: %s", app.profile)
+                else:
+                    profiles.append({'partition': profile[0],
+                                     'name': profile[1]})
+
+            # Add http profile if appropriate
+            if f5_service['health'].get('protocol', None) == 'http':
+                profiles.append({'partition': 'Common', 'name': 'http'})
+
+            f5_service['virtual_address'] = app.bindAddr
+
+            f5_service['virtual'].update({
+                'enabled': True,
+                'disabled': False,
+                'ipProtocol': get_protocol(app.mode),
+                'destination':
+                "/%s/%s:%d" % (app.partition, app.bindAddr, app.servicePort),
+                'pool': "/%s/%s" % (app.partition, frontend_name),
+                'sourceAddressTranslation': {'type': 'automap'},
+                'profiles': profiles
+            })
+            f5_service['pool'].update({
+                'monitor': "/%s/%s" %
+                           (app.partition, f5_service['health']['name'])
+                if app.healthCheck else None,
+                'loadBalancingMode': app.balance
+            })
 
             key_func = attrgetter('host', 'port')
             for backendServer in sorted(app.backends, key=key_func):
                 logger.debug("Found backend server at %s:%d for app %s",
-                             backendServer.host,
-                             backendServer.port,
-                             app.appId)
+                             backendServer.host, backendServer.port, app.appId)
 
-                # Resolve backensServer hostmane to IP address
+                # Resolve backendServer hostname to IP address
                 ipv4 = resolve_ip(backendServer.host)
 
                 if ipv4 is not None:
                     f5_node_name = ipv4 + ':' + str(backendServer.port)
                     f5_service['nodes'].update({f5_node_name: {
-                        'name': f5_node_name,
-                        'host': ipv4,
-                        'port': backendServer.port
+                        'state': 'user-up',
+                        'session': 'user-enabled'
                     }})
                 else:
                     logger.warning("Could not resolve ip for host %s, "
-                                   "ignoring this backend",
-                                   backendServer.host)
+                                   "ignoring this backend", backendServer.host)
 
             f5.update({frontend_name: f5_service})
 
@@ -449,7 +493,7 @@ class CloudBigIP(BigIP):
             logger.debug("Healthchecks to add: %s",
                          (', '.join(healthcheck_add)))
             for hc in healthcheck_add:
-                self.healthcheck_create(partition, hc, config[hc]['health'])
+                self.healthcheck_create(partition, config[hc]['health'])
 
             # pool add
             pool_add = list_diff(marathon_pool_list, f5_pool_list)
@@ -544,7 +588,19 @@ class CloudBigIP(BigIP):
             for member in member_list:
                 name, port = member.split(':')
                 if name in node_list:
+                    # Still in-use
                     node_list.remove(name)
+
+                    node = self.get_node(name=name, partition=partition)
+                    data = {'state': 'user-up', 'session': 'user-enabled'}
+
+                    # Node state will be 'up' if it has a monitor attached,
+                    # and 'unchecked' for no monitor
+                    if node.state == 'up' or node.state == 'unchecked':
+                        if 'enabled' in node.session:
+                            continue
+
+                    node.modify(**data)
 
         # What's left in the node list is not referenced, delete
         for node in node_list:
@@ -557,10 +613,7 @@ class CloudBigIP(BigIP):
             node_name: Node name
             partition: Partition name
         """
-        node = self.ltm.nodes.node.load(
-            name=node_name,
-            partition=partition
-            )
+        node = self.ltm.nodes.node.load(name=node_name, partition=partition)
         node.delete()
 
     def get_pool(self, partition, name):
@@ -618,15 +671,7 @@ class CloudBigIP(BigIP):
         logger.debug("Creating pool %s", pool)
         p = self.ltm.pools.pool
 
-        p.create(
-            name=pool,
-            partition=partition
-        )
-
-        if 'health' in data and data['health']:
-            logger.debug("adding healthcheck '%s' to pool", pool)
-            p.monitor = pool
-            p.update()
+        p.create(partition=partition, name=pool, **data['pool'])
 
     def pool_delete(self, partition, pool):
         """Delete a pool.
@@ -647,29 +692,18 @@ class CloudBigIP(BigIP):
             pool: Name of pool to update
             data: BIG-IP config dict
         """
-        # Getting 'data' here, but not used currently
-        # In fact, this update function does nothing currently.
-        # If we end up supporting more pool-specific options (not really sure
-        # what), then we will need this. Data should be changed or massaged to
-        # be a list of k,v pairs for the update call
-
-        # loadBalancingMode options:
-        #  var: F5_{n}_BALANCE
-        #    round-robin,
-        #    least-connections-member,
-        #    ratio-member
-        #    observed-member
-        #    ratio-node
-        #    ...
-
-        virtual = data['virtual']
+        data = data['pool']
         pool = self.get_pool(partition, pool)
-        if 'health' in data and data['health'] != {}:
-            logger.debug("Adding healthcheck %s to pool", (virtual['name']))
-            pool.monitor = virtual['name']
-        pool.update(
-                state=None
-                )
+
+        no_change = all(data[key] == val.strip()
+                        for key, val in pool.__dict__.iteritems()
+                        if key in data)
+
+        if no_change:
+            return False
+
+        pool.modify(**data)
+        return True
 
     def get_member(self, partition, pool, member):
         """Get a pool-member object.
@@ -680,10 +714,7 @@ class CloudBigIP(BigIP):
             member: Name of pool member
         """
         p = self.get_pool(partition, pool)
-        m = p.members_s.members.load(
-                name=member,
-                partition=partition
-                )
+        m = p.members_s.members.load(name=member, partition=partition)
         return m
 
     def get_pool_member_list(self, partition, pool):
@@ -710,12 +741,9 @@ class CloudBigIP(BigIP):
             member: Name of pool member
             data: BIG-IP config dict
         """
-        # getting 'data' here, but not used currently
         p = self.get_pool(partition, pool)
         member = p.members_s.members.create(
-                name=member,
-                partition=partition
-                )
+            name=member, partition=partition, **data)
 
     def member_delete(self, partition, pool, member):
         """Delete a pool member.
@@ -737,15 +765,28 @@ class CloudBigIP(BigIP):
             member: Name of pool member
             data: BIG-IP config dict
         """
-        # Getting 'data' here, but not used currently
-        # In fact, this update function does nothing currently.
-        # If we end up supporting more member-specific options, like ratio
-        # then we will need this. Data should be changed or massaged to be
-        # a list of k,v pairs for the update call ("ratio": 2)
         member = self.get_member(partition, pool, member)
-        # member.update(
-        #        state=None
-        #        )
+
+        # Member state will be 'up' if it has a monitor attached,
+        # and 'unchecked' for no monitor
+        if member.state == 'up' or member.state == 'unchecked':
+            if 'enabled' in member.session:
+                return False
+
+        member.modify(**data)
+        return True
+
+    def get_node(self, partition, name):
+        """Get a node object.
+
+        Args:
+            partition: Partition name
+            name: Name of the node
+        """
+        if self.ltm.nodes.node.exists(name=name, partition=partition):
+            return self.ltm.nodes.node.load(name=name, partition=partition)
+        else:
+            return None
 
     def get_node_list(self, partition):
         """Get a list of node names for a partition.
@@ -769,10 +810,7 @@ class CloudBigIP(BigIP):
             virtual: Name of the Virtual Server
         """
         # return virtual object
-        v = self.ltm.virtuals.virtual.load(
-                name=virtual,
-                partition=partition
-                )
+        v = self.ltm.virtuals.virtual.load(name=virtual, partition=partition)
         return v
 
     def get_virtual_list(self, partition):
@@ -798,40 +836,15 @@ class CloudBigIP(BigIP):
             data: BIG-IP config dict
         """
         logger.debug("Creating Virtual Server %s", virtual)
-        hc_data = data['health']
         data = data['virtual']
         v = self.ltm.virtuals.virtual
-        destination = "/%s/%s:%d" % (
-                partition,
-                data['destination'],
-                data['port']
-                )
-        pool = "/%s/%s" % (partition, virtual)
 
-        v.create(
-            name=virtual,
-            partition=partition,
-            ipProtocol=get_protocol(data['protocol']),
-            port=data['port'],
-            destination=destination,
-            pool=pool,
-            sourceAddressTranslation={'type': 'automap'}
-            )
+        v.create(name=virtual, partition=partition, **data)
 
-        # SSL Profile
-        if (data['profile']['name']):
+        # Add profile(s)
+        for p in data['profiles']:
             v.profiles_s.profiles.create(
-                name=data['profile']['name'],
-                partition=data['profile']['partition']
-                )
-
-        # If this is a virt with a http hc, add the default
-        # /Common/http profile
-        if 'protocol' in hc_data and (hc_data['protocol']).lower() == "http":
-                v.profiles_s.profiles.create(
-                        name='http',
-                        partition='Common'
-                        )
+                name=p['name'], partition=p['partition'])
 
     def virtual_delete(self, partition, virtual):
         """Delete a Virtual Server.
@@ -852,51 +865,71 @@ class CloudBigIP(BigIP):
             virtual: Name of the Virtual Server
             data: BIG-IP config dict
         """
-        hc_data = data['health']
+        addr = data['virtual_address']
+
+        # Verify virtual address, recreate it if it doesn't exist
+        v_addr = self.get_virtual_address(partition, addr)
+
+        if v_addr is None:
+            self.virtual_address_create(partition, addr)
+        else:
+            self.virtual_address_update(v_addr)
+
+        # Verify Virtual Server
         data = data['virtual']
-        destination = "/%s/%s:%d" % (
-                partition,
-                data['destination'],
-                data['port']
-                )
-        pool = "/%s/%s" % (partition, virtual)
+
         v = self.get_virtual(partition, virtual)
-        v.update(
-                name=virtual,
-                partition=partition,
-                ipProtocol=get_protocol(data['protocol']),
-                port=data['port'],
-                destination=destination,
-                pool=pool,
-                sourceAddressTranslation={'type': 'automap'}
-                )
 
-        try:
-            # If this is a virt with a http hc, add the default
-            # /Common/http profile
-            if ('protocol' in hc_data and
-               (hc_data['protocol']).lower() == "http"):
-                    v.profiles_s.profiles.load(
-                            name='http',
-                            partition='Common'
-                            )
-        except:
-            if ('protocol' in hc_data and
-               (hc_data['protocol']).lower() == "http"):
-                    v.profiles_s.profiles.create(
-                                    name='http',
-                                    partition='Common'
-                                    )
+        no_change = all(data[key] == val for key, val in v.__dict__.iteritems()
+                        if key in data)
 
-        # SSL Profile
-        if (data['profile']['name']):
+        if no_change:
+            return False
+
+        v.modify(**data)
+
+        # Add profile(s)
+        for p in data['profiles']:
             if not v.profiles_s.profiles.exists(
-                   name=data['profile']['name'],
-                   partition=data['profile']['partition']):
+                    name=p['name'], partition=p['partition']):
+
                 v.profiles_s.profiles.create(
-                    name=data['profile']['name'],
-                    partition=data['profile']['partition']
-                    )
+                    name=p['name'], partition=p['partition'])
+
+        return True
+
+    def get_virtual_address(self, partition, name):
+        """Get Virtual Address object.
+
+        Args:
+            partition: Partition name
+            name: Name of the Virtual Address
+        """
+        if not self.ltm.virtual_address_s.virtual_address.exists(
+                name=name, partition=partition):
+            return None
+        else:
+            return self.ltm.virtual_address_s.virtual_address.load(
+                name=name, partition=partition)
+
+    def virtual_address_create(self, partition, name):
+        """Create a Virtual Address.
+
+        Args:
+            partition: Partition name
+            name: Name of the virtual address
+        """
+        self.ltm.virtual_address_s.virtual_address.create(
+            name=name, partition=partition)
+
+    def virtual_address_update(self, virtual_address):
+        """Update a Virtual Address.
+
+        Args:
+            virtual_address: Virtual Address object
+        """
+        if virtual_address.enabled == 'no':
+            virtual_address.modify(enabled='yes')
 
     def get_healthcheck(self, partition, hc, hc_type):
         """Get a Health Monitor object.
@@ -907,16 +940,10 @@ class CloudBigIP(BigIP):
             hc_type: Health Monitor type
         """
         # return hc object
-        if hc_type.lower() == 'http':
-            hc = self.ltm.monitor.https.http.load(
-                    name=hc,
-                    partition=partition
-                    )
-        elif hc_type.lower() == 'tcp':
-            hc = self.ltm.monitor.tcps.tcp.load(
-                    name=hc,
-                    partition=partition
-                    )
+        if hc_type == 'http':
+            hc = self.ltm.monitor.https.http.load(name=hc, partition=partition)
+        elif hc_type == 'tcp':
+            hc = self.ltm.monitor.tcps.tcp.load(name=hc, partition=partition)
 
         return hc
 
@@ -934,17 +961,13 @@ class CloudBigIP(BigIP):
         healthchecks = self.ltm.monitor.https.get_collection()
         for hc in healthchecks:
             if hc.partition == partition:
-                healthcheck_dict.update(
-                        {hc.name: {'type': 'http'}}
-                        )
+                healthcheck_dict.update({hc.name: {'type': 'http'}})
 
         # TCP
         healthchecks = self.ltm.monitor.tcps.get_collection()
         for hc in healthchecks:
             if hc.partition == partition:
-                healthcheck_dict.update(
-                        {hc.name: {'type': 'tcp'}}
-                        )
+                healthcheck_dict.update({hc.name: {'type': 'tcp'}})
 
         return healthcheck_dict
 
@@ -960,21 +983,26 @@ class CloudBigIP(BigIP):
         hc = self.get_healthcheck(partition, hc, hc_type)
         hc.delete()
 
-    def healthcheck_timeout_calculate(self, data):
-        """Calculate a BIG-IP Health Monitor timeout.
+    def healthcheck_sendstring(self, data):
+        """Return the 'send' string for a health monitor.
 
         Args:
-            data: BIG-IP config dict
+            data: Health Monitor dict
         """
-        # Calculate timeout
-        # See the f5 monitor docs for explanation of settings:
-        # https://goo.gl/JJWUIg
-        # Formula to match up marathon settings with f5 settings:
-        # (( maxConsecutiveFailures - 1) * intervalSeconds )
-        # + timeoutSeconds + 1
-        timeout = (((data['maxConsecutiveFailures'] - 1) *
-                   data['intervalSeconds']) + data['timeoutSeconds'] + 1)
-        return timeout
+        if data['protocol'] == "http":
+            send_string = 'GET /'
+            if 'path' in data:
+                # I expected to have to jump through some hoops to get the
+                # "\r\n" literal into the f5 config, but this seems to work.
+                # When configuring the f5 directly, you have to include the
+                # "\r\n" literal at the end of the GET. From my testing, this
+                # is getting added automatically. I'm not sure what layer is
+                # adding it (iControl itself?). Anyway, this works for now,
+                # but i could see this being fragile
+                send_string = 'GET %s' % data['path']
+            return send_string
+        else:
+            return None
 
     def healthcheck_update(self, partition, hc, data):
         """Update a Health Monitor.
@@ -984,38 +1012,20 @@ class CloudBigIP(BigIP):
             hc: Name of the Health Monitor
             data: BIG-IP config dict
         """
-        logger.debug("Deleting healthcheck %s", hc)
+        logger.debug("Updating healthcheck %s", hc)
         # get healthcheck object
         hc = self.get_healthcheck(partition, hc, data['protocol'])
 
-        timeout = self.healthcheck_timeout_calculate(data)
+        no_change = all(data[key] == val
+                        for key, val in hc.__dict__.iteritems() if key in data)
 
-        # f5 docs: https://goo.gl/ALrf37
-        send_string = 'GET /'
-        if 'path' in data:
-            # I expected to have to jump through some hoops to get the "\r\n"
-            # literal into the f5 config, but this seems to work.
-            # When configuring the f5 directly, you have to include the "\r\n"
-            # literal at the end of the GET. From my testing, this is getting
-            # added automatically. I'm not sure what layer is adding it
-            # (iControl itself?). Anyway, this works for now, but i could see
-            # this being fragile
-            send_string = 'GET %s' % data['path']
+        if no_change:
+            return False
 
-        if (data['protocol']).lower() == "http":
-            hc.update(
-                    interval=data['intervalSeconds'],
-                    timeout=timeout,
-                    send=send_string,
-                    )
+        hc.modify(**data)
+        return True
 
-        if (data['protocol']).lower() == "tcp":
-            hc.update(
-                    interval=data['intervalSeconds'],
-                    timeout=timeout,
-                    )
-
-    def healthcheck_create(self, partition, hc, data):
+    def healthcheck_create(self, partition, data):
         """Create a Health Monitor.
 
         Args:
@@ -1023,45 +1033,15 @@ class CloudBigIP(BigIP):
             hc: Name of the Health Monitor
             data: BIG-IP config dict
         """
-        timeout = self.healthcheck_timeout_calculate(data)
-
-        # NOTE: There is no concept of a grace period in F5, so this setting
-        # (gracePeriodSeconds) will be ignored
-
-        # f5 docs: https://goo.gl/ALrf37
-        send_string = 'GET /'
-        if 'path' in data:
-            # I expected to have to jump through some hoops to get the "\r\n"
-            # literal into the f5 config, but this seems to work.
-            # When configuring the f5 directly, you have to include the "\r\n"
-            # literal at the end of the GET.  from my testing, this is getting
-            # added automatically. I'm not sure what layer is adding it
-            # (iControl itself?). Anyway, this works for now, but i could see
-            # this being fragile
-            send_string = 'GET %s' % data['path']
-
-        if (data['protocol']).lower() == "http":
+        if data['protocol'] == "http":
             h = self.ltm.monitor.https
             http1 = h.http
-            logger.debug(http1)
-            http1.create(
-                    name=hc,
-                    partition=partition,
-                    interval=data['intervalSeconds'],
-                    timeout=timeout,
-                    send=send_string,
-                    )
+            http1.create(partition=partition, **data)
 
-        if (data['protocol']).lower() == "tcp":
+        if data['protocol'] == "tcp":
             h = self.ltm.monitor.tcps
             tcp1 = h.tcp
-            logger.debug(tcp1)
-            tcp1.create(
-                    name=hc,
-                    partition=partition,
-                    interval=data['intervalSeconds'],
-                    timeout=timeout,
-                    )
+            tcp1.create(partition=partition, **data)
 
     def get_partitions(self, partitions):
         """Get a list of BIG-IP partition names.
