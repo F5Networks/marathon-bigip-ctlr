@@ -44,4 +44,18 @@ py.test \
     --exclude incomplete no_regression \
     --autolog-outputdir $results_dir \
     --autolog-session $session \
-    -- testsuites
+    -- testsuites \
+&& rc=$? || rc=$?
+
+# - pytest return codes:
+#   - 0 => tests ran and passed
+#   - 1 => tests ran and failed
+#   - 2 => pytest error (eg. invalid command line argument)
+#   - 3 => tests ran with errors (ie. threw exceptions)
+#   - 4 => invalid test path (ie. file not found)
+#   - 5 => no tests collected/run
+if (( $rc == 1 )); then
+    exit 0
+else
+    exit $rc
+fi
