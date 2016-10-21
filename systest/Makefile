@@ -97,6 +97,8 @@ functest-install scaletest-install:
 	@echo "installing $(orchestration) system tests ..."
 	scp -F $(ssh_conf) \
 		$(systest_pkg)/scripts/install_systests.sh bastion:~/
+	ssh -tF $(ssh_conf) bastion "rm -rf ~/$(systest_pkg)"
+	rsync -r -e "ssh -F $(ssh_conf)" . bastion:~/$(systest_pkg)
 	ssh -tF $(ssh_conf) bastion \
 		"~/install_systests.sh $(repo) $(systest_pkg)"
 

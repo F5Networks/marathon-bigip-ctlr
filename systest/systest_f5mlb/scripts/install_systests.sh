@@ -29,7 +29,7 @@ source systest/bin/activate
 # - install system tests
 branch="master"
 subdir="systest"
-pip install "$repo@$branch#egg=$systest_pkg&subdirectory=$subdir"
+pip install ~/$systest_pkg
 
 # - wait for the pytest rootdir file to exist
 pkg_dir=$(python -c "import $systest_pkg as m; print m.__path__[0]")
