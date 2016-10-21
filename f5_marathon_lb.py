@@ -593,7 +593,7 @@ def get_arg_parser():
                         default=30, help='Marathon event stream timeout')
     parser.add_argument('--verify-interval', "-v", type=int,
                         env_var='F5_CSI_VERIFY_INTERVAL',
-                        default=30, help="'Interval at which to verify "
+                        default=30, help="Interval at which to verify "
                         "the BIG-IP configuration.")
 
     parser = set_logging_args(parser)
