@@ -54,7 +54,7 @@ the following command-line arguments:
                             Marathon event stream timeout [env var:
                             F5_CSI_SSE_TIMEOUT] (default: 30)
       --verify-interval VERIFY_INTERVAL, -v VERIFY_INTERVAL
-                            'Interval at which to verify the BIG-IP configuration.
+                            Interval at which to verify the BIG-IP configuration.
                             [env var: F5_CSI_VERIFY_INTERVAL] (default: 30)
       --syslog-socket SYSLOG_SOCKET
                             Socket to write syslog messages to. Use '/dev/null' to
