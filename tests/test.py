@@ -439,6 +439,7 @@ class BigIPTest(unittest.TestCase):
     """
 
     virtuals = {}
+    profiles = {}
     pools = {}
     virtuals = {}
     members = {}
@@ -487,6 +488,7 @@ class BigIPTest(unittest.TestCase):
         self.virtuals[name] = virtual
         virtual.modify = Mock()
         virtual.profiles_s.profiles.create = Mock()
+        self.profiles = kwargs.get('profiles', [])
         return virtual
 
     def create_mock_pool_member(self, name, **kwargs):
@@ -522,6 +524,10 @@ class BigIPTest(unittest.TestCase):
     def mock_get_healthcheck(self, partition, hc, hc_type):
         """Lookup a mock healthcheck object by name."""
         return self.healthchecks.get(hc, None)
+
+    def mock_get_virtual_profiles(self, virtual):
+        """Return a list of Virtual Server profiles."""
+        return self.profiles
 
     def read_test_vectors(self, cloud_state, bigip_state, hm_state):
         """Read test vectors for cloud, BIG-IP, and Health Monitor state."""
@@ -1466,6 +1472,8 @@ class MarathonTest(BigIPTest):
         # mocked resources
         self.bigip.get_pool = Mock(side_effect=self.mock_get_pool)
         self.bigip.get_virtual = Mock(side_effect=self.mock_get_virtual)
+        self.bigip.get_virtual_profiles = Mock(
+            side_effect=self.mock_get_virtual_profiles)
         self.bigip.get_member = Mock(side_effect=self.mock_get_member)
         self.bigip.get_healthcheck = Mock(
             side_effect=self.mock_get_healthcheck)
@@ -1487,7 +1495,7 @@ class MarathonTest(BigIPTest):
                                   'sourceAddressTranslation':
                                   {'type': 'automap'},
                                   'profiles': [{'partition': 'Common',
-                                                'name': u'clientssl'},
+                                                'name': 'clientssl'},
                                                {'partition': 'Common',
                                                 'name': 'http'}]}
         virtual = self.create_mock_virtual('server-app_10.128.10.240_80',
@@ -1527,7 +1535,7 @@ class MarathonTest(BigIPTest):
             'monitor': 'server-app_10.128.10.240_8080'
         }
         for key in pool_data_changed:
-            data = pool_data_unchanged
+            data = pool_data_unchanged.copy()
             # Change one thing
             data[key] = pool_data_changed[key]
             pool = self.create_mock_pool('server-app_10.128.10.240_80', **data)
@@ -1541,10 +1549,12 @@ class MarathonTest(BigIPTest):
             'ipProtocol': 'udp',
             'destination': '/Common/10.128.10.240:80',
             'pool': '/Common/server-app_10.128.10.240_80',
-            'sourceAddressTranslation': {'type': 'snat'}
+            'sourceAddressTranslation': {'type': 'snat'},
+            'profiles': [{'partition': 'Common', 'name': 'clientssl'},
+                         {'partition': 'Common', 'name': 'tcp'}]
         }
         for key in virtual_data_changed:
-            data = virtual_data_unchanged
+            data = virtual_data_unchanged.copy()
             # Change one thing
             data[key] = virtual_data_changed[key]
             virtual = self.create_mock_virtual('server-app_10.128.10.240_80',
@@ -1558,7 +1568,7 @@ class MarathonTest(BigIPTest):
             'session': 'user-disabled'
         }
         for key in member_data_changed:
-            data = member_data_unchanged
+            data = member_data_unchanged.copy()
             # Change one thing
             data[key] = member_data_changed[key]
             member = self.create_mock_pool_member('10.141.141.10:31132',
@@ -1573,7 +1583,7 @@ class MarathonTest(BigIPTest):
             'send': 'GET /mypath'
         }
         for key in health_data_changed:
-            data = health_data_unchanged
+            data = health_data_unchanged.copy()
             # Change one thing
             data[key] = health_data_changed[key]
             healthcheck = self.create_mock_healthcheck(

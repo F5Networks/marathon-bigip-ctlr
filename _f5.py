@@ -212,6 +212,12 @@ class CloudBigIP(BigIP):
                         profiles.append({'partition': profile[0],
                                          'name': profile[1]})
 
+                # Add appropriate profiles
+                if str(frontend['mode']).lower() == 'http':
+                    profiles.append({'partition': 'Common', 'name': 'http'})
+                elif get_protocol(frontend['mode']) == 'tcp':
+                    profiles.append({'partition': 'Common', 'name': 'tcp'})
+
                 f5_service['virtual'].update({
                     'enabled': True,
                     'disabled': False,
@@ -326,9 +332,11 @@ class CloudBigIP(BigIP):
                     profiles.append({'partition': profile[0],
                                      'name': profile[1]})
 
-            # Add http profile if appropriate
-            if f5_service['health'].get('protocol', None) == 'http':
+            # Add appropriate profiles
+            if str(app.mode).lower() == 'http':
                 profiles.append({'partition': 'Common', 'name': 'http'})
+            elif get_protocol(app.mode) == 'tcp':
+                profiles.append({'partition': 'Common', 'name': 'tcp'})
 
             f5_service['virtual_address'] = app.bindAddr
 
@@ -841,11 +849,6 @@ class CloudBigIP(BigIP):
 
         v.create(name=virtual, partition=partition, **data)
 
-        # Add profile(s)
-        for p in data['profiles']:
-            v.profiles_s.profiles.create(
-                name=p['name'], partition=p['partition'])
-
     def virtual_delete(self, partition, virtual):
         """Delete a Virtual Server.
 
@@ -883,20 +886,30 @@ class CloudBigIP(BigIP):
         no_change = all(data[key] == val for key, val in v.__dict__.iteritems()
                         if key in data)
 
-        if no_change:
+        # Compare the actual and desired profiles
+        profiles = self.get_virtual_profiles(v)
+        no_profile_change = sorted(profiles) == sorted(data['profiles'])
+
+        if no_change and no_profile_change:
             return False
 
         v.modify(**data)
 
-        # Add profile(s)
-        for p in data['profiles']:
-            if not v.profiles_s.profiles.exists(
-                    name=p['name'], partition=p['partition']):
-
-                v.profiles_s.profiles.create(
-                    name=p['name'], partition=p['partition'])
-
         return True
+
+    def get_virtual_profiles(self, virtual):
+        """Get list of Virtual Server profiles from Virtual Server.
+
+        Args:
+            virtual: Virtual Server object
+        """
+        v_profiles = virtual.profiles_s.get_collection()
+        profiles = []
+        for profile in v_profiles:
+            profiles.append({'name': profile.name,
+                             'partition': profile.partition})
+
+        return profiles
 
     def get_virtual_address(self, partition, name):
         """Get Virtual Address object.
