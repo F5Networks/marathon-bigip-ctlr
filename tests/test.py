@@ -5,6 +5,7 @@ BIG-IP resource management.
 
 """
 import unittest
+import logging
 import json
 import sys
 import f5
@@ -72,7 +73,7 @@ class ArgTest(unittest.TestCase):
                       [--health-check] [--sse-timeout SSE_TIMEOUT]
                       [--verify-interval VERIFY_INTERVAL]
                       [--syslog-socket SYSLOG_SOCKET]
-                      [--log-format LOG_FORMAT]
+                      [--log-format LOG_FORMAT] [--log-level LOG_LEVEL]
                       [--marathon-auth-credential-file""" \
             " MARATHON_AUTH_CREDENTIAL_FILE]\n" \
             "f5-marathon-lb: error: argument --marathon/-m is required\n"
@@ -284,6 +285,38 @@ class ArgTest(unittest.TestCase):
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         args = parse_args()
         self.assertEqual(args.log_format, env_log_format)
+
+    def test_log_level_arg(self):
+        """Test: 'Log level' arg."""
+        # Test all valid levels
+        levels = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
+        for level in levels:
+            sys.argv[0:] = self._args_app_name + self._args_mandatory + \
+                ['--log-level', level]
+            args = parse_args()
+            self.assertEqual(args.log_level, getattr(logging, level))
+
+        # Test default
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = parse_args()
+        self.assertEqual(args.log_level, getattr(logging, 'INFO'))
+
+        # Test invalid
+        sys.argv[0:] = self._args_app_name + self._args_mandatory + \
+            ['--log-level', 'INCONCEIVABLE']
+        self.assertRaises(SystemExit, parse_args)
+
+        # Test invalid (via env)
+        os.environ['F5_CSI_LOG_LEVEL'] = 'INCONCEIVABLE'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        self.assertRaises(SystemExit, parse_args)
+
+        # Test all valid levels (via env)
+        for level in levels:
+            os.environ['F5_CSI_LOG_LEVEL'] = level
+            sys.argv[0:] = self._args_app_name + self._args_mandatory
+            args = parse_args()
+            self.assertEqual(args.log_level, getattr(logging, level))
 
     def test_marathon_cred_arg(self):
         """Test: 'Marathon credentials' arg."""

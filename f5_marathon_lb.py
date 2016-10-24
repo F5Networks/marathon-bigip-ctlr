@@ -511,7 +511,6 @@ class MarathonEventProcessor(object):
         self.__timer = threading.Timer(self.__verify_interval,
                                        self.reset_from_tasks)
         self.__timer.start()
-        print threading.enumerate()
 
     def reset_from_tasks(self):
         """Indicate that we need to process the Marathon state."""
@@ -706,7 +705,7 @@ if __name__ == '__main__':
     s.mount('http://', a)
 
     # Setup logging
-    setup_logging(logger, args.syslog_socket, args.log_format)
+    setup_logging(logger, args.syslog_socket, args.log_format, args.log_level)
 
     # Marathon API connector
     marathon = Marathon(args.marathon,

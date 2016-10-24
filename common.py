@@ -6,11 +6,29 @@ from logging.handlers import SysLogHandler
 import sys
 import logging
 import socket
+import argparse
 
 
-def setup_logging(logger, syslog_socket, log_format):
+def parse_log_level(log_level_arg):
+    """Parse the log level from the args.
+
+    Args:
+        log_level_arg: String representation of log level
+    """
+    LOG_LEVELS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
+    if log_level_arg not in LOG_LEVELS:
+        msg = 'Invalid option: {0} (Valid choices are {1})'.format(
+              log_level_arg, LOG_LEVELS)
+        raise argparse.ArgumentTypeError(msg)
+
+    log_level = getattr(logging, log_level_arg, logging.INFO)
+
+    return log_level
+
+
+def setup_logging(logger, syslog_socket, log_format, log_level):
     """Configure logging."""
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
 
     formatter = logging.Formatter(log_format)
 
@@ -69,6 +87,13 @@ def set_logging_args(parser):
                         help="Set log message format",
                         default="%(asctime)s %(name)s: %(levelname)"
                         " -8s: %(message)s"
+                        )
+    parser.add_argument("--log-level",
+                        env_var='F5_CSI_LOG_LEVEL',
+                        type=parse_log_level,
+                        help="Set logging level. Valid log levels are: "
+                        "DEBUG, INFO, WARNING, ERROR, and CRITICAL",
+                        default='INFO'
                         )
     return parser
 
