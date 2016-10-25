@@ -31,6 +31,19 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 # common
 
 
+def log_sequence(prefix, sequence_to_log):
+    """Helper function to log a sequence.
+
+    Dump a sequence to the logger, skip if it is empty
+
+    Args:
+        prefix: The prefix string to describe what's being logged
+        sequence_to_log: The sequence being logged
+    """
+    if sequence_to_log:
+        logger.debug(prefix + ': %s', (', '.join(sequence_to_log)))
+
+
 def healthcheck_timeout_calculate(data):
     """Calculate a BIG-IP Health Monitor timeout.
 
@@ -407,25 +420,24 @@ class CloudBigIP(BigIP):
 
             # Configure iApps
             f5_iapp_list = self.get_iapp_list(partition)
-            logger.debug("f5_iapp_list:       %s" % (', '.join(f5_iapp_list)))
-            logger.debug("marathon_iapp_list: %s" %
-                         (', '.join(marathon_iapp_list)))
+            log_sequence('f5_iapp_list', f5_iapp_list)
+            log_sequence('marathon_iapp_list', marathon_iapp_list)
 
             # iapp delete
             iapp_delete = list_diff(f5_iapp_list, marathon_iapp_list)
-            logger.debug("iApps to delete: %s", (', '.join(iapp_delete)))
+            log_sequence('iApps to delete', iapp_delete)
             for iapp in iapp_delete:
                 self.iapp_delete(partition, iapp)
 
             # iapp add
             iapp_add = list_diff(marathon_iapp_list, f5_iapp_list)
-            logger.debug("iApps to add: %s", (', '.join(iapp_add)))
+            log_sequence('iApps to add', iapp_add)
             for iapp in iapp_add:
                 self.iapp_create(partition, iapp, config[iapp])
 
             # iapp update
             iapp_intersect = list_intersect(marathon_iapp_list, f5_iapp_list)
-            logger.debug("iApps to update: %s", (', '.join(iapp_intersect)))
+            log_sequence('iApps to update', iapp_intersect)
             for iapp in iapp_intersect:
                 self.iapp_update(partition, iapp, config[iapp])
 
@@ -460,35 +472,28 @@ class CloudBigIP(BigIP):
                 f5_healthcheck_list = \
                     [x for x in f5_healthcheck_list if not x.startswith(iapp)]
 
-            logger.debug("f5_pool_list:          %s" %
-                         (', '.join(f5_pool_list)))
-            logger.debug("f5_virtual_list:       %s" %
-                         (', '.join(f5_virtual_list)))
-            logger.debug("f5_healthcheck_list:   %s" %
-                         (', '.join(f5_healthcheck_list)))
-            logger.debug("marathon_pool_list:    %s" %
-                         (', '.join(marathon_pool_list)))
-            logger.debug("marathon_virtual_list: %s" %
-                         (', '.join(marathon_virtual_list)))
+            log_sequence('f5_pool_list', f5_pool_list)
+            log_sequence('f5_virtual_list', f5_virtual_list)
+            log_sequence('f5_healthcheck_list', f5_healthcheck_list)
+            log_sequence('marathon_pool_list', marathon_pool_list)
+            log_sequence('marathon_virtual_list', marathon_virtual_list)
 
             # virtual delete
             virt_delete = list_diff(f5_virtual_list, marathon_virtual_list)
-            logger.debug("Virtual Servers to delete: %s",
-                         (', '.join(virt_delete)))
+            log_sequence('Virtual Servers to delete', virt_delete)
             for virt in virt_delete:
                 self.virtual_delete(partition, virt)
 
             # pool delete
             pool_delete_list = list_diff(f5_pool_list, marathon_pool_list)
-            logger.debug("Pools to delete: %s", (', '.join(pool_delete_list)))
+            log_sequence('Pools to delete', pool_delete_list)
             for pool in pool_delete_list:
                 self.pool_delete(partition, pool)
 
             # healthcheck delete
             health_delete = list_diff(f5_healthcheck_list,
                                       marathon_healthcheck_list)
-            logger.debug("Healthchecks to delete: %s",
-                         (', '.join(health_delete)))
+            log_sequence('Healthchecks to delete', health_delete)
             for hc in health_delete:
                 self.healthcheck_delete(partition, hc,
                                         f5_healthcheck_dict[hc]['type'])
@@ -498,43 +503,40 @@ class CloudBigIP(BigIP):
             # healthcheck add: use the name of the virt for the healthcheck
             healthcheck_add = list_diff(marathon_healthcheck_list,
                                         f5_healthcheck_list)
-            logger.debug("Healthchecks to add: %s",
-                         (', '.join(healthcheck_add)))
+            log_sequence('Healthchecks to add', healthcheck_add)
             for hc in healthcheck_add:
                 self.healthcheck_create(partition, config[hc]['health'])
 
             # pool add
             pool_add = list_diff(marathon_pool_list, f5_pool_list)
-            logger.debug("Pools to add: %s", (', '.join(pool_add)))
+            log_sequence('Pools to add', pool_add)
             for pool in pool_add:
                 self.pool_create(partition, pool, config[pool])
 
             # virtual add
             virt_add = list_diff(marathon_virtual_list, f5_virtual_list)
-            logger.debug("Virtual Servers to add: %s", (', '.join(virt_add)))
+            log_sequence('Virtual Servers to add', virt_add)
             for virt in virt_add:
                 self.virtual_create(partition, virt, config[virt])
 
             # healthcheck intersection
             healthcheck_intersect = list_intersect(marathon_virtual_list,
                                                    f5_healthcheck_list)
-            logger.debug("Healthchecks to update: %s",
-                         (', '.join(healthcheck_intersect)))
+            log_sequence('Healthchecks to update', healthcheck_intersect)
 
             for hc in healthcheck_intersect:
                 self.healthcheck_update(partition, hc, config[hc]['health'])
 
             # pool intersection
             pool_intersect = list_intersect(marathon_pool_list, f5_pool_list)
-            logger.debug("Pools to update: %s", (', '.join(pool_intersect)))
+            log_sequence('Pools to update', pool_intersect)
             for pool in pool_intersect:
                 self.pool_update(partition, pool, config[pool])
 
             # virt intersection
             virt_intersect = list_intersect(marathon_virtual_list,
                                             f5_virtual_list)
-            logger.debug("Virtual Servers to update: %s",
-                         (', '.join(virt_intersect)))
+            log_sequence('Virtual Servers to update', virt_intersect)
 
             for virt in virt_intersect:
                 self.virtual_update(partition, virt, config[virt])
@@ -551,14 +553,12 @@ class CloudBigIP(BigIP):
 
                 member_delete_list = list_diff(f5_member_list,
                                                marathon_member_list)
-                logger.debug("Pool members to delete: %s",
-                             (', '.join(member_delete_list)))
+                log_sequence('Pool members to delete', member_delete_list)
                 for member in member_delete_list:
                     self.member_delete(partition, pool, member)
 
                 member_add = list_diff(marathon_member_list, f5_member_list)
-                logger.debug("Pool members to add:    %s",
-                             (', '.join(member_add)))
+                log_sequence('Pool members to add', member_add)
                 for member in member_add:
                     self.member_create(partition, pool, member,
                                        config[pool]['nodes'][member])
@@ -570,8 +570,7 @@ class CloudBigIP(BigIP):
                 # though in case we add other properties to members
                 member_update_list = list_intersect(marathon_member_list,
                                                     f5_member_list)
-                logger.debug("Pool members to update: %s",
-                             (', '.join(member_update_list)))
+                log_sequence('Pool members to update', member_update_list)
 
                 for member in member_update_list:
                     self.member_update(partition, pool, member,
