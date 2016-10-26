@@ -4,6 +4,7 @@ ENV APPPATH /wkdir
 WORKDIR /wkdir
 
 COPY requirements.txt $APPPATH
+COPY requirements.docs.txt $APPPATH
 
 RUN set -x && \
   apt-get update && \
@@ -12,6 +13,7 @@ RUN set -x && \
     python-dev \
     python-pip && \
   pip install -r requirements.txt && \
-  pip install flake8 flake8_docstrings mock
+  pip install flake8 flake8_docstrings mock && \
+  pip install -r requirements.docs.txt
 
 CMD [ "/bin/bash" ]
