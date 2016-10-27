@@ -1549,7 +1549,7 @@ class MarathonTest(BigIPTest):
         health_data_unchanged = {
             'interval': 20,
             'timeout': 61,
-            'send': 'GET /'
+            'send': 'GET / HTTP/1.0\\r\\n\\r\\n'
         }
         healthcheck = self.create_mock_healthcheck(
             'server-app_10.128.10.240_80', **health_data_unchanged)
@@ -1613,7 +1613,7 @@ class MarathonTest(BigIPTest):
         health_data_changed = {
             'interval': 10,
             'timeout': 30,
-            'send': 'GET /mypath'
+            'send': 'GET /mypath HTTP/1.0\\r\\n\\r\\n'
         }
         for key in health_data_changed:
             data = health_data_unchanged.copy()
