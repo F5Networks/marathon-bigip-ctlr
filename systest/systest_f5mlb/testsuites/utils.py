@@ -98,16 +98,16 @@ def create_f5mlb(
         timeout=timeout,
         container_img=symbols.f5mlb_img,
         container_force_pull_image=True,
-        args=[
-            "--sse",
-            "--syslog-socket", "/dev/null",
-            "--marathon", symbols.marathon_url,
-            "--partition", DEFAULT_F5MLB_PARTITION,
-            "--hostname", symbols.bigip_mgmt_ip,
-            "--username", DEFAULT_BIGIP_USERNAME,
-            "--password", DEFAULT_BIGIP_PASSWORD,
-            "--verify-interval", "%s" % (DEFAULT_F5MLB_VERIFY_INTERVAL)
-          ]
+        env={
+            "F5_CSI_USE_SSE": "True",
+            "F5_CSI_SYSLOG_SOCKET": "/dev/null",
+            "MARATHON_URL": symbols.marathon_url,
+            "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
+            "F5_CSI_BIGIP_HOSTNAME": symbols.bigip_mgmt_ip,
+            "F5_CSI_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
+            "F5_CSI_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
+            "F5_CSI_VERIFY_INTERVAL": "%s" % (DEFAULT_F5MLB_VERIFY_INTERVAL)
+            }
     )
 
 
