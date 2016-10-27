@@ -1002,16 +1002,9 @@ class CloudBigIP(BigIP):
             data: Health Monitor dict
         """
         if data['protocol'] == "http":
-            send_string = 'GET /'
+            send_string = 'GET / HTTP/1.0\\r\\n\\r\\n'
             if 'path' in data:
-                # I expected to have to jump through some hoops to get the
-                # "\r\n" literal into the f5 config, but this seems to work.
-                # When configuring the f5 directly, you have to include the
-                # "\r\n" literal at the end of the GET. From my testing, this
-                # is getting added automatically. I'm not sure what layer is
-                # adding it (iControl itself?). Anyway, this works for now,
-                # but i could see this being fragile
-                send_string = 'GET %s' % data['path']
+                send_string = 'GET %s HTTP/1.0\\r\\n\\r\\n' % data['path']
             return send_string
         else:
             return None

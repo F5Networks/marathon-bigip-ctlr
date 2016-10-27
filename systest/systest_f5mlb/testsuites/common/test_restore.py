@@ -188,7 +188,7 @@ def test_restore_after_health_monitor_update(orchestration, bigip, f5mlb):
         name=obj_name, partition=default_partition
     )
     hm_send_orig = health_monitor.send
-    health_monitor.send = "GET /foo"
+    health_monitor.send = "GET /foo HTTP/1.0\\r\\n\\r\\n"
     health_monitor.description = "test-description"
     health_monitor.update()
     utils.wait_for_f5mlb(RESTORE_TIMEOUT)
