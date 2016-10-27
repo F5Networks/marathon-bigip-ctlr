@@ -1,7 +1,7 @@
 """Test suite to verify end-to-end scenarios."""
 
-
 from pytest import meta_suite, meta_test
+from pytest import symbols
 
 from . import utils
 
@@ -10,41 +10,39 @@ pytestmark = meta_suite(tags=["func", "marathon", "k8s", "e2e"])
 
 
 @meta_test(id="f5mlb-1", tags=[])
-def test_e2e(ssh, orchestration, bigip, f5mlb):
-    """End-to-end f5mlb test.
+def test_e2e(ssh, orchestration, bigip, bigip_controller):
+    """End-to-end north-south test.
 
-    Verify the most common f5mlb operations and interactions.
+    Verify the most common north-south operations and interactions.
     """
-    assert orchestration.app.exists(f5mlb.id)
-    assert f5mlb.instances.count() == 1
     # - verify no bigip objects exist
     assert utils.get_backend_objects(bigip) == {}
 
-    # - start unmanaged service (no f5mlb labels)
+    # - start unmanaged service (no bigip-controller decorations)
     utils.create_unmanaged_service(orchestration, "svc-1")
     # - verify no bigip objects created for unmanaged service
-    utils.wait_for_f5mlb()
+    utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == {}
 
-    # - start managed service (has f5mlb labels)
-    svc_2 = utils.create_managed_service(orchestration, "svc-2")
+    # - start managed service (has bigip-controller decorations)
+    svc_2 = utils.create_managed_northsouth_service(orchestration, "svc-2")
     # - verify new bigip objects created for managed service
-    utils.wait_for_f5mlb()
+    utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc_2)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - scale managed service to 2 instances
     svc_2.scale(2)
     assert svc_2.instances.count() == 2
-    # - verify num f5mlb instances unchanged
-    utils.wait_for_f5mlb()
-    assert f5mlb.instances.count() == 1
-    # - verify bigip pool members are changed
-    instances = svc_2.instances.get()
-    backend_objs_exp['pool_members'] = sorted([
-        "%s:%d" % (instances[0].host, instances[0].ports[0]),
-        "%s:%d" % (instances[1].host, instances[1].ports[0]),
-    ])
+    if symbols.orchestration == "marathon":
+        # - verify bigip pool members are changed
+        instances = svc_2.instances.get()
+        backend_objs_exp['pool_members'] = sorted([
+            "%s:%d" % (instances[0].host, instances[0].ports[0]),
+            "%s:%d" % (instances[1].host, instances[1].ports[0]),
+        ])
+    # - note that the k8s version of the bigip-controller does NOT add/remove
+    #   pool members on the bigip
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - verify round-robin load balancing
@@ -53,20 +51,17 @@ def test_e2e(ssh, orchestration, bigip, f5mlb):
     # - scale managed service to 0 instances
     svc_2.scale(0)
     assert svc_2.instances.count() == 0
-    # - verify num f5mlb instances unchanged
-    utils.wait_for_f5mlb()
-    assert f5mlb.instances.count() == 1
-    # - verify bigip pool members are changed
-    backend_objs_exp.pop('pool_members')
-    backend_objs_exp.pop('nodes')
+    if symbols.orchestration == "marathon":
+        # - verify bigip pool members are changed
+        backend_objs_exp.pop('pool_members')
+        backend_objs_exp.pop('nodes')
+    # - note that the k8s version of the bigip-controller does NOT add/remove
+    #   pool members on the bigip
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - scale managed service to 1 instance
     svc_2.scale(1)
     assert svc_2.instances.count() == 1
-    # - verify num f5mlb instances unchanged
-    utils.wait_for_f5mlb()
-    assert f5mlb.instances.count() == 1
     # - verify bigip pool members are changed
     instances = svc_2.instances.get()
     backend_objs_exp['pool_members'] = [
@@ -78,8 +73,5 @@ def test_e2e(ssh, orchestration, bigip, f5mlb):
     # - delete managed service
     svc_2.delete()
     # - verify bigip objects are also destroyed
-    utils.wait_for_f5mlb()
+    utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == {}
-    # - verify f5mlb app remains
-    assert orchestration.app.exists(f5mlb.id)
-    assert f5mlb.instances.count() == 1

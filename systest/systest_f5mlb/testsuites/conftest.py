@@ -42,17 +42,10 @@ def default_test_fx(request, orchestration, bigip):
     Delete all orchestration apps on test teardown.
     Delete test partition on test teardown.
     """
-    partition = utils.DEFAULT_F5MLB_PARTITION
-    bigip.partition.create(partition, subPath="/")
-    # FIXME (kevin): remove these partition hacks when issue #32 is fixed
-    p = bigip.partition.get(name=partition)
-    p.inheritedTrafficGroup = False
-    p.trafficGroup = "/Common/traffic-group-local-only"
-    p.update()
-
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
+        orchestration.namespace = "default"
         orchestration.apps.delete(timeout=DELETE_TIMEOUT)
         orchestration.deployments.delete(timeout=DELETE_TIMEOUT)
         bigip.iapps.delete(partition=partition)
@@ -63,18 +56,28 @@ def default_test_fx(request, orchestration, bigip):
         bigip.health_monitors.delete(partition=partition)
         bigip.partition.delete(name=partition)
 
+    partition = utils.DEFAULT_F5MLB_PARTITION
+    teardown()
+    bigip.partition.create(partition, subPath="/")
+    # FIXME (kevin): remove these partition hacks when issue #32 is fixed
+    p = bigip.partition.get(name=partition)
+    p.inheritedTrafficGroup = False
+    p.trafficGroup = "/Common/traffic-group-local-only"
+    p.update()
+
     request.addfinalizer(teardown)
 
 
 @pytest.fixture(scope='function')
-def f5mlb(request, orchestration):
-    """Provide a default f5mlb app."""
-    f5mlb = utils.create_f5mlb(orchestration)
+def bigip_controller(request, orchestration):
+    """Provide a default bigip-controller service."""
+    controller = utils.create_bigip_controller(orchestration)
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        f5mlb.delete()
+        orchestration.namespace = "kube-system"
+        controller.delete()
 
     request.addfinalizer(teardown)
-    return f5mlb
+    return controller

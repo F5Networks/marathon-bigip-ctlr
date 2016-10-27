@@ -51,16 +51,18 @@ endif
 
 # - set testenv config file
 ifeq ($(orchestration), marathon)
+  repo_name := f5-marathon-lb
   testenv_config := mesos.testenv.yaml
 else ifeq ($(orchestration), k8s)
+  repo_name := f5-k8s-controller
   testenv_config := k8s.testenv.yaml
 endif
 
-repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/f5-marathon-lb.git
+repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/$(repo_name).git
 systest_pkg := systest_f5mlb
 registry := docker-registry.pdbld.f5net.com
 namespace := velcro
-f5mlb_img := $(registry)/$(namespace)/f5-marathon-lb:master
+bigip_controller_img := $(registry)/$(namespace)/$(repo_name):master
 ssh_conf := testenv_symbols/testenv_ssh_config
 
 # - <nearest reachable tag>-<num commits since>-g<abbreviated commit id>
@@ -108,7 +110,7 @@ functest-setup:
 		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:1 \
-		--vars f5mlb_img:"$(f5mlb_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)"
 
 functest-run:
 	@echo "running $(orchestration) functional tests ..."
@@ -132,7 +134,7 @@ scaletest-setup:
 		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:6 \
-		--vars f5mlb_img:"$(f5mlb_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)"
 
 scaletest-run:
 	@echo "running $(orchestration) scale tests ..."
