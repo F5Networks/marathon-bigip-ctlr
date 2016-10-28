@@ -680,3 +680,21 @@ def test_restore_after_partition_delete_no_backup(
     becomes available.
     """
     pass
+
+
+@meta_test(id="f5mlb-64", tags=[])
+def test_restore_after_svc_becomes_unmanaged(
+        orchestration, bigip, bigip_controller):
+    """Bigip-controller decorations are removed from a managed service.
+
+    When the bigip-controller realizes that the managed bigip objects are
+    orphaned, it reaps them.
+    """
+    svc = utils.create_managed_northsouth_service(orchestration)
+    utils.wait_for_bigip_controller()
+    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    # - remove bigip-controller decorations from the managed service
+    utils.unmanage_northsouth_service(orchestration, svc)
+    utils.wait_for_bigip_controller(RESTORE_TIMEOUT)
+    assert utils.get_backend_objects(bigip) == {}
