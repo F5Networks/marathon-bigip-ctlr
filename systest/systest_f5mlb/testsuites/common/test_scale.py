@@ -24,8 +24,8 @@ VS_TIMEOUT = 5 * 60
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_f5mlb1_svc10_srv100(ssh, orchestration):
-    """Scale test: 1 f5mlb, 10 managed services (w/ 100 backend servers each).
+def test_bigip_controller1_svc10_srv100(ssh, orchestration):
+    """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Each managed service has 100 backend servers.
     So this test creates 1,011 application instances.
@@ -34,8 +34,8 @@ def test_f5mlb1_svc10_srv100(ssh, orchestration):
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_f5mlb1_svc100_srv10(ssh, orchestration):
-    """Scale test: 1 f5mlb, 100 managed services (w/ 10 backend servers each).
+def test_bigip_controller1_svc100_srv10(ssh, orchestration):
+    """Scale: 1 bigip-controller, 100 managed svcs (w/ 10 backends each).
 
     Each managed service has 10 backend servers.
     So this test creates 1,101 application instances.
@@ -44,8 +44,8 @@ def test_f5mlb1_svc100_srv10(ssh, orchestration):
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_f5mlb1_svc100_srv100(ssh, orchestration):
-    """Scale test: 1 f5mlb, 100 managed services (w/ 100 backend servers each).
+def test_bigip_controller1_svc100_srv100(ssh, orchestration):
+    """Scale: 1 bigip-controller, 100 managed svcs (w/ 100 backends each).
 
     Each managed service has and 100 backend servers.
     So this test creates 10,101 application instances.
@@ -59,7 +59,9 @@ def _run_scale_test(
     svc_inputs = []
     svcs = []
 
-    utils.create_f5mlb(orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM)
+    utils.create_bigip_controller(
+        orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM
+    )
 
     # - first, scale-up the appropriate services and instances
     for i in range(1, num_svcs + 1):
@@ -86,7 +88,7 @@ def _run_scale_test(
     pool_size = 10
     for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
         p = multiprocessing.Pool(processes=len(slice))
-        p.map(_verify_f5mlb, slice)
+        p.map(_verify_bigip_controller, slice)
         p.close()
         p.join()
 
@@ -105,7 +107,7 @@ def _create_svc(kwargs):
         'F5_0_PORT': SVC_START_PORT + kwargs['idx'],
         'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
     }
-    svc = utils.create_managed_service(
+    svc = utils.create_managed_northsouth_service(
         kwargs['orchestration'],
         svc_name,
         labels=svc_labels,
@@ -156,7 +158,7 @@ def _wait_for_virtual_server(svc, ssh, timeout=VS_TIMEOUT):
     assert is_available()
 
 
-def _verify_f5mlb(kwargs):
+def _verify_bigip_controller(kwargs):
     orchestration = kwargs['orchestration']
     ssh = kwargs['ssh']
     svc = orchestration.app.get(kwargs['svc_name'])

@@ -16,7 +16,7 @@ DEFAULT_F5MLB_MEM = 32
 DEFAULT_F5MLB_TIMEOUT = 60
 DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_ext_ip
 DEFAULT_F5MLB_MODE = "http"
-DEFAULT_F5MLB_NAME = "test-f5mlb"
+DEFAULT_F5MLB_NAME = "test-bigip-controller"
 DEFAULT_F5MLB_PARTITION = "test"
 DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_WAIT = 5
@@ -47,26 +47,59 @@ DEFAULT_SVC_HEALTH_CHECKS_TCP = [
 DEFAULT_SVC_INSTANCES = 1
 DEFAULT_SVC_MEM = 32
 DEFAULT_SVC_TIMEOUT = 60
-DEFAULT_SVC_LABELS = {
-    'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
-    'F5_0_BIND_ADDR': DEFAULT_F5MLB_BIND_ADDR,
-    'F5_0_PORT': DEFAULT_F5MLB_PORT,
-    'F5_0_MODE': DEFAULT_F5MLB_MODE,
-}
 DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
+DEFAULT_SVC_PORT = 80
+
+if symbols.orchestration == "marathon":
+    DEFAULT_SVC_CONFIG = {
+        'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
+        'F5_0_BIND_ADDR': DEFAULT_F5MLB_BIND_ADDR,
+        'F5_0_PORT': DEFAULT_F5MLB_PORT,
+        'F5_0_MODE': DEFAULT_F5MLB_MODE,
+    }
+elif symbols.orchestration == "k8s":
+    DEFAULT_SVC_CONFIG = {
+        'name': "x",
+        'labels': {'f5type': "virtual-server"},
+        'data': {
+            'data': {
+                'virtualServer': {
+                    'backend': {
+                        'serviceName': "x",
+                        'servicePort': DEFAULT_SVC_PORT
+                    },
+                    'frontend': {
+                        'partition': DEFAULT_F5MLB_PARTITION,
+                        'mode': DEFAULT_F5MLB_MODE,
+                        'balance': "round-robin",
+                        'virtualAddress': {
+                            'bindAddr': DEFAULT_F5MLB_BIND_ADDR,
+                            'port': DEFAULT_F5MLB_PORT
+                        }
+                    }
+                }
+            },
+            'schema': "foo"
+        }
+    }
 
 
-def create_managed_service(
+def create_managed_northsouth_service(
         orchestration, id="test-svc",
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
-        labels=DEFAULT_SVC_LABELS,
+        labels={},
         timeout=DEFAULT_SVC_TIMEOUT,
         health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP,
-        num_instances=DEFAULT_SVC_INSTANCES):
-    """Create an app with f5mlb decorations."""
+        num_instances=DEFAULT_SVC_INSTANCES,
+        config=DEFAULT_SVC_CONFIG):
+    """Create a microservice with bigip-controller decorations."""
     # FIXME (kevin): merge user-provided labels w/ default labels
-    return orchestration.app.create(
+    if symbols.orchestration == "marathon":
+        labels.update(config)
+    if symbols.orchestration == "k8s":
+        orchestration.namespace = "default"
+    svc = orchestration.app.create(
         id=id,
         cpus=cpus,
         mem=mem,
@@ -75,7 +108,7 @@ def create_managed_service(
         labels=labels,
         container_port_mappings=[
             {
-                'container_port': 80,
+                'container_port': DEFAULT_SVC_PORT,
                 'host_port': 0,
                 'service_port': 0,
                 'protocol': "tcp"
@@ -85,34 +118,70 @@ def create_managed_service(
         health_checks=health_checks,
         num_instances=num_instances
     )
+    if symbols.orchestration == "k8s":
+        config['name'] = "%s-map" % id
+        config['data']['data']['virtualServer']['backend']['serviceName'] = id
+        orchestration.app.create_configmap(config)
+    return svc
 
 
-def create_f5mlb(
+def unmanage_northsouth_service(orchestration, svc):
+    """Remove bigip-controller decorations from a managed microservice."""
+    if symbols.orchestration == "marathon":
+        svc.labels = {}
+        svc.update()
+    if symbols.orchestration == "k8s":
+        orchestration.namespace = "default"
+        orchestration.app.delete_configmap("%s-map" % svc.id)
+
+
+def create_bigip_controller(
         orchestration, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
         mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_F5MLB_TIMEOUT):
-    """Create an f5mlb app."""
-    return orchestration.app.create(
-        id=id,
-        cpus=cpus,
-        mem=mem,
-        timeout=timeout,
-        container_img=symbols.f5mlb_img,
-        container_force_pull_image=True,
-        env={
-            "F5_CSI_USE_SSE": "True",
-            "F5_CSI_SYSLOG_SOCKET": "/dev/null",
-            "MARATHON_URL": symbols.marathon_url,
-            "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
-            "F5_CSI_BIGIP_HOSTNAME": symbols.bigip_mgmt_ip,
-            "F5_CSI_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
-            "F5_CSI_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
-            "F5_CSI_VERIFY_INTERVAL": "%s" % (DEFAULT_F5MLB_VERIFY_INTERVAL)
+    """Create a bigip-controller microservice."""
+    if symbols.orchestration == "marathon":
+        return orchestration.app.create(
+            id=id,
+            cpus=cpus,
+            mem=mem,
+            timeout=timeout,
+            container_img=symbols.bigip_controller_img,
+            container_force_pull_image=True,
+            env={
+                "F5_CSI_USE_SSE": str(True),
+                "F5_CSI_SYSLOG_SOCKET": "/dev/null",
+                "MARATHON_URL": symbols.marathon_url,
+                "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
+                "F5_CSI_BIGIP_HOSTNAME": symbols.bigip_mgmt_ip,
+                "F5_CSI_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
+                "F5_CSI_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
+                "F5_CSI_VERIFY_INTERVAL": str(DEFAULT_F5MLB_VERIFY_INTERVAL)
             }
-    )
+        )
+    if symbols.orchestration == "k8s":
+        orchestration.namespace = "kube-system"
+        return orchestration.app.create(
+            id=id,
+            cpus=cpus,
+            mem=mem,
+            timeout=timeout,
+            container_img=symbols.bigip_controller_img,
+            container_force_pull_image=True,
+            cmd="/app/bin/f5-k8s-controller",
+            args=[
+                "--bigip-partition", DEFAULT_F5MLB_PARTITION,
+                "--bigip-url", symbols.bigip_mgmt_ip,
+                "--bigip-username", DEFAULT_BIGIP_USERNAME,
+                "--bigip-password", DEFAULT_BIGIP_PASSWORD,
+                "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL)
+              ]
+        )
 
 
 def create_unmanaged_service(orchestration, id, labels={}):
-    """Create an app with no f5mlb decorations."""
+    """Create a microservice with no bigip-controller decorations."""
+    if symbols.orchestration == "k8s":
+        orchestration.namespace = "default"
     return orchestration.app.create(
         id=id,
         cpus=DEFAULT_SVC_CPUS,
@@ -122,7 +191,7 @@ def create_unmanaged_service(orchestration, id, labels={}):
         labels=labels,
         container_port_mappings=[
             {
-                'container_port': 80,
+                'container_port': DEFAULT_SVC_PORT,
                 'host_port': 0,
                 'protocol': "tcp"
             }
@@ -133,18 +202,30 @@ def create_unmanaged_service(orchestration, id, labels={}):
 
 def get_backend_object_name(svc, port_idx=0):
     """Generate expected backend object name."""
-    return (
-        "%s_%s_%s"
-        % (
-            svc.id.replace("/", ""),
-            svc.labels['F5_%d_BIND_ADDR' % port_idx],
-            str(svc.labels['F5_%d_PORT' % port_idx])
+    if symbols.orchestration == "marathon":
+        return (
+            "%s_%s_%s"
+            % (
+                svc.id.replace("/", ""),
+                svc.labels['F5_%d_BIND_ADDR' % port_idx],
+                str(svc.labels['F5_%d_PORT' % port_idx])
+            )
         )
-    )
+    if symbols.orchestration == "k8s":
+        # FIXME (kevin): need to reach into the associated configmap and pull
+        # out the bind_addr and port values
+        return (
+            "%s_%s_%s"
+            % (
+                svc.id.replace("/", ""),
+                DEFAULT_F5MLB_BIND_ADDR,
+                DEFAULT_F5MLB_PORT
+            )
+        )
 
 
-def wait_for_f5mlb(num_seconds=DEFAULT_F5MLB_WAIT):
-    """Wait for f5mlb to restore expected state (or not!)."""
+def wait_for_bigip_controller(num_seconds=DEFAULT_F5MLB_WAIT):
+    """Wait for bigip-controller to restore expected state (or not!)."""
     time.sleep(num_seconds)
 
 
@@ -192,16 +273,23 @@ def get_backend_objects_exp(svc):
     """A dict of the expected backend resources."""
     instances = svc.instances.get()
     obj_name = get_backend_object_name(svc)
-    return {
+    if symbols.orchestration == "marathon":
+        virtual_addr = svc.labels['F5_0_BIND_ADDR']
+    elif symbols.orchestration == "k8s":
+        virtual_addr = DEFAULT_F5MLB_BIND_ADDR
+    ret = {
         'virtual_servers': [obj_name],
-        'virtual_addresses': [svc.labels['F5_0_BIND_ADDR']],
+        'virtual_addresses': [virtual_addr],
         'pools': [obj_name],
         'pool_members': [
             "%s:%d" % (instances[0].host, instances[0].ports[0])
         ],
         'nodes': [instances[0].host],
-        'health_monitors': [obj_name]
     }
+    # FIXME (kevin): remove when f5-k8s-controller supports health monitors
+    if symbols.orchestration == "marathon":
+        ret['health_monitors'] = [obj_name]
+    return ret
 
 
 def wait_for_backend_objects(
@@ -235,7 +323,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
 
     # - send the target number of requests and collect the responses
     act_responses = {}
-    curl_cmd = "curl -s -k %s" % svc_url
+    curl_cmd = "curl --connect-time 1 -s -k %s" % svc_url
     for i in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
         if res not in act_responses:
