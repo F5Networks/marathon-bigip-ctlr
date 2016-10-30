@@ -1,6 +1,7 @@
 """Helper functions for orchestration tests."""
 
 
+import re
 import time
 
 from pytest import symbols
@@ -187,7 +188,6 @@ def create_unmanaged_service(orchestration, id, labels={}):
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         timeout=DEFAULT_SVC_TIMEOUT,
-        container_img="%s/systest-common/test-nginx" % REGISTRY,
         labels=labels,
         container_port_mappings=[
             {
@@ -310,29 +310,22 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
     #   separate pool members - but if you send enough requests, the responses
     #   will average out to something like what you expected).
     svc_url = _get_svc_url(svc, protocol, ipaddr, port)
-    pool_members = []
-    exp_responses = []
-    for instance in svc.instances.get():
-        member = "%s:%d" % (instance.host, instance.ports[0])
-        pool_members.append(member)
-        exp_responses.append("Hello from %s :0)" % member)
-
-    num_members = len(pool_members)
+    num_members = svc.instances.count()
     num_requests = num_members * 10
     min_res_per_member = 2
 
     # - send the target number of requests and collect the responses
     act_responses = {}
     curl_cmd = "curl --connect-time 1 -s -k %s" % svc_url
+    ptn = re.compile("^Hello from .+ :0\)$")
     for i in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
+        # - verify response looks good
+        assert re.match(ptn, res)
         if res not in act_responses:
             act_responses[res] = 1
         else:
             act_responses[res] += 1
-
-    # - verify all responses came from recognized pool members
-    assert sorted(act_responses.keys()) == sorted(exp_responses)
 
     # - verify we got at least 2 responses from each member
     for k, v in act_responses.iteritems():
