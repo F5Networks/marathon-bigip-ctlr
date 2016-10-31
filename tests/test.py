@@ -1738,6 +1738,121 @@ class KubernetesTest(BigIPTest):
         self.assertEquals(self.bigip.iapp_delete.call_args_list[0][0][1],
                           expected_name)
 
+    def test_updates(self,
+                     cloud_state='tests/kubernetes_one_svc_two_nodes.json',
+                     bigip_state='tests/bigip_test_one_svc_two_nodes.json',
+                     hm_state='tests/bigip_test_blank.json'):
+        """Test: Verify BIG-IP updates.
+
+        Verify that resources are only updated when the state
+        of the resource changes.
+        """
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Restore the mocked 'update' functions to their original state
+        self.bigip.pool_update = self.bigip.pool_update_orig
+        self.bigip.virtual_update = self.bigip.virtual_update_orig
+        self.bigip.member_update = self.bigip.member_update_orig
+
+        # Mock the 'get' resource functions. We will use these to supply
+        # mocked resources
+        self.bigip.get_pool = Mock(side_effect=self.mock_get_pool)
+        self.bigip.get_virtual = Mock(side_effect=self.mock_get_virtual)
+        self.bigip.get_virtual_profiles = Mock(
+            side_effect=self.mock_get_virtual_profiles)
+        self.bigip.get_member = Mock(side_effect=self.mock_get_member)
+        self.bigip.get_virtual_address = Mock(
+            side_effect=self.mock_get_virtual_address)
+
+        # Create a mock Pool
+        pool_data_unchanged = {'balance': 'round-robin'}
+        pool = self.create_mock_pool('foo_10.128.10.240_5051',
+                                     **pool_data_unchanged)
+
+        # Create a mock Virtual
+        virtual_data_unchanged = {'enabled': True,
+                                  'disabled': False,
+                                  'ipProtocol': 'tcp',
+                                  'destination': '/velcro/10.128.10.240:5051',
+                                  'pool': '/velcro/foo_10.128.10.240_5051',
+                                  'sourceAddressTranslation':
+                                  {'type': 'automap'},
+                                  'profiles': [{'partition': 'Common',
+                                                'name': 'clientssl'},
+                                               {'partition': 'Common',
+                                                'name': 'http'}]}
+        virtual = self.create_mock_virtual('foo_10.128.10.240_5051',
+                                           **virtual_data_unchanged)
+
+        # Create mock Pool Members
+        member_data_unchanged = {'state': 'user-up', 'session': 'user-enabled'}
+        member = self.create_mock_pool_member('172.16.0.5:30008',
+                                              **member_data_unchanged)
+        member = self.create_mock_pool_member('172.16.0.6:30008',
+                                              **member_data_unchanged)
+
+        # Pool, Virtual, and Member are not modified
+        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.assertFalse(pool.modify.called)
+        self.assertFalse(virtual.modify.called)
+        self.assertFalse(virtual.profiles_s.profiles.create.called)
+        self.assertFalse(member.modify.called)
+
+        # Pool is modified
+        pool_data_changed = {
+            'balance': 'least-connections'
+        }
+        for key in pool_data_changed:
+            data = pool_data_unchanged.copy()
+            # Change one thing
+            data[key] = pool_data_changed[key]
+            pool = self.create_mock_pool('foo_10.128.10.240_5051', **data)
+            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.assertTrue(pool.modify.called)
+
+        # Virtual is modified
+        virtual_data_changed = {
+            'enabled': False,
+            'disabled': True,
+            'ipProtocol': 'udp',
+            'destination': '/Common/10.128.10.240:5051',
+            'pool': '/Common/foo_10.128.10.240_5051',
+            'sourceAddressTranslation': {'type': 'snat'},
+            'profiles': [{'partition': 'Common', 'name': 'clientssl'},
+                         {'partition': 'Common', 'name': 'tcp'}]
+        }
+        for key in virtual_data_changed:
+            data = virtual_data_unchanged.copy()
+            # Change one thing
+            data[key] = virtual_data_changed[key]
+            virtual = self.create_mock_virtual('foo_10.128.10.240_5051',
+                                               **data)
+            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.assertTrue(virtual.modify.called)
+
+        # Member is modified
+        member_data_changed = {
+            'state': 'user-down',
+            'session': 'user-disabled'
+        }
+        for key in member_data_changed:
+            data = member_data_unchanged.copy()
+            # Change one thing
+            data[key] = member_data_changed[key]
+            member = self.create_mock_pool_member('172.16.0.5:30008',
+                                                  **data)
+            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.assertTrue(member.modify.called)
+
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.virtual_create.called)
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_create.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.member_delete.called)
 
 if __name__ == '__main__':
     unittest.main()

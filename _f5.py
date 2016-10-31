@@ -231,6 +231,9 @@ class CloudBigIP(BigIP):
                 elif get_protocol(frontend['mode']) == 'tcp':
                     profiles.append({'partition': 'Common', 'name': 'tcp'})
 
+                f5_service['virtual_address'] = frontend['virtualAddress'][
+                    'bindAddr']
+
                 f5_service['virtual'].update({
                     'enabled': True,
                     'disabled': False,
@@ -702,9 +705,15 @@ class CloudBigIP(BigIP):
         data = data['pool']
         pool = self.get_pool(partition, pool)
 
-        no_change = all(data[key] == val.strip()
-                        for key, val in pool.__dict__.iteritems()
-                        if key in data)
+        def genChange(p, d):
+            for key, val in p.__dict__.iteritems():
+                if key in d:
+                    if None is not val:
+                        yield d[key] == val.strip()
+                    else:
+                        yield d[key] == val
+
+        no_change = all(genChange(pool, data))
 
         if no_change:
             return False
