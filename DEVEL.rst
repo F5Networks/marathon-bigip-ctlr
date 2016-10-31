@@ -8,9 +8,8 @@ the following command-line arguments:
 
     usage: f5_marathon_lb.py [-h] [--longhelp]
                              [--marathon MARATHON [MARATHON ...]]
-                             [--listening LISTENING] [--callback-url CALLBACK_URL]
                              [--hostname HOSTNAME] [--username USERNAME]
-                             [--password PASSWORD] [--partition PARTITION] [--sse]
+                             [--password PASSWORD] [--partition PARTITION]
                              [--health-check] [--sse-timeout SSE_TIMEOUT]
                              [--verify-interval VERIFY_INTERVAL]
                              [--syslog-socket SYSLOG_SOCKET]
@@ -26,13 +25,6 @@ the following command-line arguments:
                             [required] Marathon endpoint, eg. -m
                             http://marathon1:8080 http://marathon2:8080 [env var:
                             MARATHON_URL] (default: None)
-      --listening LISTENING, -l LISTENING
-                            The address this script listens on for marathon events
-                            [env var: F5_CSI_LISTENING_ADDR] (default: None)
-      --callback-url CALLBACK_URL, -u CALLBACK_URL
-                            The HTTP address that Marathon can call this script
-                            back at (http://lb1:8080) [env var:
-                            F5_CSI_CALLBACK_URL] (default: None)
       --hostname HOSTNAME   F5 BIG-IP hostname [env var: F5_CSI_BIGIP_HOSTNAME]
                             (default: None)
       --username USERNAME   F5 BIG-IP username [env var: F5_CSI_BIGIP_USERNAME]
@@ -45,8 +37,6 @@ the following command-line arguments:
                             partitions. Can use this arg multiple times to specify
                             multiple partitions [env var: F5_CSI_PARTITIONS]
                             (default: [])
-      --sse, -s             Use Server Sent Events instead of HTTP Callbacks [env
-                            var: F5_CSI_USE_SSE] (default: False)
       --health-check, -H    If set, respect Marathon's health check statuses
                             before adding the app instance into the backend pool.
                             [env var: F5_CSI_USE_HEALTHCHECK] (default: False)
@@ -126,7 +116,6 @@ In step 3, above, we use the command ``curl -X POST -H "Content-Type: applicatio
             }
           },
           "args": [
-            "--sse",
             "--marathon", "http://10.141.141.10:8080",
             "--partition", "mesos_1",
             "--hostname", "10.128.1.145",

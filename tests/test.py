@@ -67,9 +67,8 @@ class ArgTest(unittest.TestCase):
         expected = \
             "usage: f5-marathon-lb [-h] [--longhelp]" \
             """ [--marathon MARATHON [MARATHON ...]]
-                      [--listening LISTENING] [--callback-url CALLBACK_URL]
                       [--hostname HOSTNAME] [--username USERNAME]
-                      [--password PASSWORD] [--partition PARTITION] [--sse]
+                      [--password PASSWORD] [--partition PARTITION]
                       [--health-check] [--sse-timeout SSE_TIMEOUT]
                       [--verify-interval VERIFY_INTERVAL]
                       [--syslog-socket SYSLOG_SOCKET]
@@ -91,7 +90,6 @@ class ArgTest(unittest.TestCase):
         self.assertEqual(args.username, 'admin')
         self.assertEqual(args.password, 'default')
         # default arg values
-        self.assertEqual(args.sse, False)
         self.assertEqual(args.health_check, False)
         if sys.platform == "darwin":
             self.assertEqual(args.syslog_socket, '/var/run/syslog')
@@ -99,8 +97,6 @@ class ArgTest(unittest.TestCase):
             self.assertEqual(args.syslog_socket, '/dev/log')
         self.assertEqual(args.log_format,
                          '%(asctime)s %(name)s: %(levelname) -8s: %(message)s')
-        self.assertEqual(args.listening, None)
-        self.assertEqual(args.callback_url, None)
         self.assertEqual(args.marathon_auth_credential_file, None)
 
     def test_all_mandatory_args_from_env(self):
@@ -160,79 +156,6 @@ class ArgTest(unittest.TestCase):
         sys.argv[0:] = self._args_app_name + self._args_without_partition
         args = parse_args()
         self.assertEqual(args.partition, ['mesos7', 'mesos8'])
-
-    def test_conflicting_args(self):
-        """Test: Mutually-exclusive args."""
-        sys.argv[0:] = self._args_app_name + self._args_mandatory \
-            + ['--listening', '-sse']
-        self.assertRaises(SystemExit, parse_args)
-
-        # test via env var
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        listen_addr_env = '192.168.10.50'
-        os.environ['F5_CSI_LISTENING_ADDR'] = listen_addr_env
-        os.environ['F5_CSI_USE_SSE'] = 'True'
-        self.assertRaises(SystemExit, parse_args)
-
-    def test_callback_arg(self):
-        """Test: 'Callback URL' arg."""
-        url = 'http://marathon:8080'
-        sys.argv[0:] = self._args_app_name + self._args_mandatory \
-            + ['--callback-url', url]
-        args = parse_args()
-        self.assertEqual(args.callback_url, url)
-
-        sys.argv[0:] = self._args_app_name + self._args_mandatory + ['-u', url]
-        args = parse_args()
-        self.assertEqual(args.callback_url, url)
-
-        # test via env var
-        url_env = 'http://marathon:8081'
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_CALLBACK_URL'] = url_env
-        args = parse_args()
-        self.assertEqual(args.callback_url, url_env)
-
-    def test_listening_arg(self):
-        """Test: 'Listening' arg."""
-        listen_addr = '192.168.10.50'
-        sys.argv[0:] = self._args_app_name + self._args_mandatory \
-            + ['--listening', listen_addr]
-        args = parse_args()
-        self.assertEqual(args.listening, listen_addr)
-
-        sys.argv[0:] = self._args_app_name + self._args_mandatory \
-            + ['-l', listen_addr]
-        args = parse_args()
-        self.assertEqual(args.listening, listen_addr)
-
-        # test via env var
-        listen_addr_env = '192.168.10.90'
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_LISTENING_ADDR'] = listen_addr_env
-        args = parse_args()
-        self.assertEqual(args.listening, listen_addr_env)
-
-    def test_sse_arg(self):
-        """Test: 'SSE' arg."""
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
-        self.assertEqual(args.sse, False)
-        sys.argv[0:] = self._args_app_name + self._args_mandatory + ['--sse']
-        args = parse_args()
-        self.assertEqual(args.sse, True)
-
-        sys.argv[0:] = self._args_app_name + self._args_mandatory + ['-s']
-        args = parse_args()
-        self.assertEqual(args.sse, True)
-
-        # test via env var
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
-        self.assertEqual(args.sse, False)
-        os.environ['F5_CSI_USE_SSE'] = 'True'
-        args = parse_args()
-        self.assertEqual(args.sse, True)
 
     def test_health_check_arg(self):
         """Test: 'Health Check' arg."""
