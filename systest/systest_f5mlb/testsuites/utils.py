@@ -56,7 +56,6 @@ DEFAULT_SVC_PORT = 80
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
         "MARATHON_URL": symbols.marathon_url,
-        "F5_CSI_USE_SSE": str(True),
         "F5_CSI_SYSLOG_SOCKET": "/dev/null",
         "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
         "F5_CSI_BIGIP_HOSTNAME": symbols.bigip_mgmt_ip,

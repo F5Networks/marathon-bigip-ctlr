@@ -13,13 +13,9 @@ Every service port in Marathon can be configured independently.
 ### Configuration
 Service configuration lives in Marathon via labels.
 f5-marathon-lb just needs to know where to find Marathon.
-To run in listening mode you must also specify the address + port at
-which f5-marathon-lb can be reached by Marathon.
 """
 
-from wsgiref.simple_server import make_server
 from sseclient import SSEClient
-from six.moves.urllib import parse
 from itertools import cycle
 from requests.exceptions import ConnectionError
 from common import (set_logging_args, set_marathon_auth_args, setup_logging,
@@ -546,16 +542,6 @@ def get_arg_parser():
                         help="[required] Marathon endpoint, eg. -m " +
                              "http://marathon1:8080 http://marathon2:8080"
                         )
-    parser.add_argument("--listening", "-l",
-                        env_var='F5_CSI_LISTENING_ADDR',
-                        help="The address this script listens on for " +
-                        "marathon events"
-                        )
-    parser.add_argument("--callback-url", "-u",
-                        env_var='F5_CSI_CALLBACK_URL',
-                        help="The HTTP address that Marathon can call this " +
-                             "script back at (http://lb1:8080)"
-                        )
     parser.add_argument("--hostname",
                         env_var='F5_CSI_BIGIP_HOSTNAME',
                         help="F5 BIG-IP hostname"
@@ -576,11 +562,6 @@ def get_arg_parser():
                         " specify multiple partitions",
                         action="append",
                         default=list())
-    parser.add_argument("--sse", "-s",
-                        env_var='F5_CSI_USE_SSE',
-                        help="Use Server Sent Events instead of HTTP "
-                        "Callbacks",
-                        action="store_true")
     parser.add_argument("--health-check", "-H",
                         env_var='F5_CSI_USE_HEALTHCHECK',
                         help="If set, respect Marathon's health check "
@@ -598,34 +579,6 @@ def get_arg_parser():
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
     return parser
-
-
-def run_server(marathon, listen_addr, verify_interval, callback_url, bigip):
-    """Run an http server.
-
-    In "listening" mode, run an http server that receives Marathon
-    events on the specified callback URL.
-    """
-    processor = MarathonEventProcessor(marathon, bigip, verify_interval)
-    marathon.add_subscriber(callback_url)
-
-    def wsgi_app(env, start_response):
-        length = int(env['CONTENT_LENGTH'])
-        data = env['wsgi.input'].read(length)
-        processor.handle_event(json.loads(data.decode('utf-8')))
-        start_response('200 OK', [('Content-Type', 'text/html')])
-
-        return ["Got it\n".encode('utf-8')]
-
-    listen_uri = parse.urlparse(listen_addr)
-    httpd = make_server(listen_uri.hostname, listen_uri.port, wsgi_app)
-    httpd.serve_forever()
-
-
-def clear_callbacks(marathon, callback_url):
-    """Remove Marathon subscriber."""
-    logger.info("Cleanup, removing subscription to {0}".format(callback_url))
-    marathon.remove_subscriber(callback_url)
 
 
 def process_sse_events(processor, events, bigip):
@@ -669,9 +622,6 @@ def parse_args():
     else:
         if args.marathon is None:
             arg_parser.error('argument --marathon/-m is required')
-        if args.sse and args.listening:
-            arg_parser.error(
-                'cannot use --listening and --sse at the same time')
         if len(args.partition) == 0:
             arg_parser.error('argument --partition is required: please' +
                              'specify at least one partition name')
@@ -712,27 +662,13 @@ if __name__ == '__main__':
                         args.health_check,
                         get_marathon_auth_params(args))
 
-    # If in listening mode, spawn a webserver waiting for events. Otherwise
-    # just write the config.
-    if args.listening:
-        callback_url = args.callback_url or args.listening
+    processor = MarathonEventProcessor(marathon, args.verify_interval,
+                                       bigip)
+    while True:
         try:
-            run_server(marathon, args.listening, args.verify_interval,
-                       callback_url, bigip)
-        finally:
-            clear_callbacks(marathon, callback_url)
-    elif args.sse:
-        processor = MarathonEventProcessor(marathon, args.verify_interval,
-                                           bigip)
-        while True:
-            try:
-                events = marathon.get_event_stream(args.sse_timeout)
-                process_sse_events(processor, events, bigip)
-            except:
-                logger.exception("Marathon event exception:")
-                logger.error("Reconnecting to Marathon event stream...")
-            time.sleep(1)
-    else:
-        # Generate base config
-        bigip.regenerate_config_f5(get_apps(marathon.list(),
-                                   marathon.health_check()))
+            events = marathon.get_event_stream(args.sse_timeout)
+            process_sse_events(processor, events, bigip)
+        except:
+            logger.exception("Marathon event exception:")
+            logger.error("Reconnecting to Marathon event stream...")
+        time.sleep(1)
