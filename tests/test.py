@@ -1302,7 +1302,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = get_apps(self.cloud_data, False)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1331,6 +1331,30 @@ class MarathonTest(BigIPTest):
         expected_name = 'server-app2_iapp_10000'
         self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
                           expected_name)
+
+        # Verfiy the iapp variables and tables
+        expected_tables = \
+            [{'columnNames': ['addr', 'port', 'connection_limit'], 'rows':
+              [{'row': ['10.141.141.10', '31698', '0']},
+               {'row': ['10.141.141.10', '31269', '0']},
+               {'row': ['10.141.141.10', '31748', '0']},
+               {'row': ['10.141.141.10', '31256', '0']}],
+                'name': u'pool__members'}]
+        expected_variables = \
+            [{'name': u'monitor__monitor', 'value': u'/#create_new#'},
+             {'name': u'net__client_mode', 'value': u'wan'},
+             {'name': u'pool__pool_to_use', 'value': u'/#create_new#'},
+             {'name': u'net__server_mode', 'value': u'lan'},
+             {'name': u'pool__addr', 'value': u'10.128.10.240'},
+             {'name': u'monitor__response', 'value': u'none'},
+             {'name': u'monitor__uri', 'value': u'/'},
+             {'name': u'pool__port', 'value': u'8080'}]
+
+        config = self.bigip.iapp_create.call_args_list[0][0][2]
+        iapp_def = self.bigip.iapp_build_definition(config)
+
+        self.assertEquals(expected_tables, iapp_def['tables'])
+        self.assertEquals(expected_variables, iapp_def['variables'])
 
     def test_delete_iapp(self, cloud_state='tests/marathon_no_apps.json',
                          bigip_state='tests/bigip_test_blank.json',
@@ -1699,6 +1723,27 @@ class KubernetesTest(BigIPTest):
         expected_name = 'server-app2_iapp_10000'
         self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
                           expected_name)
+
+        # Verfiy the iapp variables and tables
+        expected_tables = \
+            [{'columnNames': ['addr', 'port', 'connection_limit'], 'rows':
+             [{'row': [u'172.16.0.5', u'30008', '0']}],
+             'name': u'pool__members'}]
+        expected_variables = \
+            [{'name': u'monitor__monitor', 'value': u'/#create_new#'},
+             {'name': u'net__client_mode', 'value': u'wan'},
+             {'name': u'pool__pool_to_use', 'value': u'/#create_new#'},
+             {'name': u'net__server_mode', 'value': u'lan'},
+             {'name': u'pool__addr', 'value': u'10.128.10.240'},
+             {'name': u'monitor__response', 'value': u'none'},
+             {'name': u'monitor__uri', 'value': u'/'},
+             {'name': u'pool__port', 'value': u'8080'}]
+
+        config = self.bigip.iapp_create.call_args_list[0][0][2]
+        iapp_def = self.bigip.iapp_build_definition(config)
+
+        self.assertEquals(expected_tables, iapp_def['tables'])
+        self.assertEquals(expected_variables, iapp_def['variables'])
 
     def test_delete_iapp(self, cloud_state='tests/kubernetes_no_apps.json',
                          bigip_state='tests/bigip_test_blank.json',
