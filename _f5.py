@@ -1087,8 +1087,8 @@ class CloudBigIP(BigIP):
                    'rows': []
                    }]
         for node in config['nodes']:
-            tables[0]['rows'].append({'row': [config['nodes'][node]['host'],
-                                     config['nodes'][node]['port'], '0']})
+            node = node.split(':')
+            tables[0]['rows'].append({'row': [node[0], node[1], '0']})
 
         return {'variables': variables, 'tables': tables}
 
