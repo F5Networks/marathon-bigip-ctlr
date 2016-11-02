@@ -84,11 +84,9 @@ def _run_scale_test(
         p.close()
         p.join()
 
-    # - give the backend servers a chance to come up
-    time.sleep(60)
-
+    # - set pool_size to number of cores on the bastion
+    pool_size = 4
     # - then, verify round-robin load balancing for each service
-    pool_size = 1
     for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
         p = multiprocessing.Pool(processes=len(slice))
         p.map(_verify_bigip_controller, slice)
