@@ -1,6 +1,7 @@
 """Helper functions for orchestration tests."""
 
 
+import copy
 import re
 import time
 
@@ -21,7 +22,10 @@ DEFAULT_F5MLB_NAME = "test-bigip-controller"
 DEFAULT_F5MLB_PARTITION = "test"
 DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_LB_ALGORITHM = "round-robin"
-DEFAULT_F5MLB_WAIT = 5
+if symbols.orchestration == "marathon":
+    DEFAULT_F5MLB_WAIT = 5
+elif symbols.orchestration == "k8s":
+    DEFAULT_F5MLB_WAIT = 20
 DEFAULT_F5MLB_VERIFY_INTERVAL = 2
 
 DEFAULT_SVC_CPUS = 0.1
@@ -121,9 +125,16 @@ def create_managed_northsouth_service(
         config=DEFAULT_SVC_CONFIG,
         wait_for_deploy=True):
     """Create a microservice with bigip-controller decorations."""
-    # FIXME (kevin): merge user-provided labels w/ default labels
+    # - note that we have to have to make a copy of the "labels" dictionary
+    #   before we try to mutate it, otherwise the mutated version will persist
+    #   through subsequent calls to "create_managed_service"
+    # - we found this issue in the iapp test, where the next test that ran
+    #   after the iapp test had its labels set to a combination of the iapp
+    #   test's labels plus the non-iapp test's labels
+    # - this was a Python scoping surprise to me!
+    _lbls = copy.deepcopy(labels)
     if symbols.orchestration == "marathon":
-        labels.update(config)
+        _lbls.update(config)
     if symbols.orchestration == "k8s":
         orchestration.namespace = "default"
     svc = orchestration.app.create(
@@ -132,7 +143,7 @@ def create_managed_northsouth_service(
         mem=mem,
         timeout=timeout,
         container_img="%s/systest-common/test-nginx" % REGISTRY,
-        labels=labels,
+        labels=_lbls,
         container_port_mappings=[
             {
                 'container_port': DEFAULT_SVC_PORT,
@@ -227,9 +238,9 @@ def get_backend_object_name(svc, port_idx=0):
                 str(svc.labels['F5_%d_PORT' % port_idx])
             )
         )
+    # FIXME (kevin): need to reach into the associated configmap and pull
+    # out the bind_addr and port values
     if symbols.orchestration == "k8s":
-        # FIXME (kevin): need to reach into the associated configmap and pull
-        # out the bind_addr and port values
         return (
             "%s_%s_%s"
             % (

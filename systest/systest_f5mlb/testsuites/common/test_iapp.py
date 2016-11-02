@@ -16,7 +16,7 @@ pytestmark = meta_suite(tags=["func", "marathon", "k8s", "https"])
 def test_iapp_f5_http(ssh, orchestration, bigip, bigip_controller):
     """Basic iApp config."""
     # - start managed service
-    iapp = TestHttpIApp()
+    iapp = SampleHttpIApp()
     config = _get_iapp_config(iapp)
     svc = utils.create_managed_northsouth_service(
         orchestration,
@@ -76,7 +76,7 @@ def _get_iapp_config(iapp):
     return cfg
 
 
-class TestHttpIApp(object):
+class SampleHttpIApp(object):
     """Test instance of the standard F5 HTTP iApp."""
 
     def __init__(self):

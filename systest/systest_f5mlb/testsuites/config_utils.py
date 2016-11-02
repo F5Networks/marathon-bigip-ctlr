@@ -92,6 +92,8 @@ def verify_bigip_controller_will_deploy(
     except:
         raise
     finally:
+        if symbols.orchestration == "k8s":
+            orchestration.namespace = "kube-system"
         controller.delete()
 
 
@@ -108,6 +110,8 @@ def verify_bigip_controller_wont_deploy(
     except:
         raise
     finally:
+        if symbols.orchestration == "k8s":
+            orchestration.namespace = "kube-system"
         controller.delete()
 
 
