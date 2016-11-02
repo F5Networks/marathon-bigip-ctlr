@@ -2,7 +2,7 @@
 
 
 import multiprocessing
-import random
+import re
 import time
 
 from pytest import meta_suite, meta_test
@@ -84,8 +84,11 @@ def _run_scale_test(
         p.close()
         p.join()
 
+    # - give the backend servers a chance to come up
+    time.sleep(60)
+
     # - then, verify round-robin load balancing for each service
-    pool_size = 10
+    pool_size = 1
     for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
         p = multiprocessing.Pool(processes=len(slice))
         p.map(_verify_bigip_controller, slice)
@@ -94,27 +97,17 @@ def _run_scale_test(
 
 
 def _create_svc(kwargs):
-    # - wait a pseudo-random number of seconds (to prevent the orchestration
-    #   server from being inundated with simultaneous app creation/scaling
-    #   requests)
-    time.sleep(random.randint(1, 20) + ((kwargs['idx'] * 5) % 30))
-
     # - create a managed service
     svc_name = "svc-%d" % kwargs['idx']
-    svc_labels = {
-        'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
-        'F5_0_BIND_ADDR': utils.DEFAULT_F5MLB_BIND_ADDR,
-        'F5_0_PORT': SVC_START_PORT + kwargs['idx'],
-        'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
-    }
+    config = _get_scale_config(kwargs)
     svc = utils.create_managed_northsouth_service(
         kwargs['orchestration'],
         svc_name,
-        labels=svc_labels,
         cpus=kwargs['svc_cpus'],
         mem=kwargs['svc_mem'],
         timeout=kwargs['timeout'],
-        num_instances=kwargs['num_srvs']
+        num_instances=kwargs['num_srvs'],
+        config=config
     )
     _wait_for_virtual_server(svc, kwargs['ssh'])
     return {
@@ -162,21 +155,39 @@ def _verify_bigip_controller(kwargs):
     orchestration = kwargs['orchestration']
     ssh = kwargs['ssh']
     svc = orchestration.app.get(kwargs['svc_name'])
-    svc_url = (
-        "http://%s:%s"
-        % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
-    )
-    potential_responses = []
+    svc_url = _get_svc_url(svc)
     actual_responses = []
-    for instance in svc.instances.get():
-        member = "%s:%d" % (instance.host, instance.ports[0])
-        potential_responses.append("Hello from %s :0)" % member)
     num_requests = 20
-    curl_cmd = "curl -s %s" % svc_url
+    curl_cmd = "curl -sk %s" % svc_url
+    ptn = re.compile("^Hello from .+ :0\)$")
     for _ in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
-        assert res in potential_responses
+        # - verify response looks good
+        assert re.match(ptn, res)
         if res not in actual_responses:
             actual_responses.append(res)
     # - verify we got responses from at least two different pool members
     assert len(actual_responses) >= 2
+
+
+def _get_scale_config(kwargs):
+    if symbols.orchestration == "marathon":
+        cfg = {
+            'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
+            'F5_0_BIND_ADDR': utils.DEFAULT_F5MLB_BIND_ADDR,
+            'F5_0_PORT': SVC_START_PORT + kwargs['idx'],
+            'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
+        }
+    elif symbols.orchestration == "k8s":
+        cfg = {}
+    return cfg
+
+
+def _get_svc_url(svc):
+    if symbols.orchestration == "marathon":
+        return (
+            "http://%s:%s"
+            % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
+        )
+    if symbols.orchestration == "k8s":
+        pass
