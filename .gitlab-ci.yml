@@ -88,7 +88,7 @@ github_update:
     - cd f5-ci-docs
     - git config user.email "gitlab-runner@gitlab-shared-runner-01.com"
     - git config user.name "gitlab-runner"
-    - if git commit -m "changes pushed to GitHub by gitlab-ci for commit {$CI_BUILD_REF}, build ID {$CI_BUILD_ID}"; then
+    - if git commit -m "changes pushed to GitHub by gitlab-ci for f5-marathon-lb, commit {$CI_BUILD_REF}, build ID {$CI_BUILD_ID}"; then
     -   git push origin gitlab-ci
     - else
       # Git commit will fail if there are no changes to commit

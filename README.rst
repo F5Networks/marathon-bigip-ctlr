@@ -1,27 +1,72 @@
-F5 Marathon LB (F5MLB)
-======================
+.. raw:: html
+
+   <!--
+   Copyright 2015-2016 F5 Networks Inc.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+   -->
+
+
+F5 Container Service Connector for Mesos
+========================================
+
+|Build Status|
 
 Introduction
 ------------
 
-The F5MLB application allows users to manage F5® BIG-IP® devices in a `Mesos <https://mesos.apache.org/>`_ environment with `Marathon <https://github.com/mesosphere/marathon>`_.
-
-Releases and Compatibility
---------------------------
-
-See the F5 Container Integrations `Releases, Versioning, and Support Matrix <#>`_.
+The F5® Container Service Connector™ (CSC) for `Mesos <https://mesos.apache.org/>`_ provides an integration for the `Marathon <https://github.com/mesosphere/marathon>`_ orchestration environment that makes L4-L7 services available to users deploying miscroservices-based applications in a containerized infrastructure.
 
 Documentation
 -------------
 
-Please refer to the `project documentation <docs/README.rst>`_ for installation and configuration instructions.
+Documentation is published on Read the Docs, at http://<project_name>.readthedocs.io.
+
+Compatibility
+-------------
+
+See the `Releases and Support Matrix <#>`_ for more information.
+
+Installation
+------------
+
+Please see the `documentation <http://<project_name.readthedocs.io>`_ for installation instructions.
 
 For Developers
 --------------
 
-If you are interested in contributing to this project, please see `Contributing <CONTRIBUTING.rst>`_.
+Contributing
+````````````
+If you are interested in contributing to this project, please see `Contributing <CONTRIBUTING.md>`_.
 
-To report an issue or suggest an enhancement, please open an `Issue <>`_.
+Filing Issues
+`````````````
+
+If you find an issue, we would love to hear about it. Please open a new `issue <#>`_ for each bug you'd like to report or feature you'd like to request. Please be specific, and include as much information about your environment and the issue as possible.
+
+Test
+````
+Provide relevant testing requirements for this project.
+
+Unit Tests
+~~~~~~~~~~
+
+steps for running unit tests
+
+Style Checks
+~~~~~~~~~~~~
+
+appropriate style checks
 
 Project Setup
 `````````````
@@ -64,19 +109,20 @@ Docker environment setup
 Copyright
 ---------
 
-Copyright 2015-2016, F5 Networks Inc.
+Copyright 2015-2016 F5 Networks Inc.
 
 Support
 -------
 
 See `Support <SUPPORT.rst>`_.
 
-
 License
 -------
-tbd
+
+appropriate license
 
 Contributor License Agreement
 `````````````````````````````
 
-Individuals or business entities who contribute to this project must have completed and submitted the `F5 Contributor License Agreement <#`_ to <TBD>@f5.com prior to their code submission being included in this project.
+information about and link to the F5 CLA for the project
+

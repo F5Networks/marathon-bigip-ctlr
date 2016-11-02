@@ -50,6 +50,7 @@ docs/_build/*
 venv/*
 docs/venv/*
 _build/*
+docs/errors.txt
 
 # iControl REST logs
 logs
