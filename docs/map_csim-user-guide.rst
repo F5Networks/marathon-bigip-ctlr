@@ -1,4 +1,4 @@
-.. _cscm-user-guide:
+.. _csim-user-guide:
 
 User Guide
 ==========
@@ -7,16 +7,16 @@ User Guide
     :hidden:
 
 
-.. include:: /includes/f5-csc_m/concept_cscm-overview.rst
+.. include:: /includes/f5-csi_m/concept_csim-overview.rst
 
-.. include:: /includes/f5-csc_m/ref_cscm-compatibility.rst
+.. include:: /includes/f5-csi_m/ref_csim-compatibility.rst
 
 
 .. toctree::
     :caption: Contents
     :maxdepth: 4
 
-    minimaps/map_cscm-getting-started
-    minimaps/map_cscm-configuration
-    minimaps/map_cscm-usage
+    minimaps/map_csim-getting-started
+    minimaps/map_csim-configuration
+    minimaps/map_csim-usage
 

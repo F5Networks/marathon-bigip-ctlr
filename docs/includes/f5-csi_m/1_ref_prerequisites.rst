@@ -35,4 +35,4 @@ Prerequisites
 - BIG-IP partitions that correspond to the Marathon apps.
 - The official F5 ``f5-marathon-lb`` image pulled from the `F5 Docker registry`_.
 
-.. [*] Admin access to the BIG-IP is only required to create the partitions the CSC will manage. Users with permission to configure objects in the partition can do so via the CSC.
+.. [*] Admin access to the BIG-IP is only required to create the partitions the CSI will manage. Users with permission to configure objects in the partition can do so via the CSI.

@@ -3,6 +3,6 @@
 Configuration
 -------------
 
-.. include:: /includes/f5-csc_m/snippet_cscm-configuration-section.rst
+.. include:: /includes/f5-csi_m/snippet_csim-configuration-section.rst
 
 

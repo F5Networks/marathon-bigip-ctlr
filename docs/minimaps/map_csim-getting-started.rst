@@ -1,12 +1,12 @@
-.. _cscm-getting-started:
+.. _csim-getting-started:
 
 Getting Started
 ---------------
 
-.. include:: /includes/f5-csc_m/topic_csc-controller-mesos.rst
+.. include:: /includes/f5-csi_m/topic_csi-controller-mesos.rst
     :start-line: 21
     :end-before: Install the
 
-.. include:: /includes/f5-csc_m/snippet_cscm-install-section.rst
+.. include:: /includes/f5-csi_m/snippet_csim-install-section.rst
 
 

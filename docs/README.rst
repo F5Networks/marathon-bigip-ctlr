@@ -1,21 +1,18 @@
-.. _csc-m_home:
+.. _csi-m_home:
 
-F5 |csc_m-long|
+F5 |csi_m-long|
 ===============
 
-|Build Status| |Docs Build Status|
+.. include:: /includes/f5-csi_m/concept_csim-overview.rst
 
-
-.. include:: /includes/f5-csc_m/concept_cscm-overview.rst
-
-.. include:: /includes/f5-csc_m/ref_cscm-compatibility.rst
+.. include:: /includes/f5-csi_m/ref_csim-compatibility.rst
 
 .. rubric:: Release
-The current release of |csc_m-long| is |csc_m-v|.
+The current release of |csi_m-long| is |csi_m-v|.
 
 .. toctree::
     :caption: Table of Contents
-    :name: cscm_toc
+    :name: csim_toc
     :maxdepth: 3
     :glob:
 
@@ -29,10 +26,4 @@ The current release of |csc_m-long| is |csc_m-v|.
 
 
 
-.. |Build Status| image:: <build_badge_URL>
-    :target: <build_URL>
-    :alt: Build Status
-.. |Docs Build Status| image:: <build_badge_URL>
-    :target: <build_URL>
-    :alt: Documentation Status
 

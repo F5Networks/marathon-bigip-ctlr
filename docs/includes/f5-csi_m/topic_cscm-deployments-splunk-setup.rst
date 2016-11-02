@@ -1,4 +1,4 @@
-.. _cscm-deployments-splunk-setup:
+.. _csim-deployments-splunk-setup:
 
 Set up Splunk
 -------------

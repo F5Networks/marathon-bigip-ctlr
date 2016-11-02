@@ -1,4 +1,4 @@
-.. _cscm-deploy-aws-cft-getting-started:
+.. _csim-deploy-aws-cft-getting-started:
 
 Overview
 --------
@@ -40,5 +40,5 @@ First, you'll need to accept our EULA for BIG-IP VE in Amazon.
 
 Next, download our CloudFormation template:
 
-:download:`f5-cscm-cloudformation.json <docs/static/f5-csc_m/f5-cscm-cloudformation.json>`
+:download:`f5-csim-cloudformation.json <docs/static/f5-csi_m/f5-csim-cloudformation.json>`
 

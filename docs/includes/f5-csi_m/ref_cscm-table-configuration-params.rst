@@ -1,4 +1,4 @@
-.. list-table:: F5 CSC Configuration Parameters
+.. list-table:: F5 CSI Configuration Parameters
     :header-rows: 1
 
     * - Field
@@ -23,13 +23,13 @@
       - string
       - No
       - None
-      - The IP address on which the CSC listens for Marathon events
+      - The IP address on which the CSI listens for Marathon events
       - N/A
     * - ``F5_CSI_CALLBACK_URL``
       - string
       - No
       - None
-      - The HTTP address at which Marathon can call the CSC back
+      - The HTTP address at which Marathon can call the CSI back
       - N/A
     * - ``F5_CSI_BIGIP_HOSTNAME``
       - string
@@ -41,19 +41,19 @@
       - string
       - Yes
       - None
-      - Your BIG-IP username; provides the CSC access to the BIG-IP
+      - Your BIG-IP username; provides the CSI access to the BIG-IP
       - N/A
     * - ``F5_CSI_BIGIP_PASSWORD``
       - string
       - Yes
       - None
-      - Your BIG-IP password; provides the CSC access to the BIG-IP
+      - Your BIG-IP password; provides the CSI access to the BIG-IP
       - N/A
     * - ``F5_CSI_PARTITIONS``
       - string
       - Yes
       - None
-      - The partition(s) on the BIG-IP that the CSC will manage
+      - The partition(s) on the BIG-IP that the CSI will manage
       - N/A
     * - ``F5_CSI_USE_HEALTHCHECK``
       - boolean

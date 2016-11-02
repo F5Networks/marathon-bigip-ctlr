@@ -26,7 +26,7 @@ if ! [ -d "${dst}" ]; then
   exit 1
 fi
 
-self=f5-csc_m
+self=f5-csi_m
 
 rm -rf "${dst}"/docs/${self}
 cp -R docs "${dst}"/docs/${self}

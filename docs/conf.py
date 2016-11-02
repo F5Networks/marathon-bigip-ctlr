@@ -66,7 +66,7 @@ source_parsers = {
 master_doc = 'README'
 
 # General information about the project.
-project = u'F5 Container Service Integrator for Mesos'
+project = u'F5 Container Service Integrator for Mesos+Marathon'
 copyright = u'2016 F5 Networks Inc'
 author = u'F5 Networks'
 
@@ -83,12 +83,12 @@ release = u'0.1.2'
 rst_epilog = """
 .. |lwp| replace:: Lightweight Proxy
 .. |lwpc| replace:: Lightweight Proxy Controller
-.. |csi| replace:: Container Service Connector
-.. |csc| replace:: Container Service Connector
-.. |csi_m| replace:: CSC - Mesos
-.. |csc_m| replace:: CSC - Mesos
-.. |csi_m-long| replace:: |csc| for Mesos
-.. |csc_m-long| replace:: |csc| for Mesos
+.. |csi| replace:: Container Service Integrator
+.. |csc| replace:: Container Service Integrator
+.. |csi_m| replace:: CSI - Mesos+Marathon
+.. |csc_m| replace:: CSI - Mesos+Marathon
+.. |csi_m-long| replace:: |csc| for Mesos+Marathon
+.. |csc_m-long| replace:: |csc| for Mesos+Marathon
 .. |csi_m-v| replace:: |release|
 .. |csc_m-v| replace:: |release|
 .. |tm| unicode:: U+2122
@@ -180,12 +180,12 @@ html_title = u'F5 Container Service Integrator for Mesos'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
-html_short_title = 'CSC-Mesos'
+html_short_title = 'CSI - Mesos+Marathon'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = 'static/f5-csc_m/f5-logo.png'
+html_logo = 'static/f5-csi_m/f5-logo.png'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -196,7 +196,7 @@ html_logo = 'static/f5-csc_m/f5-logo.png'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static/f5-csc_m']
+html_static_path = ['static/f5-csi_m']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
