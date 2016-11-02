@@ -1,8 +1,5 @@
 .. _csi-mesos-configuration:
 
-Usage
------
-
 .. toctree::
     :hidden:
 
