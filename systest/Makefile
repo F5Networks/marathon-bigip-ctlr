@@ -133,6 +133,7 @@ scaletest-setup:
 	testenv create --name $(scale_testenv_name) \
 		--config $(testenv_config) \
 		--requires bigip \
+		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
 		--vars bigip_controller_img:"$(bigip_controller_img)"
 
