@@ -16,12 +16,19 @@ else
 fi
 
 if [ "$3" == "" ]; then
+    echo "ERROR: no orchestration value provided!"
+    exit 1
+else
+    orchestration="$3"
+fi
+
+if [ "$4" == "" ]; then
     echo "ERROR: no include_tags value provided!"
     exit 1
 else
     # - include tags is a (potentially space-delimited) value like "func",
     #   "scale" or "func perf"
-    include_tags="$3"
+    include_tags="$4"
 fi
 
 # - create the local results directory
@@ -40,8 +47,8 @@ cd $systestdir
 py.test \
     -svvra \
     --symbols ~/testenv_symbols/testenv_symbols.json \
-    --include $include_tags \
-    --exclude incomplete no_regression \
+    --include $include_tags $orchestration \
+    --exclude incomplete no_regression no_$orchestration \
     --autolog-outputdir $results_dir \
     --autolog-session $session \
     -- testsuites \
