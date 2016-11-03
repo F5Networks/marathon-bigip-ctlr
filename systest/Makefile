@@ -117,7 +117,7 @@ functest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(func_session) func $(orchestration)"
+		$(systest_pkg) $(func_session) $(orchestration) func"
 
 functest-teardown:
 	@echo "downloading $(orchestration) functional test results ..."
@@ -142,7 +142,7 @@ scaletest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(scale_session) scale $(orchestration)"
+		$(systest_pkg) $(scale_session) $(orchestration) scale"
 
 scaletest-teardown:
 	@echo "downloading $(orchestration) scale test results ..."
