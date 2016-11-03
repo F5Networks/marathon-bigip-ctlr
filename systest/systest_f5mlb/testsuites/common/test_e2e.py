@@ -43,6 +43,7 @@ def test_e2e(ssh, orchestration, bigip, bigip_controller):
         ])
     # - note that the k8s version of the bigip-controller does NOT add/remove
     #   pool members on the bigip
+    utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - verify round-robin load balancing
@@ -57,6 +58,7 @@ def test_e2e(ssh, orchestration, bigip, bigip_controller):
         backend_objs_exp.pop('nodes')
     # - note that the k8s version of the bigip-controller does NOT add/remove
     #   pool members on the bigip
+    utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - scale managed service to 1 instance
@@ -68,6 +70,7 @@ def test_e2e(ssh, orchestration, bigip, bigip_controller):
         "%s:%d" % (instances[0].host, instances[0].ports[0]),
     ]
     backend_objs_exp['nodes'] = [instances[0].host]
+    utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
 
     # - delete managed service
