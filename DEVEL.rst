@@ -144,7 +144,6 @@ In step 3, above, we use the command ``curl -X POST -H "Content-Type: applicatio
             }
           },
           "env": {
-            "F5_CSI_USE_SSE": "True",
             "MARATHON_URL": "http://10.141.141.10:8080",
             "F5_CSI_PARTITIONS": "[mesos_1, mesos_test]",
             "F5_CSI_BIGIP_HOSTNAME": "10.128.1.145",
