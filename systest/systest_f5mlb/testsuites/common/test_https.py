@@ -46,13 +46,13 @@ def test_https(ssh, orchestration, bigip, bigip_controller):
 
     # - verify http request fails
     http_url = "http://" + svc_url
-    curl_cmd = "curl --connect-time 1 -s -k %s" % http_url
+    curl_cmd = "curl -s -k %s" % http_url
     res = ssh.run(symbols.bastion, curl_cmd)
     assert res == ""
 
     # - verify https request succeeds
     https_url = "https://" + svc_url
-    curl_cmd = "curl --connect-time 1 -s -k %s" % https_url
+    curl_cmd = "curl -s -k %s" % https_url
     res = ssh.run(symbols.bastion, curl_cmd)
     assert res.startswith("Hello from")
 
@@ -70,12 +70,12 @@ def _get_https_config(mode, port):
             cfg['F5_0_PORT'] = port
     if symbols.orchestration == "k8s":
         cfg = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
-        cfg['data']['data']['virtualServer']['frontend']['sslProfile'] = {
+        frontend = cfg['data']['data']['virtualServer']['frontend']
+        frontend['sslProfile'] = {
             'f5ProfileName': utils.DEFAULT_SVC_SSL_PROFILE
         }
         if mode is not None:
-            cfg['data']['data']['virtualServer']['frontend']['mode'] = mode
+            frontend['mode'] = mode
         if port is not None:
-            cfg['data']['data']['virtualServer']['frontend']['virtualAddress'][
-                'port'] = port
+            frontend['virtualAddress']['port'] = port
     return cfg

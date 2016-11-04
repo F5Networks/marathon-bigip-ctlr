@@ -238,16 +238,9 @@ def get_backend_object_name(svc, port_idx=0):
                 str(svc.labels['F5_%d_PORT' % port_idx])
             )
         )
-    # FIXME (kevin): need to reach into the associated configmap and pull
-    # out the bind_addr and port values
     if symbols.orchestration == "k8s":
         return (
-            "%s_%s_%s"
-            % (
-                svc.id.replace("/", ""),
-                DEFAULT_F5MLB_BIND_ADDR,
-                DEFAULT_F5MLB_PORT
-            )
+            "%s_%s_%s" % (svc.id, svc.vs_bind_addr, svc.vs_port)
         )
 
 
@@ -343,7 +336,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
 
     # - send the target number of requests and collect the responses
     act_responses = {}
-    curl_cmd = "curl --connect-time 1 -s -k %s" % svc_url
+    curl_cmd = "curl -s -k %s" % svc_url
     ptn = re.compile("^Hello from .+ :0\)$")
     for i in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
@@ -360,6 +353,13 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
 
 
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
+    if symbols.orchestration == "marathon":
+        return _get_svc_url_marathon(svc, protocol, ipaddr, port)
+    elif symbols.orchestration == "k8s":
+        return _get_svc_url_k8s(svc, protocol, ipaddr, port)
+
+
+def _get_svc_url_marathon(svc, protocol=None, ipaddr=None, port=None):
     if protocol is None:
         if 'F5_0_SSL_PROFILE' in svc.labels:
             protocol = "https"
@@ -373,6 +373,27 @@ def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
     if port is None:
         if 'F5_0_PORT' in svc.labels:
             port = svc.labels['F5_0_PORT']
+        else:
+            port = DEFAULT_F5MLB_PORT
+    return "%s://%s:%s" % (protocol, ipaddr, port)
+
+
+def _get_svc_url_k8s(svc, protocol=None, ipaddr=None, port=None):
+    vs_config = svc.vs_config
+    vs_addr = vs_config['frontend']['virtualAddress']
+    if protocol is None:
+        if 'sslProfile' in vs_config['frontend']:
+            protocol = "https"
+        else:
+            protocol = "http"
+    if ipaddr is None:
+        if 'bindAddr' in vs_addr:
+            ipaddr = vs_addr['bindAddr']
+        else:
+            ipaddr = DEFAULT_F5MLB_BIND_ADDR
+    if port is None:
+        if 'port' in vs_addr:
+            port = vs_addr['port']
         else:
             port = DEFAULT_F5MLB_PORT
     return "%s://%s:%s" % (protocol, ipaddr, port)
