@@ -12,7 +12,6 @@
     }
   },
   "env": {
-    "F5_CSI_USE_SSE": "True",
     "MARATHON_URL": "http://10.141.141.10:8080",
     "F5_CSI_PARTITIONS": "[mesos]",
     "F5_CSI_BIGIP_HOSTNAME": "10.128.1.145",

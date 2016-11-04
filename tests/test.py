@@ -29,7 +29,6 @@ args_env = ['F5_CSI_SYSLOG_SOCKET',
             'F5_CSI_BIGIP_USERNAME',
             'F5_CSI_BIGIP_PASSWORD',
             'F5_CSI_PARTITIONS',
-            'F5_CSI_USE_SSE',
             'F5_CSI_USE_HEALTHCHECK',
             'F5_CSI_SSE_TIMEOUT']
 
