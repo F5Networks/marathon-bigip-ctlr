@@ -47,7 +47,7 @@ cd $systestdir
 py.test \
     -svvra \
     --symbols ~/testenv_symbols/testenv_symbols.json \
-    --include $include_tags $orchestration \
+    --include $include_tags \
     --exclude incomplete no_regression no_$orchestration \
     --autolog-outputdir $results_dir \
     --autolog-session $session \
