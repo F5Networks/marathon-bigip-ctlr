@@ -194,14 +194,12 @@ The F5 application labels consist of key-value pairs that direct the |csi_m| to 
 
 .. literalinclude:: /includes/f5-csi_m/ref_csim-table-application-labels.rst
 
-
 .. tip::
 
     * To configure virtual servers on the BIG-IP for specific ports, provide a port index in the F5 application label.
 
         - The labels that allow port-specific configuration include ``{n}`` in the label key.
-        - Replace ``{n}`` with the port index that corresponds to the port for which you want to create the virtual server.
-        - Port indices begin at ``0``.
+        - The ``{n}`` refers to an index into the port mapping array, starting at 0.
 
     * If a service port has a Marathon health monitor, |csi_m| creates a corresponding health monitor on the BIG-IP.
     * If the ``F5_CSI_USE_HEALTHCHECK`` option is set to True, |csi_m| checks the port's health status before adding it to a pool on the BIG-IP.
@@ -223,7 +221,9 @@ Create a Virtual Server with the F5 |csi_m| via the REST API
         curl -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' \
         http://<marathon_url>:8080/v2/apps -d @sample-marathon-application.json
 
-In this sample application configuration, we have three (3) port indices (shown in the portMappings section). We created HTTP virtual servers on the BIG-IP for port 0 and port 1, and specified the IP address and port for each. Corresponding pools and pool members will be added automatically for each of the Application's tasks.
+In this sample application configuration, we have three (3) port indices. We created HTTP virtual servers on the BIG-IP for port 0 and port 1, and specified the IP address and port for each. Corresponding pools and pool members will be added automatically for each of the Application's tasks.
+
+For a detailed breakdown of the objects created on the BIG-IP, see the :ref:`REST API Deployment Examples <REST API Deployment Examples>`.
 
 
 Create a Virtual Server with the F5 |csi_m| and iApps via the REST API
@@ -266,6 +266,7 @@ Further Reading
 
     * F5 |csi_m| :ref:`User Guide <csim-user-guide>`
     * F5 |csi_m| :ref:`Quick Start Guide <csim-quick-start>`
+    * F5 |csi_m| :ref:`Deployment Guide <csi-mesos-deployments>`
 
 
 .. toctree::

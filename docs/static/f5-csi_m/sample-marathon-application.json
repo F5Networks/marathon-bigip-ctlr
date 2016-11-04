@@ -14,10 +14,10 @@
           "hostPort": 0,
           "protocol": "tcp" },
         { "containerPort": 8188,
-          "hostPort": 1,
+          "hostPort": 0,
           "protocol": "tcp" },
         { "containerPort": 8288,
-          "hostPort": 2,
+          "hostPort": 0,
           "protocol": "tcp" }
       ]
     }

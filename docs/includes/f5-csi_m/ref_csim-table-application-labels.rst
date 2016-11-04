@@ -28,7 +28,7 @@
     * - ``\F5_{n}_SSL_PROFILE``
       - The SSL profile for the HTTPS virtual server
       - N/A
-      - Must already be configured on the BIG-IP.  Example: ``"F5_0_SSL_PROFILE": "Common/clentssl"``
+      - Must already be configured on the BIG-IP.  Example: ``"F5_0_SSL_PROFILE": "Common/clientssl"``
 
 
 

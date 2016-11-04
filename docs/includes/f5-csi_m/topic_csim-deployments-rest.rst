@@ -7,7 +7,9 @@ Deploy a Marathon Application via the REST API
 In the following example, we deploy an application in Marathon with the appropriate |csi_m| labels configured.
 
 - The app (``server-app4``) has three service ports configured; only the first two are exposed via the BIG-IP (port indices 0 and 1 are configured in the ``labels`` section).
-- Marathon health monitors are configured for all three service ports.
+- The ``0`` entry in the ``port-mapping`` allows Mesos to auto-allocate a port; the |csi_m| then adds that auto-allocated port number to the pool on the BIG-IP.
+- For variables with a number in them (for example, ``F5_{n}_SSL_PROFILE``) ``n`` is a reference to the index in the port array.
+- Because Marathon health monitors are configured, corresponding health monitors are created on the BIG-IP.
 
 .. note:: All IP addresses shown are for demonstration purposes only.
 
