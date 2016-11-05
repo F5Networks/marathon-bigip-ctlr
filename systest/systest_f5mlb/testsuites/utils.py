@@ -380,9 +380,11 @@ def _get_svc_url_marathon(svc, protocol=None, ipaddr=None, port=None):
 
 def _get_svc_url_k8s(svc, protocol=None, ipaddr=None, port=None):
     vs_config = svc.vs_config
-    vs_addr = vs_config['frontend']['virtualAddress']
+    # - we can't just assume that virtualAddress will exist because the
+    #   virtual server might have been configured by an iApp
+    vs_addr = vs_config.get('frontend', {}).get('virtualAddress', {})
     if protocol is None:
-        if 'sslProfile' in vs_config['frontend']:
+        if 'sslProfile' in vs_config.get('frontend', {}):
             protocol = "https"
         else:
             protocol = "http"
