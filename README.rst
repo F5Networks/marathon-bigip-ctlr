@@ -17,56 +17,47 @@
    -->
 
 
-F5 Container Service Connector for Mesos
-========================================
+F5 Container Service Integrator for Mesos
+=========================================
 
-|Build Status|
+|Build Status| |Docs Build Status|
 
 Introduction
 ------------
 
-The F5® Container Service Connector™ (CSC) for `Mesos <https://mesos.apache.org/>`_ provides an integration for the `Marathon <https://github.com/mesosphere/marathon>`_ orchestration environment that makes L4-L7 services available to users deploying miscroservices-based applications in a containerized infrastructure.
+The F5® Container Service Integrator™ (CSI) for `Mesos <https://mesos.apache.org/>`_ provides an integration for the `Marathon <https://github.com/mesosphere/marathon>`_ orchestration environment that makes L4-L7 services available to users deploying miscroservices-based applications in a containerized infrastructure.
 
 Documentation
 -------------
 
-Documentation is published on Read the Docs, at http://<project_name>.readthedocs.io.
+Documentation is published on Read the Docs, at https://f5-networks-f5-ci-docs.readthedocs-hosted.com/.
 
 Compatibility
 -------------
 
-See the `Releases and Support Matrix <#>`_ for more information.
+See the `Releases and Support Matrix <https://f5-networks-f5-ci-docs.readthedocs-hosted.com/en/gitlab-ci/releases_and_versioning.html>`_.
 
 Installation
 ------------
 
-Please see the `documentation <http://<project_name.readthedocs.io>`_ for installation instructions.
+Please see the `project documentation <https://f5-networks-f5-ci-docs.readthedocs-hosted.com/`_ for installation instructions.
 
 For Developers
 --------------
 
 Contributing
 ````````````
-If you are interested in contributing to this project, please see `Contributing <CONTRIBUTING.md>`_.
+coming soon
 
 Filing Issues
 `````````````
 
-If you find an issue, we would love to hear about it. Please open a new `issue <#>`_ for each bug you'd like to report or feature you'd like to request. Please be specific, and include as much information about your environment and the issue as possible.
+If you find an issue, we would love to hear about it. Please open a new `issue <https://bldr-git.int.lineratesystems.com/velcro/f5-marathon-lb/issues>`_ for each bug you'd like to report or feature you'd like to request. Please be specific, and include as much information about your environment and the issue as possible.
 
 Test
 ````
 Provide relevant testing requirements for this project.
 
-Unit Tests
-~~~~~~~~~~
-
-steps for running unit tests
-
-Style Checks
-~~~~~~~~~~~~
-
-appropriate style checks
 
 Project Setup
 `````````````
