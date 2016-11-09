@@ -44,7 +44,7 @@ def test_svc_config_invalid_port(ssh, orchestration, bigip, bigip_controller):
 @meta_test(id="f5mlb-51", tags=[""])
 def test_svc_config_valid_mode(ssh, orchestration, bigip, bigip_controller):
     """Verify response when the 'mode' value is valid."""
-    valid_vals = ["", "tcp", "http"]
+    valid_vals = ["tcp", "http"]
     for valid_val in valid_vals:
         config_utils.verify_config_produces_managed_svc(
             orchestration, bigip, param="mode", input_val=valid_val
@@ -54,7 +54,7 @@ def test_svc_config_valid_mode(ssh, orchestration, bigip, bigip_controller):
 @meta_test(id="f5mlb-52", tags=[""])
 def test_svc_config_invalid_mode(ssh, orchestration, bigip, bigip_controller):
     """Verify response when the 'mode' value is invalid."""
-    invalid_vals = ["does-not-exist"]
+    invalid_vals = ["", "does-not-exist"]
     for invalid_val in invalid_vals:
         config_utils.verify_config_produces_unmanaged_svc(
             orchestration, bigip, param="mode", input_val=invalid_val
