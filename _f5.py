@@ -15,6 +15,7 @@ CloudBigIP manages the following BIG-IP resources:
     * Application Services
 """
 
+import ipaddress
 import logging
 import json
 import requests
@@ -70,7 +71,7 @@ def get_protocol(protocol):
     if str(protocol).lower() == 'udp':
         return 'udp'
     else:
-        return 'tcp'
+        return None
 
 
 def has_partition(partitions, app_partition):
@@ -124,6 +125,60 @@ class CloudBigIP(BigIP):
         self._username = username
         self._password = password
         self._partitions = partitions
+        self._lbmethods = (
+            "dynamic-ratio-member",
+            "least-connections-member",
+            "observed-node",
+            "ratio-least-connections-node",
+            "round-robin",
+            "dynamic-ratio-node",
+            "least-connections-node",
+            "predictive-member",
+            "ratio-member",
+            "weighted-least-connections-member",
+            "fastest-app-response",
+            "least-sessions",
+            "predictive-node",
+            "ratio-node",
+            "weighted-least-connections-node",
+            "fastest-node",
+            "observed-member",
+            "ratio-least-connections-member",
+            "ratio-session"
+            )
+
+    def is_label_data_valid(self, app):
+        """Validate the Marathon app's label data.
+
+        Args:
+            app: The app to be validated
+        """
+        is_valid = True
+        msg = 'Application label {0} for {1} contains an invalid value: {2}'
+
+        # Validate mode
+        if get_protocol(app.mode) is None:
+            logger.error(msg.format('F5_MODE', app.appId, app.mode))
+            is_valid = False
+
+        # Validate port
+        if app.servicePort < 1 or app.servicePort > 65535:
+            logger.error(msg.format('F5_PORT', app.appId, app.servicePort))
+            is_valid = False
+
+        # Validate address
+        try:
+            ipaddress.ip_address(app.bindAddr)
+        except ValueError:
+            logger.error(msg.format('F5_BIND_ADDR', app.appId, app.bindAddr))
+            is_valid = False
+
+        # Validate LB method
+        if app.balance not in self._lbmethods:
+            logger.error(msg.format('F5_BALANCE', app.appId, app.balance))
+            is_valid = False
+
+        return is_valid
 
     def regenerate_config_f5(self, cloud_state):
         """Configure the BIG-IP based on the cloud state.
@@ -295,6 +350,10 @@ class CloudBigIP(BigIP):
 
             # No address or iApp for this port
             if not app.bindAddr and not app.iapp:
+                continue
+
+            # Validate data from the app's labels
+            if not app.iapp and not self.is_label_data_valid(app):
                 continue
 
             f5_service['partition'] = app.partition
