@@ -52,30 +52,40 @@ def verify_config_produces_unmanaged_svc(
 
 
 def _get_managed_northsouth_service_config(param, input_val):
-    config = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
     if symbols.orchestration == "marathon":
-        if param == "partition":
-            config['F5_PARTITION'] = input_val
-        elif param == "bind_addr":
-            config['F5_0_BIND_ADDR'] = input_val
-        elif param == "port":
-            config['F5_0_PORT'] = input_val
-        elif param == "mode":
-            config['F5_0_MODE'] = input_val
-        elif param == "lb_algorithm":
-            config['F5_0_BALANCE'] = input_val
-    if symbols.orchestration == "k8s":
-        frontend = config['data']['data']['virtualServer']['frontend']
-        if param == "partition":
-            frontend['partition'] = input_val
-        elif param == "bind_addr":
-            frontend['virtualAddress']['bindAddr'] = input_val
-        elif param == "port":
-            frontend['virtualAddress']['port'] = input_val
-        elif param == "mode":
-            frontend['mode'] = input_val
-        elif param == "lb_algorithm":
-            frontend['balance'] = input_val
+        return _get_svc_config_marathon(param, input_val)
+    elif symbols.orchestration == "k8s":
+        return _get_svc_config_k8s(param, input_val)
+
+
+def _get_svc_config_marathon(param, input_val):
+    config = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
+    if param == "partition":
+        config['F5_PARTITION'] = input_val
+    elif param == "bind_addr":
+        config['F5_0_BIND_ADDR'] = input_val
+    elif param == "port":
+        config['F5_0_PORT'] = input_val
+    elif param == "mode":
+        config['F5_0_MODE'] = input_val
+    elif param == "lb_algorithm":
+        config['F5_0_BALANCE'] = input_val
+    return config
+
+
+def _get_svc_config_k8s(param, input_val):
+    config = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
+    frontend = config['data']['data']['virtualServer']['frontend']
+    if param == "partition":
+        frontend['partition'] = input_val
+    elif param == "bind_addr":
+        frontend['virtualAddress']['bindAddr'] = input_val
+    elif param == "port":
+        frontend['virtualAddress']['port'] = input_val
+    elif param == "mode":
+        frontend['mode'] = input_val
+    elif param == "lb_algorithm":
+        frontend['balance'] = input_val
     return config
 
 
