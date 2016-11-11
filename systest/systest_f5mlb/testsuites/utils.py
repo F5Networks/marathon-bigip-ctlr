@@ -13,9 +13,10 @@ REGISTRY = "docker-registry.pdbld.f5net.com"
 DEFAULT_BIGIP_PASSWORD = "admin"
 DEFAULT_BIGIP_USERNAME = "admin"
 
+DEFAULT_DEPLOY_TIMEOUT = 6 * 60
+
 DEFAULT_F5MLB_CPUS = 0.1
 DEFAULT_F5MLB_MEM = 32
-DEFAULT_F5MLB_TIMEOUT = 60
 DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_ext_ip
 DEFAULT_F5MLB_MODE = "http"
 DEFAULT_F5MLB_NAME = "test-bigip-controller"
@@ -52,7 +53,6 @@ DEFAULT_SVC_HEALTH_CHECKS_TCP = [
 ]
 DEFAULT_SVC_INSTANCES = 1
 DEFAULT_SVC_MEM = 32
-DEFAULT_SVC_TIMEOUT = 60
 DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
 DEFAULT_SVC_PORT = 80
 
@@ -119,7 +119,7 @@ def create_managed_northsouth_service(
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         labels={},
-        timeout=DEFAULT_SVC_TIMEOUT,
+        timeout=DEFAULT_DEPLOY_TIMEOUT,
         health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP,
         num_instances=DEFAULT_SVC_INSTANCES,
         config=DEFAULT_SVC_CONFIG,
@@ -176,7 +176,7 @@ def unmanage_northsouth_service(orchestration, svc):
 
 def create_bigip_controller(
         orchestration, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
-        mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_F5MLB_TIMEOUT,
+        mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_DEPLOY_TIMEOUT,
         config=DEFAULT_F5MLB_CONFIG, wait_for_deploy=True):
     """Create a bigip-controller microservice."""
     if symbols.orchestration == "marathon":
@@ -213,7 +213,7 @@ def create_unmanaged_service(orchestration, id, labels={}):
         id=id,
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
-        timeout=DEFAULT_SVC_TIMEOUT,
+        timeout=DEFAULT_DEPLOY_TIMEOUT,
         container_img="%s/systest-common/test-nginx" % REGISTRY,
         labels=labels,
         container_port_mappings=[
