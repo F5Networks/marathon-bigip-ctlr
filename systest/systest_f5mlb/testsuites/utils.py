@@ -109,7 +109,7 @@ elif symbols.orchestration == "k8s":
                     }
                 }
             },
-            'schema': "foo"
+            'schema': 'f5schemadb://bigip-virtual-server_v0.1.1.json'
         }
     }
 
