@@ -1,6 +1,8 @@
 """Local pytest plugin."""
 
 
+import functools
+
 import pytest
 from pytest import symbols
 
@@ -10,6 +12,19 @@ from . import utils
 
 
 DELETE_TIMEOUT = 2 * 60
+
+
+def pytest_namespace():
+    """Configure objects to go in the pytest namespace."""
+    bastion = common.ssh.connect(pytest.symbols.bastion)
+
+    def _run(hosts, *args, **kwargs):
+        return [str(bastion.run(host, *args, **kwargs)) for host in hosts]
+
+    return {
+        'masters_cmd': functools.partial(_run, pytest.symbols.masters),
+        'workers_cmd': functools.partial(_run, pytest.symbols.workers)
+    }
 
 
 @pytest.fixture(scope='session', autouse=True)
