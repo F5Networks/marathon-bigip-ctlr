@@ -15,6 +15,7 @@ import os
 from mock import Mock
 from mock import patch
 from f5_marathon_lb import get_apps, parse_args
+from common import DCOSAuth
 from f5.bigip import BigIP
 from _f5 import CloudBigIP
 from StringIO import StringIO
@@ -30,7 +31,10 @@ args_env = ['F5_CSI_SYSLOG_SOCKET',
             'F5_CSI_BIGIP_PASSWORD',
             'F5_CSI_PARTITIONS',
             'F5_CSI_USE_HEALTHCHECK',
-            'F5_CSI_SSE_TIMEOUT']
+            'F5_CSI_SSE_TIMEOUT',
+            'F5_CSI_MARATHON_CA_CERT',
+            'F5_CSI_DCOS_AUTH_CREDENTIALS',
+            'F5_CSI_DCOS_AUTH_TOKEN']
 
 
 class ArgTest(unittest.TestCase):
@@ -68,13 +72,16 @@ class ArgTest(unittest.TestCase):
             """ [--marathon MARATHON [MARATHON ...]]
                       [--hostname HOSTNAME] [--username USERNAME]
                       [--password PASSWORD] [--partition PARTITION]
-                      [--health-check] [--sse-timeout SSE_TIMEOUT]
+                      [--health-check] [--marathon-ca-cert MARATHON_CA_CERT]
+                      [--sse-timeout SSE_TIMEOUT]
                       [--verify-interval VERIFY_INTERVAL]
                       [--syslog-socket SYSLOG_SOCKET]
                       [--log-format LOG_FORMAT] [--log-level LOG_LEVEL]
                       [--marathon-auth-credential-file""" \
-            " MARATHON_AUTH_CREDENTIAL_FILE]\n" \
-            "f5-marathon-lb: error: argument --marathon/-m is required\n"
+        """ MARATHON_AUTH_CREDENTIAL_FILE]\n \
+                     [--dcos-auth-credentials DCOS_AUTH_CREDENTIALS]
+                      [--dcos-auth-token DCOS_AUTH_TOKEN]\n""" \
+        "f5-marathon-lb: error: argument --marathon/-m is required\n"
 
         output = self.out.getvalue()
         self.assertEqual(output, expected)
@@ -290,6 +297,144 @@ class ArgTest(unittest.TestCase):
         os.environ['F5_CSI_VERIFY_INTERVAL'] = str(timeout)
         args = parse_args()
         self.assertEqual(args.verify_interval, timeout)
+
+    def test_marathon_ca_cert_arg(self):
+        """Test: 'Marathon CA Cert' arg."""
+        cert = "-----BEGIN CERTIFICATE-----" \
+            "MIIDQTCCAimgAwIBAgIBATANBgkqhkiG9w0BAQUFADAkMQswCQYDVQQKDAJERTEV"\
+            "MBMGA1UEAwwMRXJpayBEYXJ6aW5zMB4XDTE0MDEyNDA2MzIxOFoXDTE0MDIyMzA2"\
+            "MzIxOFowJDELMAkGA1UECgwCREUxFTATBgNVBAMMDEVyaWsgRGFyemluczCCASIw"\
+            "DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKQgCJqWJRKY+Pn9K4Cednb2qE4l"\
+            "rwuvtWgWkC+WaJF9Q2Qs2ICXFt+3UKsEvG82PTUCAHWsce+eP8DMz/btWxTl2cCy"\
+            "Wq/KMeByjNYsQNpMydwwLOtZzDLWZhweECqwt0SeCgAhR7MTwl+epROMP5Uw0UWD"\
+            "gnmy093DQhUf7uLI8QY9WvOpx97TZl1xCvn2kxM98/JlEkz0q/Wp51JzGdcKrQW2"\
+            "VWCahcWvJydkMMa9E/5mLyxwzn1RhrjmbqFNt7z4fr5gVWNwEqYcaXSraBqoCvlC"\
+            "10y9tKZdTWlDM782baNbrQPNPk6E4ir+p3PNpQ31PyoUCVrGxhFCyqsqvO8CAwEA"\
+            "AaN+MHwwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwYgYDVR0RBFswWYILKi5sb2Nh"\
+            "bGhvc3SCDyoubG9jYWxob3N0LmNvbYIXKi5leGFtcGxlLmxvY2FsaG9zdC5jb22C"\
+            "FW15LmF3ZXNvbWUuZG9tYWluLmNvbYIJMTI3LjAuMC4xMA0GCSqGSIb3DQEBBQUA"\
+            "A4IBAQA7Ob1Wn/KiTpC2IdFbxm0C2JplapEnaXcD4dC8Qirhlm268fl1K95hCLrK"\
+            "hDpAKqd+R2quOG0mSJZFO7b0p86eiPBDmMBSHp3qle9d6Sj86GPgCTLE+k8nGbo1"\
+            "S+Mj3Iu96KrBrnn0CnM1PrYe71dhZk1dHOvPVOZEWOmHKVwCQytmZwyAA9m2E1VB"\
+            "SrPTvavLdnl/E/PP9NmkFIDdjyN1KOwR5px/hBxAm5ropVlwLCnFjfQBYq+k/lk1"\
+            "DeVExpynPVt9lpAlWmJIYcW7SvfUMm7OL2JSyYB3oTQK4Nm6+4QuUvjb+ORbGbBV"\
+            "CQ1S88gbN0xl/DdxNYM7p4VsBq1q"\
+            "-----END CERTIFICATE-----"
+
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--marathon-ca-cert', cert]
+        args = parse_args()
+        self.assertEqual(args.marathon_ca_cert, cert)
+
+        # test via env var
+        env_cert = 'It will now be a different value'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_MARATHON_CA_CERT'] = env_cert
+        args = parse_args()
+        self.assertEqual(args.marathon_ca_cert, env_cert)
+
+    def test_auth_credentials_arg(self):
+        """Test: 'dcos-auth-credentials' arg."""
+        creds = "{ \"scheme\": \"RS256\", \"uid\": \"mlb-principal\", " \
+            "\"private_key\": " \
+            "\"-----BEGIN PRIVATE KEY-----\\n" \
+            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCul4DUy56pkSq/"\
+            "QbawK0IEuH2MBiDm1nVDV95WWRs+LSNWYWhZIa5B2V0Zwa+OKXsZFU/L5GlLo+mX"\
+            "FitRju70t2SwJxOQi1L3oyhWfrOr45lviTF1YWt52ca8VWgEIHcdPGXl5PtlI0VB"\
+            "JQOPESUI0kr/FJ/28ZIrNa5NdiVWPHQdB5Kec7q2iy418oPVzNeWsoIiHl9A7Dt+"\
+            "BMQQqVAsZD4f26wSjMSX6AiryQ8hOLfDMdaiR06KY3cg7PkswfIjsKJ8hR7HO6hl"\
+            "GqXtpo1V05N6nlcOJuWEe7ejBlqWyeZ+Y+oInibhbxNeN1KVPTB9WLWlqa/vnEp0"\
+            "gHX2RkBXAgMBAAECggEAOiyXK9BxHJUXRkUSJ18yjzod8yMzoVcCGZ9UoTbtoekO"\
+            "ZkDssQ5M7voLUIK+CUN/FduJDCoef6qtMb+cTX+v1XCqJxvOJBKYYZVG4pMzMOoU"\
+            "fRqclT0Rv7c1xhk7IGzk46P1XAXRUmDPOaaoqeoPigHwJVBtAK57gtRPMNZWGIZd"\
+            "C+5EJ8w0GoZ04wZ2geVVHfyEExP2VVm0pfe7MTJzHLkuU21BvlUcaCqiqKwswg8m"\
+            "cy5O1RwKpKXH5zW1Dks578kIayQiFxaYUMskDw0wD52H8JgCB305xBjl2/eH+5xD"\
+            "dji9ZidT+07ylcHW9ELvOTBnDMH7mmadENScMmyt4QKBgQDhFmP9kojgk7DFGTr7"\
+            "KJ4EB56C2Y4Y050MSRfcPnsqov+Fis6yOn/Z58VTZ/bx0r7CV1FxNzzao2DJEhM3"\
+            "qRvNgK7oHPCBC62Af8yAvUmZaOLJf1uGqL9/3YJZ8TRPcTWRGY+vchPT8oJF537D"\
+            "fYNIXGKIvurjfmT/5sy+Jb6gZwKBgQDGkco7j/ysLC2kAQXHuENjhy5TrAXgrW9U"\
+            "WYhXhU22sQy21w6sf7q6cZd5MQfHQV70QcUCtCX4VOAjCE1I/+BtoxnUHZKD1Vye"\
+            "2MGM5uoKXbkG3tUx0m1Hdg6Y5gH3+khdwjC9wqtzwzi/MzaxRsLVi8a6jRjyKb+p"\
+            "eKOiKU+qkQKBgGFOeLOqoZnUv1q16ZWinY1IbfJLcu6wrPgesT35lO19wdFNjMXo"\
+            "HFVrqRbBnzQz01vYu9Ch/KDYeIL0WXJ6nRZeRz75I8/l6H/gv9v3+NVlToWllT/F"\
+            "u+PfMvcHG4IsgufTkRZbzs6VzFPEHD0PCa5CoiZTwt/OSIOIl4KsdpiJAoGATO6J"\
+            "CqCThWUsXaEjyyghu7rRAQvhzxWCz4xMnZQA8uoPgfs6LSzjfH6r8AFGATXbgwjE"\
+            "OnLvTxIbMJdz0feIzRFm3V6DuF3+n3BdNKj2PgPnvriworfjLM+ZgjWCx7+JMAIf"\
+            "fjWg1Z3qK3G9G9vNeozH9tjZtGDmZ9NcmmQlAHECgYEAyZjthPRiAYhHcmA4I+ND"\
+            "1uZ3/9gvpQBJtrtRbwBU3mqyDkhhKkLrJmdB9Z8gqKAKAvhJ713zs5YAwOhoTPx0"\
+            "6/IC/KSKy+ZOtb3U5vpnwO0tkqXuc9a455+XBHfZw3WhXc1WOdUafUNyI5tro1Md"\
+            "0h5SITv/2nj9tyM443CpprM=\\n" \
+            "-----END PRIVATE KEY-----\"," \
+            "\"login_endpoint\": " \
+            "\"http://35.161.197.99/acs/api/v1/auth/login\" }"
+
+        url = 'http://dcos.com/acs/api/v1/auth/login'
+        dummy_token = 'abcdefghijklmo'
+
+        sys.argv[0:] = self._args_app_name + self._args_mandatory + \
+            ['--dcos-auth-credentials', creds]
+        args = parse_args()
+        self.assertEqual(args.dcos_auth_credentials, creds)
+
+        # Mock 'requests.post()' and verify that the auth_request gets the
+        # expected auth token
+        req = requests.Request('POST', url)
+        auth_request = req.prepare()
+        auth_request.prepare_headers({'Authorization': ''})
+        requests.post = Mock(return_value=self.request_response(dummy_token))
+
+        auth = DCOSAuth(args.dcos_auth_credentials, args.marathon_ca_cert,
+                        args.dcos_auth_token)
+        auth(auth_request)
+        self.assertEqual(auth_request.headers['Authorization'],
+                         'token=' + dummy_token)
+
+        # test via env var
+        env_creds = 'It will now be a different value'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_DCOS_AUTH_CREDENTIALS'] = env_creds
+        args = parse_args()
+        self.assertEqual(args.dcos_auth_credentials, env_creds)
+
+    def test_auth_token_arg(self):
+        """Test: 'dcos-auth-token' arg."""
+        token = "eyJhbGciOiJIUzI1NiIsImtpZCI6InNlY3JldCIsInR5cCI6IkpXVCJ9.eyJ \
+        hdWQiOiIzeUY1VE9TemRsSTQ1UTF4c3B4emVvR0JlOWZOeG05bSIsImVtYWlsIjoiZHNz \
+        dHN0YXBsZXRvbnJvYm90aWNzQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlL \
+        CJleHAiOjEuNDgwODgyMzM5ZSswOSwiaWF0IjoxLjQ4MDQ1MDMzOWUrMDksImlzcyI6Im \
+        h0dHBzOi8vZGNvcy5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMDYyMDA \
+        4NzM2MDg4NzgwNDU5MzEiLCJ1aWQiOiJkc3N0c3RhcGxldG9ucm9ib3RpY3NAZ21haWwu \
+        Y29tIn0.iq2rKcCH5_rPEd5td-fM2rxlHjIyGAJOmxTd5lceHAU"
+
+        sys.argv[0:] = self._args_app_name + self._args_mandatory + \
+            ['--dcos-auth-token', token]
+        args = parse_args()
+        self.assertEqual(args.dcos_auth_token, token)
+
+        url = 'http://dcos.com/acs/api/v1/auth/login'
+        req = requests.Request('POST', url)
+        auth_request = req.prepare()
+        auth_request.prepare_headers({'Authorization': ''})
+
+        auth = DCOSAuth(args.dcos_auth_credentials, args.marathon_ca_cert,
+                        args.dcos_auth_token)
+
+        auth(auth_request)
+        self.assertEqual(auth_request.headers['Authorization'],
+                         'token=' + token)
+
+        # test via env var
+        env_token = 'It will now be a different value'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        os.environ['F5_CSI_DCOS_AUTH_TOKEN'] = env_token
+        args = parse_args()
+        self.assertEqual(args.dcos_auth_token, env_token)
+
+    def request_response(self, token):
+        """Mock a response and set a cookie."""
+        r = requests.Response()
+        r.cookies['dcos-acs-auth-cookie'] = token
+        return r
 
 
 class Pool():

@@ -242,12 +242,15 @@ class Marathon(object):
         * Retrieves Marathon application state
     """
 
-    def __init__(self, hosts, health_check, auth):
+    def __init__(self, hosts, health_check, auth, ca_cert=None):
         """Initialize the Marathon object."""
         self.__hosts = hosts
         self.__health_check = health_check
         self.__auth = auth
         self.__cycle_hosts = cycle(self.__hosts)
+        self.__verify = False
+        if ca_cert:
+            self.__verify = ca_cert
 
     def api_req_raw(self, method, path, auth, body=None, **kwargs):
         """Send an API request to Marathon and return the response."""
@@ -270,16 +273,19 @@ class Marathon(object):
             logger.debug("%s %s", method, response.url)
             if response.status_code == 200:
                 break
+
+            response.raise_for_status()
+
         if 'message' in response.json():
             response.reason = "%s (%s)" % (
                 response.reason,
                 response.json()['message'])
-        response.raise_for_status()
         return response
 
     def api_req(self, method, path, **kwargs):
         """Send an API request to Marathon and return the JSON response."""
-        return self.api_req_raw(method, path, self.__auth, **kwargs).json()
+        return self.api_req_raw(method, path, self.__auth,
+                                verify=self.__verify, **kwargs).json()
 
     def create(self, app_json):
         """Create a Marathon app."""
@@ -325,7 +331,8 @@ class Marathon(object):
         url = self.host+"/v2/events"
         logger.info(
             "SSE Active, trying fetch events from from {0}".format(url))
-        return SSEClient(url, auth=self.__auth, timeout=timeout)
+        return SSEClient(url, auth=self.__auth, verify=self.__verify,
+                         timeout=timeout)
 
     @property
     def host(self):
@@ -569,6 +576,9 @@ def get_arg_parser():
                         "statuses before adding the app instance into "
                         "the backend pool.",
                         action="store_true")
+    parser.add_argument("--marathon-ca-cert",
+                        env_var='F5_CSI_MARATHON_CA_CERT',
+                        help="CA certificate for Marathon HTTPS connections")
     parser.add_argument('--sse-timeout', "-t", type=int,
                         env_var='F5_CSI_SSE_TIMEOUT',
                         default=30, help='Marathon event stream timeout')
@@ -661,7 +671,8 @@ if __name__ == '__main__':
     # Marathon API connector
     marathon = Marathon(args.marathon,
                         args.health_check,
-                        get_marathon_auth_params(args))
+                        get_marathon_auth_params(args),
+                        args.marathon_ca_cert)
 
     processor = MarathonEventProcessor(marathon, args.verify_interval,
                                        bigip)

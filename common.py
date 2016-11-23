@@ -4,9 +4,15 @@
 from logging.handlers import SysLogHandler
 
 import sys
+import time
+import json
+import jwt
 import logging
 import socket
 import argparse
+import requests
+
+from requests.auth import AuthBase
 
 
 def parse_log_level(log_level_arg):
@@ -50,24 +56,91 @@ def set_marathon_auth_args(parser):
                         help="Path to file containing a user/pass for "
                         "the Marathon HTTP API in the format of 'user:pass'."
                         )
+    parser.add_argument("--dcos-auth-credentials",
+                        env_var='F5_CSI_DCOS_AUTH_CREDENTIALS',
+                        help="DC/OS service account credentials")
+    parser.add_argument("--dcos-auth-token",
+                        env_var='F5_CSI_DCOS_AUTH_TOKEN',
+                        help="DC/OS ACS Token")
 
     return parser
 
 
+class DCOSAuth(AuthBase):
+    """DCOSAuth class.
+
+    Manage authorization credentials for DCOS
+    """
+
+    def __init__(self, credentials, ca_cert, token):
+        """Initialize DCOSAuth."""
+        if credentials:
+            creds = json.loads(credentials)
+            self.scheme = creds['scheme']
+            self.uid = creds['uid']
+            self.private_key = creds['private_key']
+            self.login_endpoint = creds['login_endpoint']
+        self.token = token
+        self.verify = False
+        self.auth_header = None
+        self.expiry = 0
+        if ca_cert:
+            self.verify = ca_cert
+
+    def __call__(self, auth_request):
+        """Get the ACS token."""
+        if self.token:
+            self.auth_header = 'token=' + self.token
+            auth_request.headers['Authorization'] = self.auth_header
+            return auth_request
+
+        if not self.auth_header or int(time.time()) >= self.expiry - 10:
+            self.expiry = int(time.time()) + 3600
+            payload = {
+                'uid': self.uid,
+                # This is the expiry of the auth request params
+                'exp': int(time.time()) + 60,
+            }
+            token = jwt.encode(payload, self.private_key, self.scheme)
+
+            data = {
+                'uid': self.uid,
+                'token': token.decode('ascii'),
+                # This is the expiry for the token itself
+                'exp': self.expiry,
+            }
+            r = requests.post(self.login_endpoint,
+                              json=data,
+                              timeout=(3.05, 46),
+                              verify=self.verify)
+            r.raise_for_status()
+
+            self.auth_header = 'token=' + r.cookies['dcos-acs-auth-cookie']
+
+        auth_request.headers['Authorization'] = self.auth_header
+        return auth_request
+
+
 def get_marathon_auth_params(args):
-    """Get the Marathon credentials from a file."""
-    if args.marathon_auth_credential_file is None:
-        return None
+    """Get the Marathon credentials."""
+    marathon_auth = None
+    if args.marathon_auth_credential_file:
+        with open(args.marathon_auth_credential_file, 'r') as f:
+            line = f.readline().rstrip('\r\n')
 
-    line = None
-    with open(args.marathon_auth_credential_file, 'r') as f:
-        line = f.readline().rstrip('\r\n')
+        if line:
+            marathon_auth = tuple(line.split(':'))
+    elif args.dcos_auth_credentials or args.dcos_auth_token:
+        return DCOSAuth(args.dcos_auth_credentials, args.marathon_ca_cert,
+                        args.dcos_auth_token)
 
-    if line is not None:
-        splat = line.split(':')
-        return (splat[0], splat[1])
+    if marathon_auth and len(marathon_auth) != 2:
+        print(
+           "Please provide marathon credentials in user:pass format"
+        )
+        sys.exit(1)
 
-    return None
+    return marathon_auth
 
 
 def set_logging_args(parser):
