@@ -3,7 +3,7 @@
 from .. import config_utils
 from .. import utils
 
-__all__ = [
+__all__ = (
     'config_utils',
     'utils'
-]
+)

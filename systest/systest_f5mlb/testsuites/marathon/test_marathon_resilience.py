@@ -1,6 +1,4 @@
-"""
-Test suite for the behavior of the bigip-controller when Marathon goes down.
-"""
+"""Tests for the behavior of the bigip-controller when Marathon goes down."""
 
 import time
 
@@ -15,10 +13,7 @@ pytestmark = pytest.meta_suite(tags=["func", "marathon", "no_k8s"])
 @pytest.meta_test(id='f5mlb-65', tags=[])
 def test_no_disruptions_without_marathon(orchestration, bigip,
                                          bigip_controller):
-    """
-    Assert that the Big-IP configuration does not change when Marathon
-    is disabled.
-    """
+    """Assert Big-IP configuration doesn't change when Marathon is disabled."""
     default_partition = utils.DEFAULT_F5MLB_PARTITION
     try:
         backend_before_config = utils.get_backend_objects(

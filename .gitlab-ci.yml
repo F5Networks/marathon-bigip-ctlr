@@ -8,8 +8,8 @@ stages:
 
 unit_test:
   script:
-    - pip install flake8
-    - pip install flake8_docstrings
+    - pip install flake8==3.2.1
+    - pip install flake8_docstrings==1.0.2
     - pip install -r requirements.txt 
     - pip install mock
     - flake8 --exclude=docs/ ./ 
