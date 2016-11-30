@@ -57,8 +57,10 @@ def healthcheck_timeout_calculate(data):
     # Formula to match up marathon settings with f5 settings:
     # (( maxConsecutiveFailures - 1) * intervalSeconds )
     # + timeoutSeconds + 1
-    timeout = (((data['maxConsecutiveFailures'] - 1) * data['intervalSeconds'])
-               + data['timeoutSeconds'] + 1)
+    timeout = (
+         ((data['maxConsecutiveFailures'] - 1) * data['intervalSeconds']) +
+         data['timeoutSeconds'] + 1
+    )
     return timeout
 
 
@@ -469,16 +471,16 @@ class CloudBigIP(BigIP):
 
             marathon_virtual_list = \
                 [x for x in config.keys()
-                 if config[x]['partition'] == partition
-                 and 'iapp' not in config[x]]
+                 if config[x]['partition'] == partition and
+                 'iapp' not in config[x]]
             marathon_pool_list = \
                 [x for x in config.keys()
-                 if config[x]['partition'] == partition
-                 and 'iapp' not in config[x]]
+                 if config[x]['partition'] == partition and
+                 'iapp' not in config[x]]
             marathon_iapp_list = \
                 [x for x in config.keys()
-                 if config[x]['partition'] == partition
-                 and 'iapp' in config[x]]
+                 if config[x]['partition'] == partition and
+                 'iapp' in config[x]]
 
             # Configure iApps
             f5_iapp_list = self.get_iapp_list(partition)
@@ -1128,8 +1130,8 @@ class CloudBigIP(BigIP):
             # actual partition names
             partition_list = []
             for folder in self.sys.folders.get_collection():
-                if (not folder.name == "Common" and not folder.name == "/"
-                        and not folder.name.endswith(".app")):
+                if (not folder.name == "Common" and not folder.name == "/" and
+                        not folder.name.endswith(".app")):
 
                     partition_list.append(folder.name)
             return partition_list
