@@ -300,26 +300,7 @@ class ArgTest(unittest.TestCase):
 
     def test_marathon_ca_cert_arg(self):
         """Test: 'Marathon CA Cert' arg."""
-        cert = "-----BEGIN CERTIFICATE-----" \
-            "MIIDQTCCAimgAwIBAgIBATANBgkqhkiG9w0BAQUFADAkMQswCQYDVQQKDAJERTEV"\
-            "MBMGA1UEAwwMRXJpayBEYXJ6aW5zMB4XDTE0MDEyNDA2MzIxOFoXDTE0MDIyMzA2"\
-            "MzIxOFowJDELMAkGA1UECgwCREUxFTATBgNVBAMMDEVyaWsgRGFyemluczCCASIw"\
-            "DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKQgCJqWJRKY+Pn9K4Cednb2qE4l"\
-            "rwuvtWgWkC+WaJF9Q2Qs2ICXFt+3UKsEvG82PTUCAHWsce+eP8DMz/btWxTl2cCy"\
-            "Wq/KMeByjNYsQNpMydwwLOtZzDLWZhweECqwt0SeCgAhR7MTwl+epROMP5Uw0UWD"\
-            "gnmy093DQhUf7uLI8QY9WvOpx97TZl1xCvn2kxM98/JlEkz0q/Wp51JzGdcKrQW2"\
-            "VWCahcWvJydkMMa9E/5mLyxwzn1RhrjmbqFNt7z4fr5gVWNwEqYcaXSraBqoCvlC"\
-            "10y9tKZdTWlDM782baNbrQPNPk6E4ir+p3PNpQ31PyoUCVrGxhFCyqsqvO8CAwEA"\
-            "AaN+MHwwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwYgYDVR0RBFswWYILKi5sb2Nh"\
-            "bGhvc3SCDyoubG9jYWxob3N0LmNvbYIXKi5leGFtcGxlLmxvY2FsaG9zdC5jb22C"\
-            "FW15LmF3ZXNvbWUuZG9tYWluLmNvbYIJMTI3LjAuMC4xMA0GCSqGSIb3DQEBBQUA"\
-            "A4IBAQA7Ob1Wn/KiTpC2IdFbxm0C2JplapEnaXcD4dC8Qirhlm268fl1K95hCLrK"\
-            "hDpAKqd+R2quOG0mSJZFO7b0p86eiPBDmMBSHp3qle9d6Sj86GPgCTLE+k8nGbo1"\
-            "S+Mj3Iu96KrBrnn0CnM1PrYe71dhZk1dHOvPVOZEWOmHKVwCQytmZwyAA9m2E1VB"\
-            "SrPTvavLdnl/E/PP9NmkFIDdjyN1KOwR5px/hBxAm5ropVlwLCnFjfQBYq+k/lk1"\
-            "DeVExpynPVt9lpAlWmJIYcW7SvfUMm7OL2JSyYB3oTQK4Nm6+4QuUvjb+ORbGbBV"\
-            "CQ1S88gbN0xl/DdxNYM7p4VsBq1q"\
-            "-----END CERTIFICATE-----"
+        cert = "/this/is/a/path/to/a/cert.crt"
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-ca-cert', cert]
