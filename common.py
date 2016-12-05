@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Common utility functions."""
 
-from logging.handlers import SysLogHandler
-
 import sys
 import time
 import json
@@ -32,7 +30,7 @@ def parse_log_level(log_level_arg):
     return log_level
 
 
-def setup_logging(logger, syslog_socket, log_format, log_level):
+def setup_logging(logger, log_format, log_level):
     """Configure logging."""
     logger.setLevel(log_level)
 
@@ -42,11 +40,6 @@ def setup_logging(logger, syslog_socket, log_format, log_level):
     consoleHandler.setFormatter(formatter)
     logger.addHandler(consoleHandler)
     logger.propagate = False
-
-    if syslog_socket != '/dev/null':
-        syslogHandler = SysLogHandler(syslog_socket)
-        syslogHandler.setFormatter(formatter)
-        logger.addHandler(syslogHandler)
 
 
 def set_marathon_auth_args(parser):
@@ -145,16 +138,6 @@ def get_marathon_auth_params(args):
 
 def set_logging_args(parser):
     """Add logging-related args to the parser."""
-    default_log_socket = "/dev/log"
-    if sys.platform == "darwin":
-        default_log_socket = "/var/run/syslog"
-
-    parser.add_argument("--syslog-socket",
-                        env_var='F5_CSI_SYSLOG_SOCKET',
-                        help="Socket to write syslog messages to. "
-                        "Use '/dev/null' to disable logging to syslog",
-                        default=default_log_socket
-                        )
     parser.add_argument("--log-format",
                         env_var='F5_CSI_LOG_FORMAT',
                         help="Set log message format",

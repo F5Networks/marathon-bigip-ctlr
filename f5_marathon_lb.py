@@ -666,7 +666,7 @@ if __name__ == '__main__':
     s.mount('http://', a)
 
     # Setup logging
-    setup_logging(logger, args.syslog_socket, args.log_format, args.log_level)
+    setup_logging(logger, args.log_format, args.log_level)
 
     # Marathon API connector
     marathon = Marathon(args.marathon,
