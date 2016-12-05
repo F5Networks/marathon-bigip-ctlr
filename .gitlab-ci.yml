@@ -22,8 +22,6 @@ unit_test:
 #   <PROJ_NAMESPACE>/tdp-controller:<COMMIT_ID>
 #   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>
 #   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>-<BUILD_ID>
-# If this branch is the master, then also tag:
-#   <PROJ_NAMESPACE>/tdp-controller:latest
 dockerize:
   script:
     - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
@@ -56,11 +54,6 @@ dockerize:
     -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
     -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
     -   fi
-    - fi
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then
-    -   docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
-    -   docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
-    -   docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:devel
     - fi
     - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
     - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
