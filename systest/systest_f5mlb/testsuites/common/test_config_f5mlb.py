@@ -37,18 +37,6 @@ def test_f5mlb_config_invalid_health_check(orchestration):
     pass
 
 
-@meta_test(id="f5mlb-35", tags=["incomplete"])
-def test_f5mlb_config_valid_syslog_socket(orchestration):
-    """Verify response when the 'syslog-socket' value is valid."""
-    pass
-
-
-@meta_test(id="f5mlb-36", tags=["incomplete"])
-def test_f5mlb_config_invalid_syslog_socket(orchestration):
-    """Verify response when the 'syslog-socket' value is invalid."""
-    pass
-
-
 @meta_test(id="f5mlb-37", tags=["incomplete"])
 def test_f5mlb_config_valid_log_format(orchestration):
     """Verify response when the 'log-format' value is valid."""

@@ -75,7 +75,6 @@ class ArgTest(unittest.TestCase):
                       [--health-check] [--marathon-ca-cert MARATHON_CA_CERT]
                       [--sse-timeout SSE_TIMEOUT]
                       [--verify-interval VERIFY_INTERVAL]
-                      [--syslog-socket SYSLOG_SOCKET]
                       [--log-format LOG_FORMAT] [--log-level LOG_LEVEL]
                       [--marathon-auth-credential-file""" \
         """ MARATHON_AUTH_CREDENTIAL_FILE]\n \
@@ -97,10 +96,6 @@ class ArgTest(unittest.TestCase):
         self.assertEqual(args.password, 'default')
         # default arg values
         self.assertEqual(args.health_check, False)
-        if sys.platform == "darwin":
-            self.assertEqual(args.syslog_socket, '/var/run/syslog')
-        else:
-            self.assertEqual(args.syslog_socket, '/dev/log')
         self.assertEqual(args.log_format,
                          '%(asctime)s %(name)s: %(levelname) -8s: %(message)s')
         self.assertEqual(args.marathon_auth_credential_file, None)
@@ -184,21 +179,6 @@ class ArgTest(unittest.TestCase):
         os.environ['F5_CSI_USE_HEALTHCHECK'] = 'True'
         args = parse_args()
         self.assertEqual(args.health_check, True)
-
-    def test_syslog_socket_arg(self):
-        """Test: 'Syslog socket' arg."""
-        log_file = '/var/run/mylog'
-        sys.argv[0:] = self._args_app_name + self._args_mandatory \
-            + ['--syslog-socket', log_file]
-        args = parse_args()
-        self.assertEqual(args.syslog_socket, log_file)
-
-        # test via env var
-        env_log_file = '/var_run/mylog_from_env'
-        os.environ['F5_CSI_SYSLOG_SOCKET'] = env_log_file
-        sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
-        self.assertEqual(args.syslog_socket, env_log_file)
 
     def test_log_format_arg(self):
         """Test: 'Log format' arg."""
