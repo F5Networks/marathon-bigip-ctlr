@@ -274,7 +274,7 @@ class Marathon(object):
             if response.status_code == 200:
                 break
 
-            response.raise_for_status()
+        response.raise_for_status()
 
         if 'message' in response.json():
             response.reason = "%s (%s)" % (
