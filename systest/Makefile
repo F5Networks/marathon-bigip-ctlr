@@ -28,6 +28,9 @@ all:
 	@printf "  orchestration - all targets require an 'orchestration'\n"
 	@printf "      value (eg. make functest-setup orchestration=k8s).\n"
 	@printf "      Valid values: marathon, k8s.\n"
+	@printf "  \nOptional arguments:\n"
+	@printf "  bigip_ver - the version of BIG-IP to test against.\n"
+	@printf "      Valid values: v12.1.0, v12.0.0, v11.6.0.\n"
 
 VALID_ORCHESTRATIONS := marathon k8s
 VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s)
@@ -78,6 +81,26 @@ func_session := $(func_testenv_name)_$(version)
 scale_testenv_name := f5mlb_scale_$(orchestration)
 scale_session := $(scale_testenv_name)_$(version)
 
+bigip_testenv_name := $(func_testenv_name)_bigip
+
+# - set bigip_img for older versions, default is specified in bigip.params.yaml
+bigip_current_ver := v12.1.0
+bigip_oldver_1_ver := v12.0.0
+bigip_oldver_1_img := bigip-osready-12.0.0.4.0.674
+bigip_oldver_2_ver := v11.6.0
+bigip_oldver_2_img := bigip-osready-11.6.1.1.0.326
+# default to current version, will be overridden if it's put on the command line
+bigip_ver := $(bigip_current_ver)
+ifeq ($(bigip_ver), $(bigip_current_ver))
+  bigip_params :=
+else ifeq ($(bigip_ver), $(bigip_oldver_1_ver))
+  bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_1_img)
+else ifeq ($(bigip_ver), $(bigip_oldver_2_ver))
+  bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_2_img)
+else
+  $(error ERROR: bigip version $(bigip_ver) is not supported)
+endif
+
 
 systest:
 	@$(MAKE) functest
@@ -108,7 +131,7 @@ functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
 	testenv -v create --name $(func_testenv_name) \
 		--config $(testenv_config) \
-		--requires bigip:$(func_testenv_name)_bigip \
+		--requires bigip:$(bigip_testenv_name) $(bigip_params) \
 		--params num_masters:1 --params num_workers:1 \
 		--vars bigip_controller_img:"$(bigip_controller_img)"
 
@@ -127,7 +150,7 @@ functest-teardown:
 
 	@echo "tearing down $(orchestration) functional test environment ..."
 	testenv -v delete --name $(func_testenv_name) --config $(testenv_config)
-	testenv -v delete --name $(func_testenv_name)_bigip --config bigip
+	testenv -v delete --name $(bigip_testenv_name) --config bigip
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
