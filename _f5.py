@@ -1168,6 +1168,16 @@ class CloudBigIP(BigIP):
         hc.modify(**send_data)
         return True
 
+    def get_http_healthmonitor(self):
+        """Get an object than can create a http health monitor."""
+        h = self.ltm.monitor.https
+        return h.http
+
+    def get_tcp_healthmonitor(self):
+        """Get an object than can create a tcp health monitor."""
+        h = self.ltm.monitor.tcps
+        return h.tcp
+
     def healthcheck_create(self, partition, data):
         """Create a Health Monitor.
 
@@ -1178,13 +1188,11 @@ class CloudBigIP(BigIP):
         send_data = self.get_healthcheck_fields(data)
 
         if data['protocol'] == "http":
-            h = self.ltm.monitor.https
-            http1 = h.http
+            http1 = self.get_http_healthmonitor()
             http1.create(partition=partition, **send_data)
 
         if data['protocol'] == "tcp":
-            h = self.ltm.monitor.tcps
-            tcp1 = h.tcp
+            tcp1 = self.get_tcp_healthmonitor()
             tcp1.create(partition=partition, **send_data)
 
     def get_partitions(self, partitions):
