@@ -2005,5 +2005,164 @@ class KubernetesTest(BigIPTest):
         self.assertFalse(self.bigip.member_delete.called)
 
 
+class HealthCheckParmsTest(unittest.TestCase):
+    """Tests for validating what is sent to the Big-IP for health monitors."""
+
+    http_keys = ('adaptive',
+                 'adaptiveDivergenceType',
+                 'adaptiveDivergenceValue',
+                 'adaptiveLimit',
+                 'adaptiveSamplingTimespan',
+                 'appService',
+                 'defaultsFrom',
+                 'description',
+                 'destination',
+                 'interval',
+                 'ipDscp',
+                 'manualResume',
+                 'name',
+                 'tmPartition',
+                 'password',
+                 'recv',
+                 'recvDisable',
+                 'reverse',
+                 'send',
+                 'timeUntilUp',
+                 'timeout',
+                 'transparent',
+                 'upInterval',
+                 'username',
+                 )
+    tcp_keys = ('adaptive',
+                'adaptiveDivergenceType',
+                'adaptiveDivergenceValue',
+                'adaptiveLimit',
+                'adaptiveSamplingTimespan',
+                'appService',
+                'defaultsFrom',
+                'description',
+                'destination',
+                'interval',
+                'ipDscp',
+                'manualResume',
+                'name',
+                'tmPartition',
+                'recv',
+                'recvDisable',
+                'reverse',
+                'send',
+                'timeUntilUp',
+                'timeout',
+                'transparent',
+                'upInterval',
+                )
+    tcpHealthData = {}
+    httpHealthData = {}
+    partition = 'hctest'
+    health_monitor = None
+
+    def setUp(self):
+        """Test suite set up."""
+        with patch.object(BigIP, '_get_tmos_version'):
+            self.bigip = CloudBigIP('mesos', '1.2.3.4', 'admin', 'default',
+                                    [self.partition])
+        self.bigip.get_healthcheck = Mock(
+            side_effect=self.mock_get_healthcheck)
+        self.bigip.get_http_healthmonitor = Mock(
+            side_effect=self.mock_get_healthmonitor)
+        self.bigip.get_tcp_healthmonitor = Mock(
+            side_effect=self.mock_get_healthmonitor)
+        self.httpHealthData = {
+            'description': 'this one is http',
+            'portIndex': 0,
+            'protocol': 'http',
+            'timeoutSeconds': 20,
+            'interval': 20,
+            'intervalSeconds': 20,
+            'ignoreHttp1xx': False,
+            'gracePeriodSeconds': 5,
+            'send': 'GET / HTTP/1.0\\r\\n\\r\\n',
+            'timeout': 61,
+            'maxConsecutiveFailures': 3,
+            'path': '/',
+            'username': 'admin',
+            'password': 'changeme',
+            }
+        self.tcpHealthData = {
+            'description': 'this one is tcp',
+            'portIndex': 0,
+            'protocol': 'tcp',
+            'timeoutSeconds': 20,
+            'interval': 20,
+            'intervalSeconds': 20,
+            'ignoreHttp1xx': False,
+            'gracePeriodSeconds': 5,
+            'send': None,
+            'timeout': 61,
+            'maxConsecutiveFailures': 3,
+            'path': '/',
+            'username': 'admin',
+            'password': 'changeme',
+            }
+
+    def mock_get_healthmonitor(self):
+        """Map this call to our cached health_monitor."""
+        return self.health_monitor
+
+    def mock_get_healthcheck(self, partition, hc, hc_type):
+        """Map this call to our cached health_monitor."""
+        return self.health_monitor
+
+    def validate_http_data(self, **data):
+        """Make sure only valid http data is present in the dict."""
+        for k in data:
+            self.assertTrue(k in self.http_keys)
+
+    def validate_tcp_data(self, **data):
+        """Make sure only valid http data is present in the dict."""
+        for k in data:
+            self.assertTrue(k in self.tcp_keys)
+
+    def mock_healthcheck_create_http(self, partition, **data):
+        """Mock which gets called to actually do the create."""
+        self.validate_http_data(**data)
+
+    def mock_healthcheck_modify_http(self, **data):
+        """Mock which gets called to actually do the modify."""
+        self.validate_http_data(**data)
+
+    def mock_healthcheck_create_tcp(self, partition, **data):
+        """Mock which gets called to actually do the create."""
+        self.validate_tcp_data(**data)
+
+    def mock_healthcheck_modify_tcp(self, **data):
+        """Mock which gets called to actually do the modify."""
+        self.validate_tcp_data(**data)
+
+    def test_healthmonitor_http(self):
+        """Test creating and updating http health monitors."""
+        hc = HealthCheck('http-server')
+        hc.create = Mock(side_effect=self.mock_healthcheck_create_http)
+        hc.modify = Mock(side_effect=self.mock_healthcheck_modify_http)
+        self.health_monitor = hc
+        self.bigip.healthcheck_create(self.partition, self.httpHealthData)
+        self.assertTrue(hc.create.called)
+        self.httpHealthData['description'] = 'this should trigger a modify'
+        self.bigip.healthcheck_update(self.partition, hc, self.httpHealthData)
+        self.assertTrue(hc.modify.called)
+
+    def test_healthmonitor_tcp(self):
+        """Test creating and updating tcp health monitors."""
+        hc = HealthCheck('tcp-server')
+        hc.create = Mock(side_effect=self.mock_healthcheck_create_tcp)
+        hc.modify = Mock(side_effect=self.mock_healthcheck_modify_tcp)
+        self.health_monitor = hc
+        self.bigip.healthcheck_create(self.partition, self.tcpHealthData)
+        self.assertTrue(hc.create.called)
+        self.tcpHealthData['description'] = 'this should trigger a modify'
+        self.bigip.healthcheck_update(self.partition, hc, self.tcpHealthData)
+        self.assertTrue(hc.modify.called)
+
+
 if __name__ == '__main__':
     unittest.main()

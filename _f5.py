@@ -1079,44 +1079,121 @@ class CloudBigIP(BigIP):
         else:
             return None
 
+    def get_healthcheck_fields(self, data):
+        """Return a new dict containing only supported health monitor data.
+
+        Args:
+            data: Health Monitor dict
+        """
+        if data['protocol'] == "http":
+            send_keys = ('adaptive',
+                         'adaptiveDivergenceType',
+                         'adaptiveDivergenceValue',
+                         'adaptiveLimit',
+                         'adaptiveSamplingTimespan',
+                         'appService',
+                         'defaultsFrom',
+                         'description',
+                         'destination',
+                         'interval',
+                         'ipDscp',
+                         'manualResume',
+                         'name',
+                         'tmPartition',
+                         'password',
+                         'recv',
+                         'recvDisable',
+                         'reverse',
+                         'send',
+                         'timeUntilUp',
+                         'timeout',
+                         'transparent',
+                         'upInterval',
+                         'username',
+                         )
+        elif data['protocol'] == "tcp":
+            send_keys = ('adaptive',
+                         'adaptiveDivergenceType',
+                         'adaptiveDivergenceValue',
+                         'adaptiveLimit',
+                         'adaptiveSamplingTimespan',
+                         'appService',
+                         'defaultsFrom',
+                         'description',
+                         'destination',
+                         'interval',
+                         'ipDscp',
+                         'manualResume',
+                         'name',
+                         'tmPartition',
+                         'recv',
+                         'recvDisable',
+                         'reverse',
+                         'send',
+                         'timeUntilUp',
+                         'timeout',
+                         'transparent',
+                         'upInterval',
+                         )
+        else:
+            raise Exception(
+                'Protocol {} is not supported.'.format(data['protocol']))
+
+        send_data = {}
+        for k in data:
+            if k in send_keys:
+                send_data[k] = data[k]
+        return send_data
+
     def healthcheck_update(self, partition, hc, data):
         """Update a Health Monitor.
 
         Args:
             partition: Partition name
             hc: Name of the Health Monitor
-            data: BIG-IP config dict
+            data: Health Monitor dict
         """
         logger.debug("Updating healthcheck %s", hc)
         # get healthcheck object
         hc = self.get_healthcheck(partition, hc, data['protocol'])
+        send_data = self.get_healthcheck_fields(data)
 
-        no_change = all(data[key] == val
-                        for key, val in hc.__dict__.iteritems() if key in data)
+        no_change = all(send_data[key] == val
+                        for key, val in hc.__dict__.iteritems()
+                        if key in send_data)
 
         if no_change:
             return False
 
-        hc.modify(**data)
+        hc.modify(**send_data)
         return True
+
+    def get_http_healthmonitor(self):
+        """Get an object than can create a http health monitor."""
+        h = self.ltm.monitor.https
+        return h.http
+
+    def get_tcp_healthmonitor(self):
+        """Get an object than can create a tcp health monitor."""
+        h = self.ltm.monitor.tcps
+        return h.tcp
 
     def healthcheck_create(self, partition, data):
         """Create a Health Monitor.
 
         Args:
             partition: Partition name
-            hc: Name of the Health Monitor
-            data: BIG-IP config dict
+            data: Health Monitor dict
         """
+        send_data = self.get_healthcheck_fields(data)
+
         if data['protocol'] == "http":
-            h = self.ltm.monitor.https
-            http1 = h.http
-            http1.create(partition=partition, **data)
+            http1 = self.get_http_healthmonitor()
+            http1.create(partition=partition, **send_data)
 
         if data['protocol'] == "tcp":
-            h = self.ltm.monitor.tcps
-            tcp1 = h.tcp
-            tcp1.create(partition=partition, **data)
+            tcp1 = self.get_tcp_healthmonitor()
+            tcp1.create(partition=partition, **send_data)
 
     def get_partitions(self, partitions):
         """Get a list of BIG-IP partition names.
