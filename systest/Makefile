@@ -30,7 +30,7 @@ all:
 	@printf "      Valid values: marathon, k8s.\n"
 	@printf "  \nOptional arguments:\n"
 	@printf "  bigip_ver - the version of BIG-IP to test against.\n"
-	@printf "      Valid values: v12.1.0, v12.0.0, v11.6.0.\n"
+	@printf "      Valid values: v12.1.0, v12.0.0, v11.6.1.\n"
 
 VALID_ORCHESTRATIONS := marathon k8s
 VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s)
@@ -87,7 +87,7 @@ bigip_testenv_name := $(func_testenv_name)_bigip
 bigip_current_ver := v12.1.0
 bigip_oldver_1_ver := v12.0.0
 bigip_oldver_1_img := bigip-osready-12.0.0.4.0.674
-bigip_oldver_2_ver := v11.6.0
+bigip_oldver_2_ver := v11.6.1
 bigip_oldver_2_img := bigip-osready-11.6.1.1.0.326
 # default to current version, will be overridden if it's put on the command line
 bigip_ver := $(bigip_current_ver)
