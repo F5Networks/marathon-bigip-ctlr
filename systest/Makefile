@@ -131,7 +131,7 @@ functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
 	testenv -v create --name $(func_testenv_name) \
 		--config $(testenv_config) \
-		--requires bigip:$(bigip_testenv_name) $(bigip_params) \
+		--requires bigip \
 		--params num_masters:1 --params num_workers:1 \
 		--vars bigip_controller_img:"$(bigip_controller_img)"
 
@@ -150,13 +150,12 @@ functest-teardown:
 
 	@echo "tearing down $(orchestration) functional test environment ..."
 	testenv -v delete --name $(func_testenv_name) --config $(testenv_config)
-	testenv -v delete --name $(bigip_testenv_name) --config bigip
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
 	testenv -v create --name $(scale_testenv_name) \
 		--config $(testenv_config) \
-		--requires bigip:$(scale_testenv_name)_bigip \
+		--requires bigip \
 		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
 		--vars bigip_controller_img:"$(bigip_controller_img)"
@@ -176,4 +175,3 @@ scaletest-teardown:
 
 	@echo "tearing down $(orchestration) scale test environment ..."
 	testenv -v delete --name $(scale_testenv_name) --config $(testenv_config)
-	testenv -v delete --name $(scale_testenv_name)_bigip --config bigip
