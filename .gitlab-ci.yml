@@ -12,10 +12,17 @@ unit_test:
     - pip install flake8_docstrings==1.0.2
     - pip install -r requirements.txt 
     - pip install mock
+    - pip install coverage
     - flake8 --exclude=docs/ ./ 
-    - python -m unittest discover -v
+    - coverage run -m unittest discover -v
+    - coverage html
+    - coverage report
   tags:
     - docker
+  artifacts:
+    untracked: true
+    paths:
+      - htmlcov/*
   stage: test
 
 # Create the docker container and upload it to the internal docker registry with the tags
