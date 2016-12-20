@@ -22,8 +22,6 @@ if [[ ! -e $fl ]] || [[ $(grep "^$opt" $fl | wc -l) == 0 ]]; then
     echo "$opt" >> $fl
 fi
 
-sudo apt-get install -y build-essential libssl-dev libffi-dev python-dev
-
 # - create the systest virtualenv
 virtualenv systest
 source systest/bin/activate
