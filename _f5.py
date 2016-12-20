@@ -232,12 +232,11 @@ class CloudBigIP(BigIP):
         partitions = frozenset(self._partitions)
 
         for svc in svcs:
-            # FIXME(yacobucci) we need better validation here, a schema exists
-            # it just needs to be validated against
             f5_service = {}
 
             backend = svc['virtualServer']['backend']
             frontend = svc['virtualServer']['frontend']
+            health_monitors = backend.get('healthMonitors', [])
 
             # Only handle application if it's partition is one that this script
             # is responsible for
@@ -268,8 +267,8 @@ class CloudBigIP(BigIP):
                                       'options': frontend['iappOptions']}
             else:
                 f5_service['virtual'] = {}
-                f5_service['health'] = {}
                 f5_service['pool'] = {}
+                f5_service['health'] = []
 
                 # Parse the SSL profile into partition and name
                 profiles = []
@@ -305,8 +304,29 @@ class CloudBigIP(BigIP):
                     'sourceAddressTranslation': {'type': 'automap'},
                     'profiles': profiles
                 })
+
+                monitors = None
+                # Health Monitors
+                for index, health in enumerate(health_monitors):
+                    logger.debug("Healthcheck for service %s: %s",
+                                 backend['serviceName'], health)
+                    if index == 0:
+                        health['name'] = frontend_name
+                    else:
+                        health['name'] = frontend_name + '_' + str(index)
+                        monitors = monitors + ' and '
+                    f5_service['health'].append(health)
+
+                    # monitors is a string of health-monitor names
+                    # delimited by ' and '
+                    monitor = "/%s/%s" % (frontend['partition'],
+                                          f5_service['health'][index]['name'])
+
+                    monitors = (monitors + monitor) if monitors is not None \
+                        else monitor
+
                 f5_service['pool'].update({
-                    'monitor': None,
+                    'monitor': monitors,
                     'loadBalancingMode': frontend['balance']
                 })
 
@@ -343,7 +363,7 @@ class CloudBigIP(BigIP):
                 'virtual': {},
                 'pool': {},
                 'nodes': {},
-                'health': {},
+                'health': [],
                 'partition': '',
                 'name': ''
             }
@@ -384,14 +404,13 @@ class CloudBigIP(BigIP):
             if app.healthCheck:
                 logger.debug("Healthcheck for app '%s': %s", app.appId,
                              app.healthCheck)
-                f5_service['health'] = app.healthCheck
-                f5_service['health']['name'] = frontend_name
+                app.healthCheck['name'] = frontend_name
 
                 # normalize healtcheck protocol name to lowercase
-                if 'protocol' in f5_service['health']:
-                    f5_service['health']['protocol'] = \
-                        (f5_service['health']['protocol']).lower()
-                f5_service['health'].update({
+                if 'protocol' in app.healthCheck:
+                    app.healthCheck['protocol'] = \
+                        (app.healthCheck['protocol']).lower()
+                app.healthCheck.update({
                     'interval': app.healthCheck['intervalSeconds']
                     if app.healthCheck else None,
                     'timeout': healthcheck_timeout_calculate(app.healthCheck)
@@ -399,6 +418,7 @@ class CloudBigIP(BigIP):
                     'send': self.healthcheck_sendstring(app.healthCheck)
                     if app.healthCheck else None
                 })
+                f5_service['health'].append(app.healthCheck)
 
             # Parse the SSL profile into partition and name
             profiles = []
@@ -431,7 +451,7 @@ class CloudBigIP(BigIP):
             })
             f5_service['pool'].update({
                 'monitor': "/%s/%s" %
-                           (app.partition, f5_service['health']['name'])
+                           (app.partition, f5_service['health'][0]['name'])
                 if app.healthCheck else None,
                 'loadBalancingMode': app.balance
             })
@@ -511,8 +531,9 @@ class CloudBigIP(BigIP):
             # virtual, and there is no more than 1 monitor per virtual.
             marathon_healthcheck_list = []
             for v in marathon_virtual_list:
-                if 'protocol' in config[v]['health']:
-                    marathon_healthcheck_list.append(v)
+                for hc in config[v]['health']:
+                    if 'protocol' in hc:
+                        marathon_healthcheck_list.append(v)
 
             f5_pool_list = self.get_pool_list(partition)
             f5_virtual_list = self.get_virtual_list(partition)
@@ -571,7 +592,8 @@ class CloudBigIP(BigIP):
                                         f5_healthcheck_list)
             log_sequence('Healthchecks to add', healthcheck_add)
             for hc in healthcheck_add:
-                self.healthcheck_create(partition, config[hc]['health'])
+                for item in config[hc]['health']:
+                    self.healthcheck_create(partition, item)
 
             # pool add
             pool_add = list_diff(marathon_pool_list, f5_pool_list)
@@ -591,7 +613,8 @@ class CloudBigIP(BigIP):
             log_sequence('Healthchecks to update', healthcheck_intersect)
 
             for hc in healthcheck_intersect:
-                self.healthcheck_update(partition, hc, config[hc]['health'])
+                for item in config[hc]['health']:
+                    self.healthcheck_update(partition, hc, item)
 
             # pool intersection
             pool_intersect = list_intersect(marathon_pool_list, f5_pool_list)
