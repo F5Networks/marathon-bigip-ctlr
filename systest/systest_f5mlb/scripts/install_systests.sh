@@ -22,6 +22,9 @@ if [[ ! -e $fl ]] || [[ $(grep "^$opt" $fl | wc -l) == 0 ]]; then
     echo "$opt" >> $fl
 fi
 
+#sudo apt-get -y install build-essential
+sudo pip install python-novaclient
+
 # - create the systest virtualenv
 virtualenv systest
 source systest/bin/activate

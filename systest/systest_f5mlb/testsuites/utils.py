@@ -17,9 +17,13 @@ DEFAULT_DEPLOY_TIMEOUT = 6 * 60
 
 DEFAULT_F5MLB_CPUS = 0.1
 DEFAULT_F5MLB_MEM = 32
+# FIXME(kenr): If we want to make general use of a second bigip in k8s, we
+#              need to remove hard-coded use of this in the functions below.
 DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_ext_ip
+BIGIP2_F5MLB_BIND_ADDR = getattr(symbols, 'bigip2_ext_ip', None)
 DEFAULT_F5MLB_MODE = "http"
 DEFAULT_F5MLB_NAME = "test-bigip-controller"
+BIGIP2_F5MLB_NAME = "test-bigip-controller2"
 DEFAULT_F5MLB_PARTITION = "test"
 DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_LB_ALGORITHM = "round-robin"
@@ -56,28 +60,34 @@ DEFAULT_SVC_MEM = 32
 DEFAULT_SVC_SSL_PROFILE = "Common/clientssl"
 DEFAULT_SVC_PORT = 80
 
+DEFAULT_BIGIP_MGMT_IP = symbols.bigip_mgmt_ip
+DEFAULT_BIGIP2_MGMT_IP = getattr(symbols, 'bigip2_mgmt_ip', None)
 
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
         "MARATHON_URL": symbols.marathon_url,
         "F5_CSI_SYSLOG_SOCKET": "/dev/null",
         "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
-        "F5_CSI_BIGIP_HOSTNAME": symbols.bigip_mgmt_ip,
+        "F5_CSI_BIGIP_HOSTNAME": DEFAULT_BIGIP_MGMT_IP,
         "F5_CSI_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
         "F5_CSI_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
         "F5_CSI_VERIFY_INTERVAL": str(DEFAULT_F5MLB_VERIFY_INTERVAL)
     }
+    BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
+    BIGIP2_F5MLB_CONFIG['F5_CSI_BIGIP_HOSTNAME'] = DEFAULT_BIGIP2_MGMT_IP
 elif symbols.orchestration == "k8s":
     DEFAULT_F5MLB_CONFIG = {
         'cmd': "/app/bin/f5-k8s-controller",
         'args': [
             "--bigip-partition", DEFAULT_F5MLB_PARTITION,
-            "--bigip-url", symbols.bigip_mgmt_ip,
+            "--bigip-url", DEFAULT_BIGIP_MGMT_IP,
             "--bigip-username", DEFAULT_BIGIP_USERNAME,
             "--bigip-password", DEFAULT_BIGIP_PASSWORD,
             "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL)
         ]
     }
+    BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
+    BIGIP2_F5MLB_CONFIG['args'][3] = DEFAULT_BIGIP2_MGMT_IP
 
 if symbols.orchestration == "marathon":
     DEFAULT_SVC_CONFIG = {
@@ -87,6 +97,8 @@ if symbols.orchestration == "marathon":
         'F5_0_MODE': DEFAULT_F5MLB_MODE,
         'F5_0_BALANCE': DEFAULT_F5MLB_LB_ALGORITHM,
     }
+    BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
+    BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
 elif symbols.orchestration == "k8s":
     DEFAULT_SVC_CONFIG = {
         'name': "x",
@@ -112,6 +124,9 @@ elif symbols.orchestration == "k8s":
             'schema': 'f5schemadb://bigip-virtual-server_v0.1.1.json'
         }
     }
+    BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
+    BIGIP2_SVC_CONFIG['data']['data']['virtualServer']['frontend'][
+            'virtualAddress']['bindAddr'] = BIGIP2_F5MLB_BIND_ADDR
 
 
 def create_managed_northsouth_service(

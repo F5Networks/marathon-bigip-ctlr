@@ -39,14 +39,46 @@ def ssh(request):
     return common.ssh.connect(gateway=symbols.bastion)
 
 
+# Always create an initial bigip
 @pytest.fixture(scope='session', autouse=True)
 def bigip(request):
     """Provide a bigip connection."""
     return common.bigip.connect(
-        symbols.bigip_mgmt_ip,
+        utils.DEFAULT_BIGIP_MGMT_IP,
         utils.DEFAULT_BIGIP_USERNAME,
         utils.DEFAULT_BIGIP_PASSWORD
     )
+
+
+# Only create a second bigip if it is required
+@pytest.fixture(scope='session', autouse=False)
+def bigip2(request):
+    """Provide a bigipX connection."""
+    return common.bigip.connect(
+        utils.DEFAULT_BIGIP2_MGMT_IP,
+        utils.DEFAULT_BIGIP_USERNAME,
+        utils.DEFAULT_BIGIP_PASSWORD
+    )
+
+
+def _setup_bigip(instance, partition):
+    instance.partition.create(partition, subPath="/")
+
+    # FIXME (kevin): remove these partition hacks when issue #32 is fixed
+    p = instance.partition.get(name=partition)
+    p.inheritedTrafficGroup = False
+    p.trafficGroup = "/Common/traffic-group-local-only"
+    p.update()
+
+
+def _teardown_bigip(instance, partition):
+    instance.iapps.delete(partition=partition)
+    instance.virtual_servers.delete(partition=partition)
+    instance.virtual_addresses.delete(partition=partition)
+    instance.pools.delete(partition=partition)
+    instance.nodes.delete(partition=partition)
+    instance.health_monitors.delete(partition=partition)
+    instance.partition.delete(name=partition)
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -57,29 +89,38 @@ def default_test_fx(request, orchestration, bigip):
     Delete all orchestration apps on test teardown.
     Delete test partition on test teardown.
     """
+    partition = utils.DEFAULT_F5MLB_PARTITION
+
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
         orchestration.namespace = "default"
         orchestration.apps.delete(timeout=DELETE_TIMEOUT)
         orchestration.deployments.delete(timeout=DELETE_TIMEOUT)
-        bigip.iapps.delete(partition=partition)
-        bigip.virtual_servers.delete(partition=partition)
-        bigip.virtual_addresses.delete(partition=partition)
-        bigip.pools.delete(partition=partition)
-        bigip.nodes.delete(partition=partition)
-        bigip.health_monitors.delete(partition=partition)
-        bigip.partition.delete(name=partition)
+        _teardown_bigip(bigip, partition)
 
-    partition = utils.DEFAULT_F5MLB_PARTITION
     teardown()
-    bigip.partition.create(partition, subPath="/")
-    # FIXME (kevin): remove these partition hacks when issue #32 is fixed
-    p = bigip.partition.get(name=partition)
-    p.inheritedTrafficGroup = False
-    p.trafficGroup = "/Common/traffic-group-local-only"
-    p.update()
+    _setup_bigip(bigip, partition)
+    request.addfinalizer(teardown)
 
+
+@pytest.fixture(scope='function')
+def bigip2_addto_test_fx(request, orchestration, bigip2):
+    """Bigip2 test fixture.
+
+    Create a test partition on second bigip.
+    Delete all orchestration apps on test teardown.
+    Delete test partition on test teardown.
+    """
+    partition = utils.DEFAULT_F5MLB_PARTITION
+
+    def teardown():
+        if request.config._meta.vars.get('skip_teardown', None):
+            return
+        _teardown_bigip(bigip2, partition)
+
+    teardown()
+    _setup_bigip(bigip2, partition)
     request.addfinalizer(teardown)
 
 
@@ -87,6 +128,24 @@ def default_test_fx(request, orchestration, bigip):
 def bigip_controller(request, orchestration):
     """Provide a default bigip-controller service."""
     controller = utils.create_bigip_controller(orchestration)
+
+    def teardown():
+        if request.config._meta.vars.get('skip_teardown', None):
+            return
+        orchestration.namespace = "kube-system"
+        controller.delete()
+
+    request.addfinalizer(teardown)
+    return controller
+
+
+@pytest.fixture(scope='function')
+def bigip2_controller(request, orchestration, bigip2_addto_test_fx):
+    """Provide a second bigip-controller service."""
+    controller = \
+        utils.create_bigip_controller(orchestration,
+                                      id=utils.BIGIP2_F5MLB_NAME,
+                                      config=utils.BIGIP2_F5MLB_CONFIG)
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
