@@ -1,6 +1,7 @@
-.PHONY: all systest functest scaletest \
+.PHONY: all systest functest scaletest hatest \
 	functest-setup functest-install functest-run functest-teardown \
-	scaletest-setup scaletest-install scaletest-run scaletest-teardown
+	scaletest-setup scaletest-install scaletest-run scaletest-teardown \
+	hatest-setup hatest-install hatest-run hatest-teardown
 
 all:
 	@printf "Available targets:\n"
@@ -24,6 +25,15 @@ all:
 	@printf "  scaletest-run - run the system tests on the bastion host in\n"
 	@printf "      the scale test environment.\n"
 	@printf "  scaletest-teardown - tear down the scale test environment.\n"
+	@printf "  hatest - setup the BigIP HA test environment, install and\n"
+	@printf "      run the BigIP HA tests, then tear down the scale test\n"
+	@printf "      environment.\n"
+	@printf "  hatest-setup - setup the BigIP HA test environment.\n"
+	@printf "  hatest-install - install the system tests on the bastion\n"
+	@printf "      host in the BigIP HA test environment.\n"
+	@printf "  hatest-run - run the BigIP HA tests on the bastion host in\n"
+	@printf "      the BigIP HA test environment.\n"
+	@printf "  hatest-teardown - tear down the BigIP HA test environment.\n"
 	@printf "  \n\nRequired arguments:\n"
 	@printf "  orchestration - all targets require an 'orchestration'\n"
 	@printf "      value (eg. make functest-setup orchestration=k8s).\n"
@@ -81,6 +91,9 @@ func_session := $(func_testenv_name)_$(version)
 scale_testenv_name := f5mlb_scale_$(orchestration)
 scale_session := $(scale_testenv_name)_$(version)
 
+ha_testenv_name := f5mlb_ha_$(orchestration)
+ha_session := $(ha_testenv_name)_$(version)
+
 bigip_testenv_name := $(func_testenv_name)_bigip
 
 # - set bigip_img for older versions, default is specified in bigip.params.yaml
@@ -118,7 +131,13 @@ scaletest:
 	@$(MAKE) scaletest-run || ($(MAKE) scaletest-teardown && false)
 	@$(MAKE) scaletest-teardown
 
-functest-install scaletest-install:
+hatest:
+	@$(MAKE) hatest-setup || ($(MAKE) hatest-teardown && false)
+	@$(MAKE) hatest-install || ($(MAKE) hatest-teardown && false)
+	@$(MAKE) hatest-run || ($(MAKE) hatest-teardown && false)
+	@$(MAKE) hatest-teardown
+
+functest-install scaletest-install hatest-install:
 	@echo "installing $(orchestration) system tests ..."
 	scp -F $(ssh_conf) \
 		$(systest_pkg)/scripts/install_systests.sh bastion:~/
@@ -175,3 +194,35 @@ scaletest-teardown:
 
 	@echo "tearing down $(orchestration) scale test environment ..."
 	testenv delete --name $(scale_testenv_name) --config $(testenv_config)
+
+hatest-setup:
+	@echo "setting up $(orchestration) HA test environment ..."
+	testenv create --name $(ha_testenv_name) \
+		--config $(testenv_config) \
+		--requires bigip1-ha:$(ha_testenv_name)_bigip1 \
+		--requires bigip2-ha:$(ha_testenv_name)_bigip2 \
+		--params num_masters:1 --params num_workers:1 \
+		--vars bigip_controller_img:"$(bigip_controller_img)"
+
+hatest-run:
+	@echo "running $(orchestration) HA tests ..."
+	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
+	ssh -tF $(ssh_conf) bastion \
+		"export OS_TENANT_ID=$(OS_TENANT_ID) &&" \
+		"export OS_PROJECT_NAME=$(OS_PROJECT_NAME) &&" \
+		"export OS_USERNAME=$(OS_USERNAME) &&" \
+		"export OS_PASSWORD=$(OS_PASSWORD) &&" \
+		"export OS_AUTH_URL=$(OS_AUTH_URL) &&" \
+		"~/run_systests.sh \
+		$(systest_pkg) $(ha_session) $(orchestration) ha"
+
+hatest-teardown:
+	@echo "downloading $(orchestration) HA test results ..."
+	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
+	-scp -rp -F $(ssh_conf) \
+		bastion:~/test_results/$(ha_session)/* $(results_dir)/
+
+	@echo "tearing down $(orchestration) HA test environment ..."
+	testenv delete --name $(ha_testenv_name) --config $(testenv_config)
+	testenv delete --name $(ha_testenv_name)_bigip1 --config bigip1-ha
+	testenv delete --name $(ha_testenv_name)_bigip2 --config bigip2-ha
