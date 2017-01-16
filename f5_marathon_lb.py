@@ -17,6 +17,7 @@ f5-marathon-lb just needs to know where to find Marathon.
 
 from sseclient import SSEClient
 from itertools import cycle
+from urlparse import urlparse
 from requests.exceptions import ConnectionError
 from common import (set_logging_args, set_marathon_auth_args, setup_logging,
                     get_marathon_auth_params)
@@ -650,6 +651,22 @@ def parse_args():
         if args.verify_interval < 1:
             arg_parser.error('argument --verification-interval must be > 0')
 
+        if not urlparse(args.hostname).scheme:
+            args.hostname = "https://" + args.hostname
+        url = urlparse(args.hostname)
+
+        if url.scheme and url.scheme != 'https':
+            arg_parser.error(
+                'argument --hostname requires \'https\' protocol')
+        if url.path and url.path != '/':
+            arg_parser.error(
+                'argument --hostname: path must be empty or \'/\'')
+
+        args.host = url.hostname
+        args.port = url.port
+        if not args.port:
+            args.port = 443
+
     return args
 
 
@@ -657,8 +674,8 @@ if __name__ == '__main__':
     # parse args
     args = parse_args()
 
-    bigip = CloudBigIP('marathon', args.hostname, args.username, args.password,
-                       args.partition)
+    bigip = CloudBigIP('marathon', args.host, args.port, args.username,
+                       args.password, args.partition)
 
     # Set request retries
     s = requests.Session()

@@ -91,7 +91,7 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos'])
-        self.assertEqual(args.hostname, '10.10.1.145')
+        self.assertEqual(args.hostname, 'https://10.10.1.145')
         self.assertEqual(args.username, 'admin')
         self.assertEqual(args.password, 'default')
         # default arg values
@@ -111,9 +111,62 @@ class ArgTest(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos', 'mesos2'])
-        self.assertEqual(args.hostname, '10.10.1.145')
+        self.assertEqual(args.hostname, 'https://10.10.1.145')
         self.assertEqual(args.username, 'admin')
         self.assertEqual(args.password, 'default')
+
+    def test_hostname_arg(self):
+        """Test: Hostname arg."""
+        # Invalid scheme
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', 'scheme://10.10.1.145',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, parse_args)
+
+        # No scheme
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', '10.10.1.145',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        args = parse_args()
+        self.assertEqual(args.host, '10.10.1.145')
+        self.assertEqual(args.port, 443)
+
+        # No port
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', 'https://10.10.1.145',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        args = parse_args()
+        self.assertEqual(args.host, '10.10.1.145')
+        self.assertEqual(args.port, 443)
+
+        # Given port
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', 'https://10.10.1.145:555',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        args = parse_args()
+        self.assertEqual(args.host, '10.10.1.145')
+        self.assertEqual(args.port, 555)
+
+        # Invalid path
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', 'https://10.10.1.145/path/not/allowed',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, parse_args)
 
     def test_partition_arg(self):
         """Test: Wildcard partition arg."""
@@ -631,8 +684,8 @@ class BigIPTest(unittest.TestCase):
         # Mock the call to _get_tmos_version(), which tries to make a
         # connection
         with patch.object(BigIP, '_get_tmos_version'):
-            self.bigip = CloudBigIP(cloud, '1.2.3.4', 'admin', 'default',
-                                    [partition])
+            self.bigip = CloudBigIP(cloud, '1.2.3.4', '443', 'admin',
+                                    'default', [partition])
 
         self.bigip.get_pool_member_list = \
             Mock(side_effect=self.mock_get_pool_member_list)
@@ -2064,8 +2117,8 @@ class HealthCheckParmsTest(unittest.TestCase):
     def setUp(self):
         """Test suite set up."""
         with patch.object(BigIP, '_get_tmos_version'):
-            self.bigip = CloudBigIP('mesos', '1.2.3.4', 'admin', 'default',
-                                    [self.partition])
+            self.bigip = CloudBigIP('mesos', '1.2.3.4', '443', 'admin',
+                                    'default', [self.partition])
         self.bigip.get_healthcheck = Mock(
             side_effect=self.mock_get_healthcheck)
         self.bigip.get_http_healthmonitor = Mock(

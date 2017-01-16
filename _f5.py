@@ -119,11 +119,13 @@ class CloudBigIP(BigIP):
         partitions: List of BIG-IP partitions to manage
     """
 
-    def __init__(self, cloud, hostname, username, password, partitions):
+    def __init__(self, cloud, hostname, port, username, password, partitions):
         """Initialize the CloudBigIP object."""
-        super(CloudBigIP, self).__init__(hostname, username, password)
+        super(CloudBigIP, self).__init__(hostname, username, password,
+                                         port=port)
         self._cloud = cloud
         self._hostname = hostname
+        self._port = port
         self._username = username
         self._password = password
         self._partitions = partitions
