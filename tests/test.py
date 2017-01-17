@@ -1775,13 +1775,22 @@ class KubernetesTest(BigIPTest):
         self.assertTrue(self.bigip.pool_create.called)
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.healthcheck_delete.called)
-        self.assertFalse(self.bigip.healthcheck_create.called)
+        self.assertTrue(self.bigip.healthcheck_create.called)
         self.assertFalse(self.bigip.member_delete.called)
         self.assertFalse(self.bigip.iapp_create.called)
         self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.member_create.called)
         self.assertEqual(self.bigip.member_create.call_count, 2)
+        self.assertEqual(self.bigip.healthcheck_create.call_count, 2)
+        expected_name = 'foo_10.128.10.240_5051'
+        self.assertEquals(self.bigip.healthcheck_create.
+                          call_args_list[0][0][1]['name'],
+                          expected_name)
+        expected_name = 'foo_10.128.10.240_5051_1'
+        self.assertEquals(self.bigip.healthcheck_create.
+                          call_args_list[1][0][1]['name'],
+                          expected_name)
 
     def test_svc_scaled_down(
             self,
@@ -1969,7 +1978,9 @@ class KubernetesTest(BigIPTest):
             side_effect=self.mock_get_virtual_address)
 
         # Create a mock Pool
-        pool_data_unchanged = {'balance': 'round-robin'}
+        pool_data_unchanged = {'monitor': '/velcro/foo_10.128.10.240_5051 and '
+                                          '/velcro/foo_10.128.10.240_5051_1',
+                               'balance': 'round-robin'}
         pool = self.create_mock_pool('foo_10.128.10.240_5051',
                                      **pool_data_unchanged)
 
