@@ -331,9 +331,9 @@ class CloudBigIP(BigIP):
                 })
 
             f5_service['nodes'] = {}
-            nodePort = backend['nodePort']
-            for node in backend['nodes']:
-                f5_node_name = node + ':' + str(nodePort)
+            poolMemberPort = backend['poolMemberPort']
+            for node in backend['poolMemberAddrs']:
+                f5_node_name = node + ':' + str(poolMemberPort)
                 f5_service['nodes'].update({f5_node_name: {
                     'state': 'user-up',
                     'session': 'user-enabled'
