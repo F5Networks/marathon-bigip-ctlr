@@ -28,6 +28,7 @@ if symbols.orchestration == "marathon":
 elif symbols.orchestration == "k8s":
     DEFAULT_F5MLB_WAIT = 20
 DEFAULT_F5MLB_VERIFY_INTERVAL = 2
+DEFAULT_F5MLB_NAMESPACE = "default"
 
 DEFAULT_SVC_CPUS = 0.1
 DEFAULT_SVC_HEALTH_CHECKS_HTTP = [
@@ -75,7 +76,8 @@ elif symbols.orchestration == "k8s":
             "--bigip-url", symbols.bigip_mgmt_ip,
             "--bigip-username", DEFAULT_BIGIP_USERNAME,
             "--bigip-password", DEFAULT_BIGIP_PASSWORD,
-            "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL)
+            "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL),
+            "--namespace", DEFAULT_F5MLB_NAMESPACE
         ]
     }
 
