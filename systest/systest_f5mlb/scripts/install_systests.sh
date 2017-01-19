@@ -26,6 +26,7 @@ fi
 sudo pip install python-novaclient
 
 # - create the systest virtualenv
+rm -rf systest
 virtualenv systest
 source systest/bin/activate
 
