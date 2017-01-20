@@ -110,7 +110,14 @@ elif symbols.orchestration == "k8s":
                 'virtualServer': {
                     'backend': {
                         'serviceName': "x",
-                        'servicePort': DEFAULT_SVC_PORT
+                        'servicePort': DEFAULT_SVC_PORT,
+                        'healthMonitors': [{
+                            'send': "GET / HTTP/1.0\\r\\n\\r\\n",
+                            'interval': 25,
+                            'timeout': 20,
+                            'protocol': "http"
+                            }
+                        ]
                     },
                     'frontend': {
                         'partition': DEFAULT_F5MLB_PARTITION,
@@ -123,7 +130,7 @@ elif symbols.orchestration == "k8s":
                     }
                 }
             },
-            'schema': 'f5schemadb://bigip-virtual-server_v0.1.1.json'
+            'schema': 'f5schemadb://bigip-virtual-server_v0.1.2.json'
         }
     }
     BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
@@ -317,15 +324,13 @@ def get_backend_objects_exp(svc):
     ret = {
         'virtual_servers': [obj_name],
         'virtual_addresses': [virtual_addr],
+        'health_monitors': [obj_name],
         'pools': [obj_name],
         'pool_members': [
             "%s:%d" % (instances[0].host, instances[0].ports[0])
         ],
         'nodes': [instances[0].host],
     }
-    # FIXME (kevin): remove when f5-k8s-controller supports health monitors
-    if symbols.orchestration == "marathon":
-        ret['health_monitors'] = [obj_name]
     return ret
 
 

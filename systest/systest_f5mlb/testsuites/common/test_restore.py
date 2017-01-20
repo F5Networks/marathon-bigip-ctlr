@@ -27,10 +27,9 @@ def test_restore_after_backend_create(orchestration, bigip, bigip_controller):
     bigip.pool.create(name="tst-pool", partition=default_partition)
     bigip.pool_member.create(
         name="192.168.200.1:80", pool="tst-pool", partition=default_partition)
-    # FIXME (kevin): remove when f5-k8s-controller supports health monitors
-    if symbols.orchestration == "marathon":
-        bigip.health_monitor.tcp.create(
-            name="tst-health-monitor", partition=default_partition)
+
+    bigip.health_monitor.tcp.create(
+        name="tst-health-monitor", partition=default_partition)
 
     # - verify unmanaged backend objects are deleted
     utils.wait_for_bigip_controller()
@@ -174,7 +173,7 @@ def test_restore_after_node_update(orchestration, bigip, bigip_controller):
     assert node.description == "test-description"
 
 
-@meta_test(id="f5mlb-8", tags=["no_k8s"])
+@meta_test(id="f5mlb-8", tags=[])
 def test_restore_after_health_monitor_update(
         orchestration, bigip, bigip_controller):
     """Managed health monitor is modified.
@@ -324,7 +323,7 @@ def test_restore_after_node_delete(orchestration, bigip, bigip_controller):
     assert bigip.nodes.list(partition=default_partition) == [obj_name]
 
 
-@meta_test(id="f5mlb-14", tags=["no_k8s"])
+@meta_test(id="f5mlb-14", tags=[])
 def test_restore_after_health_monitor_delete(
         orchestration, bigip, bigip_controller):
     """Managed health monitor is deleted.
