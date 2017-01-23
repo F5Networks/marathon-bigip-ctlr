@@ -1,25 +1,18 @@
 all:
 	@printf "\n\nAvailable targets:\n"
 	@printf "  devel-image - build development ready docker container\n"
-	@printf "  doc-preview - Use devel image to build local preview of docs\n"
+	@printf "  doc-preview - Use docs image to build local preview of docs\n"
+	@printf "  test-docs - Use docs image to build and test docs\n"
 
-doc-preview: doc-preview-standalone doc-preview-combined
-
-# Build docs standalone from this repo
-doc-preview-standalone:
+doc-preview:
 	rm -rf docs/_build
-	./scripts/run-in-docker.sh make -C docs html
+	./scripts/docker-docs.sh make -C docs html
 	@echo "To view docs:"
 	@echo "open docs/_build/html/README.html"
 
-# Build docs from the top-level repo (github.com/f5-ci-docs)
-doc-preview-combined:
-	[ -d f5-ci-docs ] || git clone -b gitlab-ci git@github.com:F5Networks/f5-ci-docs.git
-	./scripts/merge-docs.sh f5-ci-docs
-	rm -rf f5-ci-docs/docs/_build
-	./scripts/run-in-docker.sh make -C f5-ci-docs/docs html
-	@echo "To view docs:"
-	@echo "open f5-ci-docs/docs/_build/html/index.html"
+test-docs:
+	rm -rf docs/_build
+	./scripts/docker-docs.sh ./scripts/test-docs.sh
 
 devel-image:
 	rm -rf _build_docker
