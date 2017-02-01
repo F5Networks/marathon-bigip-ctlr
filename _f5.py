@@ -194,7 +194,14 @@ class CloudBigIP(BigIP):
             if self._cloud == 'marathon':
                 cfg = self._create_config_marathon(cloud_state)
             else:
-                cfg = self._create_config_kubernetes(cloud_state)
+                if 'services' in cloud_state and hasattr(
+                        cloud_state['services'], 'items'):
+                    # New format: full config
+                    services = cloud_state['services']
+                else:
+                    # Old format: list of services
+                    services = cloud_state
+                cfg = self._create_config_kubernetes(services)
             self._apply_config(cfg)
 
         # Handle F5/BIG-IP exceptions here
