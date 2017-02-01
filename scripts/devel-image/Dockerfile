@@ -11,9 +11,11 @@ RUN set -x && \
   apt-get install -y \
     git \
     python-dev \
-    python-pip && \
+    python-pip \
+    libffi-dev \
+    libssl-dev && \
   pip install -r requirements.txt && \
-  pip install flake8 flake8_docstrings mock && \
+  pip install flake8 flake8_docstrings mock coverage && \
   pip install -r requirements.docs.txt
 
 CMD [ "/bin/bash" ]
