@@ -194,8 +194,7 @@ class CloudBigIP(BigIP):
             if self._cloud == 'marathon':
                 cfg = self._create_config_marathon(cloud_state)
             else:
-                if 'services' in cloud_state and hasattr(
-                        cloud_state['services'], 'items'):
+                if hasattr(cloud_state, 'items') and 'services' in cloud_state:
                     # New format: full config
                     services = cloud_state['services']
                 else:
