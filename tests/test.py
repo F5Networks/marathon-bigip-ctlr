@@ -15,7 +15,7 @@ import os
 from mock import Mock
 from mock import patch
 from f5_marathon_lb import get_apps, parse_args
-from common import DCOSAuth
+from common import DCOSAuth, ipv4_to_mac
 from f5.bigip import BigIP
 from _f5 import CloudBigIP
 from StringIO import StringIO
@@ -545,6 +545,22 @@ class HealthCheck():
         pass
 
 
+class VxLANTunnel():
+    """A mock BIG-IP VxLAN tunnel."""
+
+    def __init__(self, partition, name, initial_records):
+        """Initialize the object."""
+        self.partition = partition
+        self.name = name
+        self.records = initial_records
+
+    def update(self, **kwargs):
+        """Update list of vxlan records."""
+        self.records = []
+        if 'records' in kwargs:
+            self.records = kwargs['records']
+
+
 class BigIPTest(unittest.TestCase):
     """BIG-IP configuration tests.
 
@@ -643,21 +659,46 @@ class BigIPTest(unittest.TestCase):
         """Return a list of Virtual Server profiles."""
         return self.profiles
 
-    def read_test_vectors(self, cloud_state, bigip_state, hm_state):
-        """Read test vectors for cloud, BIG-IP, and Health Monitor state."""
+    def mock_net_fdb_tunnels_tunnel_load(self, partition, name):
+        """Mock: Get a mocked vxla tunnel to store the vxlan record config."""
+        if not hasattr(self, 'vxlan_tunnel'):
+            # create a BigIP resource to store the 'current' tunnel
+            # FDB as well as updates.
+            self.vxlan_tunnel = VxLANTunnel(partition, name, self.network_data)
+        return self.vxlan_tunnel
+
+    def read_test_vectors(self, cloud_state, bigip_state=None,
+                          hm_state=None, network_state=None):
+        """Read test vectors for the various states."""
         # Read the Marathon state
-        with open(cloud_state) as json_data:
-            self.cloud_data = json.load(json_data)
+        if cloud_state:
+            with open(cloud_state) as json_data:
+                self.cloud_data = json.load(json_data)
 
         # Read the BIG-IP state
-        with open(bigip_state) as json_data:
-            self.bigip_data = json.load(json_data)
+        if bigip_state:
+            with open(bigip_state) as json_data:
+                self.bigip_data = json.load(json_data)
+            self.bigip.get_pool_list = Mock(
+                    return_value=self.bigip_data.keys())
+            self.bigip.get_virtual_list = Mock(
+                    return_value=self.bigip_data.keys())
+        else:
+            self.bigip_data = {}
+            self.bigip.get_pool_list = Mock(
+                    return_value=[])
+            self.bigip.get_virtual_list = Mock(
+                    return_value=[])
 
-        with open(hm_state) as json_data:
-            self.hm_data = json.load(json_data)
+        if hm_state:
+            with open(hm_state) as json_data:
+                self.hm_data = json.load(json_data)
+        else:
+            self.hm_data = {}
 
-        self.bigip.get_pool_list = Mock(return_value=self.bigip_data.keys())
-        self.bigip.get_virtual_list = Mock(return_value=self.bigip_data.keys())
+        if network_state:
+            with open(network_state) as json_data:
+                self.network_data = json.load(json_data)
 
     def raiseTypeError(self, cfg):
         """Raise a TypeError exception."""
@@ -699,6 +740,8 @@ class BigIPTest(unittest.TestCase):
         self.bigip.virtual_update_orig = self.bigip.virtual_update
         self.bigip.member_update_orig = self.bigip.member_update
         self.bigip.healthcheck_update_orig = self.bigip.healthcheck_update
+        self.bigip.fdb_records_update_orig = self.bigip.fdb_records_update
+        self.bigip.get_fdb_records_orig = self.bigip.get_fdb_records
 
         self.bigip.get_node = Mock()
         self.bigip.pool_create = Mock()
@@ -725,6 +768,14 @@ class BigIPTest(unittest.TestCase):
         self.bigip.iapp_update = Mock()
 
         self.bigip.node_delete = Mock()
+
+        # mock out the bigip.net.fdb.tunnels.tunnel resource
+        self.bigip.net = type('', (), {})()
+        self.bigip.net.fdb = type('', (), {})()
+        self.bigip.net.fdb.tunnels = type('', (), {})()
+        self.bigip.net.fdb.tunnels.tunnel = type('', (), {})()
+        self.bigip.net.fdb.tunnels.tunnel.load = \
+            Mock(side_effect=self.mock_net_fdb_tunnels_tunnel_load)
 
         self.bigip.get_partitions = \
             Mock(side_effect=self.mock_get_partition_list)
@@ -1761,7 +1812,7 @@ class KubernetesTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
 
         # Verify BIG-IP configuration
         self.assertFalse(self.bigip.pool_update.called)
@@ -1802,7 +1853,7 @@ class KubernetesTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
 
         # Verify BIG-IP configuration
         self.assertTrue(self.bigip.pool_update.called)
@@ -1834,7 +1885,7 @@ class KubernetesTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
 
         # Verify BIG-IP configuration
         self.assertTrue(self.bigip.pool_update.called)
@@ -1864,7 +1915,7 @@ class KubernetesTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
 
         # Verify BIG-IP configuration
         self.assertFalse(self.bigip.pool_update.called)
@@ -1923,7 +1974,7 @@ class KubernetesTest(BigIPTest):
             Mock(side_effect=self.mock_get_iapp_list)
 
         # Do the BIG-IP configuration
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
 
         # Verify BIG-IP configuration
         self.assertFalse(self.bigip.pool_update.called)
@@ -2007,7 +2058,7 @@ class KubernetesTest(BigIPTest):
                                               **member_data_unchanged)
 
         # Pool, Virtual, and Member are not modified
-        self.bigip.regenerate_config_f5(self.cloud_data['services'])
+        self.bigip.regenerate_config_f5(self.cloud_data)
         self.assertFalse(pool.modify.called)
         self.assertFalse(virtual.modify.called)
         self.assertFalse(virtual.profiles_s.profiles.create.called)
@@ -2022,7 +2073,7 @@ class KubernetesTest(BigIPTest):
             # Change one thing
             data[key] = pool_data_changed[key]
             pool = self.create_mock_pool('foo_10.128.10.240_5051', **data)
-            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.bigip.regenerate_config_f5(self.cloud_data)
             self.assertTrue(pool.modify.called)
 
         # Virtual is modified
@@ -2042,7 +2093,7 @@ class KubernetesTest(BigIPTest):
             data[key] = virtual_data_changed[key]
             virtual = self.create_mock_virtual('foo_10.128.10.240_5051',
                                                **data)
-            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.bigip.regenerate_config_f5(self.cloud_data)
             self.assertTrue(virtual.modify.called)
 
         # Member is modified
@@ -2056,7 +2107,7 @@ class KubernetesTest(BigIPTest):
             data[key] = member_data_changed[key]
             member = self.create_mock_pool_member('172.16.0.5:30008',
                                                   **data)
-            self.bigip.regenerate_config_f5(self.cloud_data['services'])
+            self.bigip.regenerate_config_f5(self.cloud_data)
             self.assertTrue(member.modify.called)
 
         self.assertFalse(self.bigip.iapp_create.called)
@@ -2067,6 +2118,178 @@ class KubernetesTest(BigIPTest):
         self.assertFalse(self.bigip.pool_delete.called)
         self.assertFalse(self.bigip.member_create.called)
         self.assertFalse(self.bigip.member_delete.called)
+
+    def test_network_0_existing_vxlan_nodes_0_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_0_records.json',
+            cloud_state='tests/kubernetes_openshift_0_nodes.json'):
+        """Test: openshift environment with 0 nodes."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we only query bigip once for the initial state and
+        # don't try to write an update if nothing has changed.
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 1)
+
+        # Compare final content with self.network_state - should be the same
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_1_existing_vxlan_nodes_1_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_1_record.json',
+            cloud_state='tests/kubernetes_openshift_1_node.json'):
+        """Test: openshift environment with 1 nodes."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we only query bigip once for the initial state and
+        # don't try to write an update if nothing has changed.
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 1)
+
+        # Compare final content with self.network_state - should be the same
+        print "EXPECTED: {}".format(self.compute_fdb_records())
+        print "ACTUAL {}".format(self.vxlan_tunnel.records)
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_1_existing_vxlan_nodes_0_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_1_record.json',
+            cloud_state='tests/kubernetes_openshift_0_nodes.json'):
+        """Test: openshift environment with 1 existing node, 0 requested."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we first query bigip once for the initial state and
+        # then perform an update due to differences
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 2)
+
+        # Compare final content with self.network_state - should be the same
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_0_existing_vxlan_nodes_1_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_0_records.json',
+            cloud_state='tests/kubernetes_openshift_1_node.json'):
+        """Test: openshift environment with 0 existing nodes, 1 requested."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we first query bigip once for the initial state and
+        # then perform an update due to differences
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 2)
+
+        # Compare final content with self.network_state - should be the same
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_1_existing_vxlan_nodes_3_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_1_record.json',
+            cloud_state='tests/kubernetes_openshift_3_nodes.json'):
+        """Test: Kubernetes openshift environment with 0 nodes."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we first query bigip once for the initial state and
+        # then perform an update due to differences
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 2)
+
+        # Compare final content with self.network_state - should be the same
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_3_existing_vxlan_nodes_1_requested_vxlan_nodes(
+            self,
+            network_state='tests/bigip_test_vxlan_3_records.json',
+            cloud_state='tests/kubernetes_openshift_1_node.json'):
+        """Test: Kubernetes openshift environment with 0 nodes."""
+        # Get the test data
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify we first query bigip once for the initial state and
+        # then perform an update due to differences
+        self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 2)
+
+        # Compare final content with self.network_state - should be the same
+        self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
+
+    def test_network_bad_vxlan_ip(
+            self,
+            network_state='tests/bigip_test_vxlan_3_records.json',
+            cloud_state='tests/kubernetes_openshift_1_node.json'):
+        """Test: BigIP not updated if IP address in badly formatted."""
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Verify original configuration is untouched if we have errors
+        # in the cloud config file
+        self.cloud_data['openshift-sdn']['vxlan-node-ips'][0] = '55'
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertEqual(self.network_data, self.vxlan_tunnel.records)
+
+        self.cloud_data['openshift-sdn']['vxlan-node-ips'][0] = 55
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertEqual(self.network_data, self.vxlan_tunnel.records)
+
+        self.cloud_data['openshift-sdn']['vxlan-node-ips'][0] = 'myaddr'
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertEqual(self.network_data, self.vxlan_tunnel.records)
+
+    def test_network_bad_partition_name(
+            self,
+            network_state='tests/bigip_test_vxlan_3_records.json',
+            cloud_state='tests/kubernetes_openshift_1_node.json'):
+        """Test: BigIP not updated if the partition name format is bad."""
+        self.read_test_vectors(cloud_state=cloud_state,
+                               network_state=network_state)
+
+        # Verify original configuration is untouched if we have errors
+        # in the cloud config file
+        self.cloud_data['openshift-sdn']['vxlan-name'] = \
+            '/bad/partition/name/idf/'
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertFalse(hasattr(self, 'vxlan_tunnel'))
+
+        self.cloud_data['openshift-sdn']['vxlan-name'] = \
+            'bad/partition/name'
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertFalse(hasattr(self, 'vxlan_tunnel'))
+
+        self.cloud_data['openshift-sdn']['vxlan-name'] = ''
+        self.bigip.regenerate_config_f5(self.cloud_data)
+        self.assertFalse(hasattr(self, 'vxlan_tunnel'))
+
+    def compute_fdb_records(self):
+        """Create a FDB record for each openshift node."""
+        records = []
+        if self.cloud_data and 'openshift-sdn' in self.cloud_data and \
+                'vxlan-node-ips' in self.cloud_data['openshift-sdn']:
+            for node_ip in self.cloud_data['openshift-sdn']['vxlan-node-ips']:
+                record = {'endpoint': node_ip, 'name': ipv4_to_mac(node_ip)}
+                records.append(record)
+        return records
 
 
 class HealthCheckParmsTest(unittest.TestCase):

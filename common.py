@@ -160,8 +160,13 @@ def unique(l):
 
 
 def list_diff(list1, list2):
-    """Return the difference between two lists."""
+    """Return items found only in list1."""
     return list(set(list1) - set(list2))
+
+
+def list_diff_exclusive(list1, list2):
+    """Return items found only in list1 or list2."""
+    return list(set(list1) ^ set(list2))
 
 
 def list_intersect(list1, list2):
@@ -184,3 +189,48 @@ def resolve_ip(host):
             return ip
         except socket.gaierror:
             return None
+
+
+class PartitionNameError(Exception):
+    """Exception type for F5 resource name."""
+
+    def __init__(self, msg):
+        """Create partition name exception object."""
+        Exception.__init__(self, msg)
+
+
+def extract_partition_and_name(f5_partition_name):
+    """Separate partition and name components for a Big-IP resource."""
+    parts = f5_partition_name.split('/')
+    count = len(parts)
+    if f5_partition_name[0] == '/' and count == 3:
+        # leading slash
+        partition = parts[1]
+        name = parts[2]
+    elif f5_partition_name[0] != '/' and count == 2:
+        # leading slash missing
+        partition = parts[0]
+        name = parts[1]
+    else:
+        raise PartitionNameError('Bad F5 resource name encountered: '
+                                 '{}'.format(f5_partition_name))
+    return partition, name
+
+
+class IPV4FormatError(Exception):
+    """Exception type for improperly formatted IPv4 address."""
+
+    def __init__(self, msg):
+        """Create ipv4 format exception object."""
+        Exception.__init__(self, msg)
+
+
+def ipv4_to_mac(ip_str):
+    """Convert an IPV4 string to a fake MAC address."""
+    ip = ip_str.split('.')
+    if len(ip) != 4:
+        raise IPV4FormatError('Bad IPv4 address format specified for '
+                              'FDB record: {}'.format(ip_str))
+
+    return "0a:0a:%02x:%02x:%02x:%02x" % (
+           int(ip[0]), int(ip[1]), int(ip[2]), int(ip[3]))

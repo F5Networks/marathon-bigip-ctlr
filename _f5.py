@@ -21,15 +21,16 @@ import json
 import requests
 import f5
 from operator import attrgetter
-from common import resolve_ip, list_diff, list_intersect
+from common import resolve_ip, list_diff, list_diff_exclusive, list_intersect,\
+                   ipv4_to_mac, extract_partition_and_name,\
+                   PartitionNameError, IPV4FormatError
+
 from f5.bigip import BigIP
 import icontrol.session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 logger = logging.getLogger('marathon_lb')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-# common
 
 
 def log_sequence(prefix, sequence_to_log):
@@ -194,13 +195,7 @@ class CloudBigIP(BigIP):
             if self._cloud == 'marathon':
                 cfg = self._create_config_marathon(cloud_state)
             else:
-                if hasattr(cloud_state, 'items') and 'services' in cloud_state:
-                    # New format: full config
-                    services = cloud_state['services']
-                else:
-                    # Old format: list of services
-                    services = cloud_state
-                cfg = self._create_config_kubernetes(services)
+                cfg = self._create_config_kubernetes(cloud_state)
             self._apply_config(cfg)
 
         # Handle F5/BIG-IP exceptions here
@@ -225,18 +220,45 @@ class CloudBigIP(BigIP):
 
         return False
 
-    def _create_config_kubernetes(self, svcs):
-        """Create a BIG-IP configuration from the Kubernetes svc list.
+    def _create_config_kubernetes(self, config):
+        """Create a BIG-IP configuration from the Kubernetes configuration.
 
         Args:
-            svcs: Kubernetes svc list
+            config: Kubernetes BigIP config
         """
         logger.info("Generating config for BIG-IP from Kubernetes state")
-        f5 = {}
+        f5 = {'ltm': {}, 'network': {}}
+        if 'openshift-sdn' in config:
+            f5['network'] = self._create_network_config_kubernetes(config)
+        if 'services' in config:
+            f5['ltm'] = self._create_ltm_config_kubernetes(config)
+
+        return f5
+
+    def _create_network_config_kubernetes(self, config):
+        """Create a BIG-IP Network configuration from the Kubernetes config.
+
+        Args:
+            config: Kubernetes BigIP config which contains openshift-sdn defs
+        """
+        f5_network = {}
+        if 'openshift-sdn' in config:
+            openshift_sdn = config['openshift-sdn']
+            f5_network['fdb'] = openshift_sdn
+        return f5_network
+
+    def _create_ltm_config_kubernetes(self, config):
+        """Create a BIG-IP LTM configuration from the Kubernetes configuration.
+
+        Args:
+            config: Kubernetes BigIP config which contains a svc list
+        """
+        f5_services = {}
 
         # partitions this script is responsible for:
         partitions = frozenset(self._partitions)
 
+        svcs = config['services']
         for svc in svcs:
             f5_service = {}
 
@@ -345,9 +367,9 @@ class CloudBigIP(BigIP):
                     'session': 'user-enabled'
                 }})
 
-            f5.update({frontend_name: f5_service})
+            f5_services.update({frontend_name: f5_service})
 
-        return f5
+        return f5_services
 
     def _create_config_marathon(self, apps):
         """Create a BIG-IP configuration from the Marathon app list.
@@ -360,7 +382,7 @@ class CloudBigIP(BigIP):
             logger.debug(app.__hash__())
 
         logger.info("Generating config for BIG-IP")
-        f5 = {}
+        f5 = {'ltm': {}}
         # partitions this script is responsible for:
         partitions = frozenset(self._partitions)
 
@@ -480,7 +502,7 @@ class CloudBigIP(BigIP):
                     logger.warning("Could not resolve ip for host %s, "
                                    "ignoring this backend", backendServer.host)
 
-            f5.update({frontend_name: f5_service})
+            f5['ltm'].update({frontend_name: f5_service})
 
         logger.debug("F5 json config: %s", json.dumps(f5))
 
@@ -491,6 +513,18 @@ class CloudBigIP(BigIP):
 
         Args:
             config: BIG-IP config dict
+        """
+        if 'ltm' in config:
+            self._apply_ltm_config(config['ltm'])
+
+        if 'network' in config:
+            self._apply_network_config(config['network'])
+
+    def _apply_ltm_config(self, config):
+        """Apply the local traffic configuration to the BIG-IP.
+
+        Args:
+            config: BIG-IP LTM config dict
         """
         unique_partitions = self.get_partitions(self._partitions)
 
@@ -674,6 +708,42 @@ class CloudBigIP(BigIP):
             # Delete any unreferenced nodes
             self.cleanup_nodes(partition)
 
+    def _apply_network_config(self, config):
+        """Apply the network configuration to the BIG-IP.
+
+        Args:
+            config: BIG-IP network config dict
+        """
+        if 'fdb' in config:
+            self._apply_network_fdb_config(config['fdb'])
+
+    def _apply_network_fdb_config(self, fdb_config):
+        """Apply the network fdb configuration to the BIG-IP.
+
+        Args:
+            config: BIG-IP network fdb config dict
+        """
+        req_vxlan_name = fdb_config['vxlan-name']
+        req_fdb_record_endpoint_list = fdb_config['vxlan-node-ips']
+        try:
+            f5_fdb_record_endpoint_list = self.get_fdb_records(req_vxlan_name)
+
+            log_sequence('req_fdb_record_list', req_fdb_record_endpoint_list)
+            log_sequence('f5_fdb_record_list', f5_fdb_record_endpoint_list)
+
+            # See if the list of records is different.
+            # If so, update with new list.
+            if list_diff_exclusive(f5_fdb_record_endpoint_list,
+                                   req_fdb_record_endpoint_list):
+                self.fdb_records_update(req_vxlan_name,
+                                        req_fdb_record_endpoint_list)
+        except (PartitionNameError, IPV4FormatError) as e:
+            logger.error(e)
+            return
+        except Exception as e:
+            logger.error('Failed to configure the FDB for VxLAN tunnel '
+                         '{}: {}'.format(req_vxlan_name, e))
+
     def cleanup_nodes(self, partition):
         """Delete any unused nodes in a partition from the BIG-IP.
 
@@ -727,7 +797,7 @@ class CloudBigIP(BigIP):
         """
         # return pool object
 
-        # TODO: This is the efficient way to lookup a pool object:
+        # FIXME: This is the efficient way to lookup a pool object:
         #
         #       p = self.ltm.pools.pool.load(
         #           name=name,
@@ -1351,3 +1421,45 @@ class CloudBigIP(BigIP):
                 iapp_list.append(iapp.name)
 
         return iapp_list
+
+    def get_vxlan_tunnel(self, vxlan_name):
+        """Get a vxlan tunnel object.
+
+        Args:
+            vxlan_name: Name of the vxlan tunnel
+        """
+        partition, name = extract_partition_and_name(vxlan_name)
+        vxlan_tunnel = self.net.fdb.tunnels.tunnel.load(partition=partition,
+                                                        name=name)
+        return vxlan_tunnel
+
+    def get_fdb_records(self, vxlan_name):
+        """Get a list of FDB records (just the endpoint list) for the vxlan.
+
+        Args:
+            vxlan_name: Name of the vxlan tunnel
+        """
+        endpoint_list = []
+        vxlan_tunnel = self.get_vxlan_tunnel(vxlan_name)
+        if hasattr(vxlan_tunnel, 'records'):
+            for record in vxlan_tunnel.records:
+                endpoint_list.append(record['endpoint'])
+
+        return endpoint_list
+
+    def fdb_records_update(self, vxlan_name, endpoint_list):
+        """Update the fdb records for a vxlan tunnel.
+
+        Args:
+            vxlan_name: Name of the vxlan tunnel
+            fdb_record_list: IP address associated with the fdb record
+        """
+        vxlan_tunnel = self.get_vxlan_tunnel(vxlan_name)
+        data = {'records': []}
+        records = data['records']
+        for endpoint in endpoint_list:
+            record = {'name': ipv4_to_mac(endpoint), 'endpoint': endpoint}
+            records.append(record)
+        logger.debug("Updating records for vxlan tunnel {}: {}".format(
+            vxlan_name, data['records']))
+        vxlan_tunnel.update(**data)
