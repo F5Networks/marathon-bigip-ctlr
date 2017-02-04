@@ -66,9 +66,11 @@ endif
 ifeq ($(orchestration), marathon)
   repo_name := f5-marathon-lb
   testenv_config := mesos.testenv.yaml
+  project_dir := velcro.marathon-bigip-ctlr
 else ifeq ($(orchestration), k8s)
   repo_name := f5-k8s-controller
   testenv_config := k8s.testenv.yaml
+  project_dir := velcro.k8s-bigip-ctlr
 endif
 
 repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/$(repo_name).git
@@ -83,7 +85,7 @@ version := $(shell git describe --long)
 export version
 timestamp := $(shell date +"%Y%m%d-%H%M%S")
 export timestamp
-results_dir := test_results/f5mlb/f5mlb-$(version)-$(orchestration)-$(timestamp)
+results_dir := test_results/$(project_dir)/f5mlb-$(version)-$(orchestration)-$(timestamp)
 
 func_testenv_name := f5mlb_func_$(orchestration)
 func_session := $(func_testenv_name)_$(version)
