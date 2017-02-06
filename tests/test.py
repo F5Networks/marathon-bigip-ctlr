@@ -466,6 +466,10 @@ class Pool():
         """Placeholder: This will be mocked."""
         pass
 
+    def update(self, **kwargs):
+        """Placeholder: This will be mocked."""
+        pass
+
 
 class Member():
     """A mock BIG-IP Pool Member."""
@@ -744,6 +748,7 @@ class BigIPTest(unittest.TestCase):
         self.bigip.healthcheck_update_orig = self.bigip.healthcheck_update
         self.bigip.fdb_records_update_orig = self.bigip.fdb_records_update
         self.bigip.get_fdb_records_orig = self.bigip.get_fdb_records
+        self.bigip.healthcheck_exists_orig = self.bigip.healthcheck_exists
 
         self.bigip.get_node = Mock()
         self.bigip.pool_create = Mock()
@@ -753,6 +758,9 @@ class BigIPTest(unittest.TestCase):
         self.bigip.healthcheck_create = Mock()
         self.bigip.healthcheck_delete = Mock()
         self.bigip.healthcheck_update = Mock()
+        self.bigip.healthcheck_exists = Mock()
+        self.bigip.healthcheck_exists.return_value = {'http': True,
+                                                      'tcp': True}
 
         self.bigip.virtual_create = Mock()
         self.bigip.virtual_delete = Mock()
@@ -2401,6 +2409,10 @@ class HealthCheckParmsTest(unittest.TestCase):
             side_effect=self.mock_get_healthmonitor)
         self.bigip.get_tcp_healthmonitor = Mock(
             side_effect=self.mock_get_healthmonitor)
+
+        self.bigip.healthcheck_exists = Mock()
+        self.bigip.healthcheck_exists.return_value = {'http': True,
+                                                      'tcp': True}
         self.httpHealthData = {
             'description': 'this one is http',
             'portIndex': 0,
@@ -2448,7 +2460,7 @@ class HealthCheckParmsTest(unittest.TestCase):
             self.assertTrue(k in self.http_keys)
 
     def validate_tcp_data(self, **data):
-        """Make sure only valid http data is present in the dict."""
+        """Make sure only valid tcp data is present in the dict."""
         for k in data:
             self.assertTrue(k in self.tcp_keys)
 
@@ -2491,6 +2503,66 @@ class HealthCheckParmsTest(unittest.TestCase):
         self.tcpHealthData['description'] = 'this should trigger a modify'
         self.bigip.healthcheck_update(self.partition, hc, self.tcpHealthData)
         self.assertTrue(hc.modify.called)
+
+    def test_healthcheck_update_change_protocol_http(self):
+        """Test updating the protocol for a health monitor from http to tcp."""
+        hc = HealthCheck('http-server')
+        hc.create = Mock(side_effect=self.mock_healthcheck_create_http)
+        hc.modify = Mock()
+        fake_pool = Pool('fake_pool', monitor='test_monitor')
+        self.health_monitor = hc
+        # Mock that the monitor already exists in the http protocol
+        self.bigip.healthcheck_exists.return_value = {'http': True,
+                                                      'tcp': False}
+        self.bigip.healthcheck_create = Mock(
+            wraps=self.bigip.healthcheck_create)
+        self.bigip.monitor_protocol_change = Mock(
+            wraps=self.bigip.monitor_protocol_change)
+        self.bigip.healthcheck_delete = Mock()
+        self.bigip.get_pool = Mock(return_value=fake_pool)
+        # Create the health monitor
+        self.bigip.healthcheck_create(self.partition, self.httpHealthData)
+        self.assertTrue(hc.create.called)
+        hc.create.side_effect = self.mock_healthcheck_create_tcp
+        # Update the health monitor with our new protocol
+        self.bigip.healthcheck_update(self.partition, hc, self.tcpHealthData)
+        self.assertTrue(self.bigip.healthcheck_delete.called)
+        self.assertEqual(self.bigip.healthcheck_create.call_count, 2)
+        self.assertEqual(hc.create.call_count, 2)
+        self.assertFalse(hc.modify.called)
+        # Verify monitor_protocol_change is called with the old protocol
+        self.assertEqual(self.bigip.monitor_protocol_change.call_args[0][3],
+                         'http')
+
+    def test_healthcheck_update_change_protocol_tcp(self):
+        """Test updating the protocol for a health monitor from tcp to http."""
+        hc = HealthCheck('tcp-server')
+        hc.create = Mock(side_effect=self.mock_healthcheck_create_tcp)
+        hc.modify = Mock()
+        fake_pool = Pool('fake_pool', monitor='test_monitor')
+        self.health_monitor = hc
+        # Mock that the monitor already exists in the tcp protocol
+        self.bigip.healthcheck_exists.return_value = {'http': False,
+                                                      'tcp': True}
+        self.bigip.healthcheck_create = Mock(
+            wraps=self.bigip.healthcheck_create)
+        self.bigip.monitor_protocol_change = Mock(
+            wraps=self.bigip.monitor_protocol_change)
+        self.bigip.healthcheck_delete = Mock()
+        self.bigip.get_pool = Mock(return_value=fake_pool)
+        # Create the health monitor
+        self.bigip.healthcheck_create(self.partition, self.tcpHealthData)
+        self.assertTrue(hc.create.called)
+        hc.create.side_effect = self.mock_healthcheck_create_http
+        # Update the health monitor with our new protocol
+        self.bigip.healthcheck_update(self.partition, hc, self.httpHealthData)
+        self.assertTrue(self.bigip.healthcheck_delete.called)
+        self.assertEqual(self.bigip.healthcheck_create.call_count, 2)
+        self.assertEqual(hc.create.call_count, 2)
+        self.assertFalse(hc.modify.called)
+        # Verify monitor_protocol_change is called with the old protocol
+        self.assertEqual(self.bigip.monitor_protocol_change.call_args[0][3],
+                         'tcp')
 
 
 if __name__ == '__main__':

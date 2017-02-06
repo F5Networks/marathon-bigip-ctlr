@@ -1249,28 +1249,56 @@ class CloudBigIP(BigIP):
                 send_data[k] = data[k]
         return send_data
 
-    def healthcheck_update(self, partition, hc, data):
+    def healthcheck_update(self, partition, name, data):
         """Update a Health Monitor.
 
         Args:
             partition: Partition name
-            hc: Name of the Health Monitor
+            name: Name of the Health Monitor
             data: Health Monitor dict
         """
-        logger.debug("Updating healthcheck %s", hc)
-        # get healthcheck object
-        hc = self.get_healthcheck(partition, hc, data['protocol'])
-        send_data = self.get_healthcheck_fields(data)
+        he = self.healthcheck_exists(partition, name)
+        httpcheck = he['http']
+        tcpcheck = he['tcp']
 
-        no_change = all(send_data[key] == val
-                        for key, val in hc.__dict__.iteritems()
-                        if key in send_data)
+        if ((httpcheck and data['protocol'] == 'http') or
+                (tcpcheck and data['protocol'] == 'tcp')):
+            logger.debug("Updating healthcheck %s", name)
+            # get healthcheck object
+            hc = self.get_healthcheck(partition, name, data['protocol'])
 
-        if no_change:
-            return False
+            send_data = self.get_healthcheck_fields(data)
 
-        hc.modify(**send_data)
-        return True
+            no_change = all(send_data[key] == val
+                            for key, val in hc.__dict__.iteritems()
+                            if key in send_data)
+
+            if no_change:
+                return False
+
+            hc.modify(**send_data)
+            return True
+        elif httpcheck:
+            self.monitor_protocol_change(partition, name, data, 'http')
+        elif tcpcheck:
+            self.monitor_protocol_change(partition, name, data, 'tcp')
+        elif not httpcheck and not tcpcheck:
+            self.healthcheck_create(partition, data)
+
+    def healthcheck_exists(self, partition, name):
+        """Check if the health monitor exists.
+
+        Args:
+            partition: Partition name
+            name: Name of the Health Monitor
+            protocol: Protocol to check
+        """
+        exists = {}
+        exists['http'] = self.ltm.monitor.https.http.exists(
+            name=name, partition=partition)
+        exists['tcp'] = self.ltm.monitor.tcps.tcp.exists(
+            name=name, partition=partition)
+        return exists
 
     def get_http_healthmonitor(self):
         """Get an object than can create a http health monitor."""
@@ -1298,6 +1326,23 @@ class CloudBigIP(BigIP):
         if data['protocol'] == "tcp":
             tcp1 = self.get_tcp_healthmonitor()
             tcp1.create(partition=partition, **send_data)
+
+    def monitor_protocol_change(self, partition, name, data, old_protocol):
+        """Change a health monitor from one protocol to another.
+
+        Args:
+            partition:
+            name: Partition name
+            data: Health Monitor dict
+            old_protocol: Protocol health monitor currently uses
+        """
+        pool = self.get_pool(partition, name)
+        pool.monitor = ''
+        pool.update()
+        self.healthcheck_delete(partition, name, old_protocol)
+        self.healthcheck_create(partition, data)
+        pool.monitor = name
+        pool.update()
 
     def get_partitions(self, partitions):
         """Get a list of BIG-IP partition names.
