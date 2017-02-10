@@ -47,7 +47,8 @@ def test_svc_config_valid_mode(ssh, orchestration, bigip, bigip_controller):
     valid_vals = ["tcp", "http"]
     for valid_val in valid_vals:
         config_utils.verify_config_produces_managed_svc(
-            orchestration, bigip, param="mode", input_val=valid_val
+            orchestration, bigip, bigip_controller, param="mode",
+            input_val=valid_val
         )
 
 
@@ -67,7 +68,8 @@ def test_svc_config_valid_balance(ssh, orchestration, bigip, bigip_controller):
     valid_vals = ["least-sessions"]
     for valid_val in valid_vals:
         config_utils.verify_config_produces_managed_svc(
-            orchestration, bigip, param="lb_algorithm", input_val=valid_val
+            orchestration, bigip, bigip_controller, param="lb_algorithm",
+            input_val=valid_val
         )
 
 

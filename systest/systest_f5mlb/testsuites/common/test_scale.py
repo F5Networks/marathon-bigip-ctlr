@@ -59,9 +59,9 @@ def _run_scale_test(
     svc_inputs = []
     svcs = []
 
-    utils.create_bigip_controller(
+    utils.BigipController(
         orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM
-    )
+    ).create()
 
     # - first, scale-up the appropriate services and instances
     for i in range(1, num_svcs + 1):

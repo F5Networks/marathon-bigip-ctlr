@@ -9,6 +9,8 @@ from pytest import symbols
 
 
 REGISTRY = "docker-registry.pdbld.f5net.com"
+TEST_NGINX_IMG = \
+        "docker-registry.pdbld.f5net.com/systest-common/test-nginx:20170211"
 
 DEFAULT_BIGIP_PASSWORD = "admin"
 DEFAULT_BIGIP_USERNAME = "admin"
@@ -63,6 +65,10 @@ DEFAULT_SVC_PORT = 80
 
 DEFAULT_BIGIP_MGMT_IP = symbols.bigip_mgmt_ip
 DEFAULT_BIGIP2_MGMT_IP = getattr(symbols, 'bigip2_mgmt_ip', None)
+
+POOL_MODE_NODEPORT = 'nodeport'
+POOL_MODE_CLUSTER = 'cluster'
+POOL_MODES = [POOL_MODE_NODEPORT, POOL_MODE_CLUSTER]
 
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
@@ -137,9 +143,19 @@ elif symbols.orchestration == "k8s":
     BIGIP2_SVC_CONFIG['data']['data']['virtualServer']['frontend'][
             'virtualAddress']['bindAddr'] = BIGIP2_F5MLB_BIND_ADDR
 
+_next_id = 1
+
+
+def unique_id(prefix):
+    """Convert a base name into an id unique to the test session."""
+    global _next_id
+    id = prefix+'-'+str(_next_id)
+    _next_id += 1
+    return id
+
 
 def create_managed_northsouth_service(
-        orchestration, id="test-svc",
+        orchestration, id=None,
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         labels={},
@@ -149,6 +165,8 @@ def create_managed_northsouth_service(
         config=DEFAULT_SVC_CONFIG,
         wait_for_deploy=True):
     """Create a microservice with bigip-controller decorations."""
+    if id is None:
+        id = unique_id("test-svc")
     # - note that we have to have to make a copy of the "labels" dictionary
     #   before we try to mutate it, otherwise the mutated version will persist
     #   through subsequent calls to "create_managed_service"
@@ -166,7 +184,7 @@ def create_managed_northsouth_service(
         cpus=cpus,
         mem=mem,
         timeout=timeout,
-        container_img="%s/systest-common/test-nginx" % REGISTRY,
+        container_img=TEST_NGINX_IMG,
         labels=_lbls,
         container_port_mappings=[
             {
@@ -181,6 +199,10 @@ def create_managed_northsouth_service(
         num_instances=num_instances,
         wait_for_deploy=wait_for_deploy
     )
+    # By waiting until the app is deployed before creating the VS Resource,
+    # the big-ip won't fail any health checks, and things go faster.
+    #
+    # The reverse order is tested in ??????
     if symbols.orchestration == "k8s":
         config['name'] = "%s-map" % id
         config['data']['data']['virtualServer']['backend']['serviceName'] = id
@@ -198,35 +220,69 @@ def unmanage_northsouth_service(orchestration, svc):
         orchestration.app.delete_configmap("%s-map" % svc.id)
 
 
-def create_bigip_controller(
-        orchestration, id=DEFAULT_F5MLB_NAME, cpus=DEFAULT_F5MLB_CPUS,
-        mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_DEPLOY_TIMEOUT,
-        config=DEFAULT_F5MLB_CONFIG, wait_for_deploy=True):
-    """Create a bigip-controller microservice."""
-    if symbols.orchestration == "marathon":
-        return orchestration.app.create(
-            id=id,
-            cpus=cpus,
-            mem=mem,
-            timeout=timeout,
-            container_img=symbols.bigip_controller_img,
-            container_force_pull_image=True,
-            env=config,
-            wait_for_deploy=wait_for_deploy
-        )
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
-        return orchestration.app.create(
-            id=id,
-            cpus=cpus,
-            mem=mem,
-            timeout=timeout,
-            container_img=symbols.bigip_controller_img,
-            container_force_pull_image=True,
-            cmd=config['cmd'],
-            args=config['args'],
-            wait_for_deploy=wait_for_deploy
-        )
+class BigipController(object):
+    """Manage a bigip-controller instance."""
+
+    def __init__(
+            self, orchestration, id=None, cpus=DEFAULT_F5MLB_CPUS,
+            mem=DEFAULT_F5MLB_MEM, timeout=DEFAULT_DEPLOY_TIMEOUT,
+            config=DEFAULT_F5MLB_CONFIG, wait_for_deploy=True,
+            pool_mode=POOL_MODE_CLUSTER):
+        """Make new object, but don't create service."""
+        if id is None:
+            id = unique_id(DEFAULT_F5MLB_NAME)
+        self.orchestration = orchestration
+        self.pool_mode = pool_mode
+        if symbols.orchestration == "marathon":
+            self.app_kwargs = {
+                'id': id,
+                'cpus': cpus,
+                'mem': mem,
+                'timeout': timeout,
+                'container_img': symbols.bigip_controller_img,
+                'container_force_pull_image': True,
+                'env': config,
+                'wait_for_deploy': wait_for_deploy,
+                }
+        elif symbols.orchestration == "k8s":
+            self.app_kwargs = {
+                'id': id,
+                'cpus': cpus,
+                'mem': mem,
+                'timeout': timeout,
+                'container_img': symbols.bigip_controller_img,
+                'container_force_pull_image': True,
+                'cmd': config['cmd'],
+                'args': config['args'] + ['--pool-member-type', pool_mode],
+                'wait_for_deploy': wait_for_deploy,
+                }
+        else:
+            assert False, "Unsupported orchestration " + orchestration
+
+    def create(self):
+        """Create and start the controller instance."""
+        if symbols.orchestration == "k8s":
+            save_namespace = self.orchestration.namespace
+            self.orchestration.namespace = "kube-system"
+            self.app = self.orchestration.app.create(**self.app_kwargs)
+            self.orchestration.namespace = save_namespace
+        else:
+            self.app = self.orchestration.app.create(**self.app_kwargs)
+        return self
+
+    def delete(self):
+        """Delete the controller instance."""
+        if self.app:
+            self.app.delete()
+        self.app = None
+
+    def suspend(self):
+        """Suspend the controller instance."""
+        self.app.suspend()
+
+    def resume(self):
+        """Resume the controller instance."""
+        self.app.resume()
 
 
 def create_unmanaged_service(orchestration, id, labels={}):
@@ -238,7 +294,7 @@ def create_unmanaged_service(orchestration, id, labels={}):
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         timeout=DEFAULT_DEPLOY_TIMEOUT,
-        container_img="%s/systest-common/test-nginx" % REGISTRY,
+        container_img=TEST_NGINX_IMG,
         labels=labels,
         container_port_mappings=[
             {
@@ -298,7 +354,7 @@ def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
     # - get list of pool members
     pool_members = bigip.pool_members.list(partition=partition)
     if pool_members:
-        ret['pool_members'] = pool_members
+        ret['pool_members'] = sorted(pool_members)
 
     # - get list of health monitors
     health_monitors = bigip.health_monitors.list(partition=partition)
@@ -308,29 +364,48 @@ def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
     # - get list of nodes
     nodes = bigip.nodes.list(partition=partition)
     if nodes:
-        ret['nodes'] = nodes
+        ret['nodes'] = sorted(nodes)
 
     return ret
 
 
-def get_backend_objects_exp(svc):
+def get_backend_pool_members_exp(svc, bigip_controller, port_idx=0):
+    """Return a list of pool member addr:port."""
+    if bigip_controller.pool_mode == POOL_MODE_NODEPORT:
+        nodes = symbols.worker_default_ips
+        port = svc.get_service_node_port(port_idx)
+        return ["{:s}:{:d}".format(x, port) for x in nodes]
+    else:
+        instances = svc.instances.get()
+        pm = ["{:s}:{:d}".format(x.host, x.ports[port_idx]) for x in instances]
+        return pm
+
+
+def get_backend_objects_exp(svc, bigip_controller):
     """A dict of the expected backend resources."""
     instances = svc.instances.get()
     obj_name = get_backend_object_name(svc)
+    if bigip_controller.pool_mode == POOL_MODE_NODEPORT:
+        nodes = symbols.worker_default_ips
+    else:
+        nodes = set([i.host for i in instances])
     if symbols.orchestration == "marathon":
         virtual_addr = svc.labels['F5_0_BIND_ADDR']
     elif symbols.orchestration == "k8s":
         virtual_addr = DEFAULT_F5MLB_BIND_ADDR
+    pool_members = get_backend_pool_members_exp(svc, bigip_controller)
     ret = {
         'virtual_servers': [obj_name],
         'virtual_addresses': [virtual_addr],
         'health_monitors': [obj_name],
         'pools': [obj_name],
-        'pool_members': [
-            "%s:%d" % (instances[0].host, instances[0].ports[0])
-        ],
-        'nodes': [instances[0].host],
+        'pool_members': sorted(pool_members),
+        'nodes': sorted(nodes),
     }
+    # get_backend_objects doesn't return non-empty lists
+    for k, v in ret.items():
+        if not v:
+            del ret[k]
     return ret
 
 
