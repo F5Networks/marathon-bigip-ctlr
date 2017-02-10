@@ -1,10 +1,5 @@
 #!/bin/sh
 set -euo pipefail
 
-# Run the lwp-controller, if it exists
-if [ -x /app/bin/lwp-controller ]; then
-    /app/bin/lwp-controller &
-fi
-
-/app/f5_marathon_lb.py "$@"
+/app/marathon-bigip-ctlr.py "$@"
 exit $?

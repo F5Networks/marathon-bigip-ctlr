@@ -213,7 +213,7 @@ Usage Example
 
 ::
 
-   $ ./f5-marathon-bigip-controller.py --hostname 1.2.3.4 --username admin --password admin --partition mesos
+   $ ./marathon-bigip-ctlr.py --hostname 1.2.3.4 --username admin --password admin --partition mesos
 
 
 Run the command below on the BIG-IP to view the newly-created objects.

@@ -45,15 +45,15 @@ def setup_logging(logger, log_format, log_level):
 def set_marathon_auth_args(parser):
     """Set the authorization for Marathon."""
     parser.add_argument("--marathon-auth-credential-file",
-                        env_var='F5_CSI_MARATHON_AUTH',
+                        env_var='F5_CC_MARATHON_AUTH',
                         help="Path to file containing a user/pass for "
                         "the Marathon HTTP API in the format of 'user:pass'."
                         )
     parser.add_argument("--dcos-auth-credentials",
-                        env_var='F5_CSI_DCOS_AUTH_CREDENTIALS',
+                        env_var='F5_CC_DCOS_AUTH_CREDENTIALS',
                         help="DC/OS service account credentials")
     parser.add_argument("--dcos-auth-token",
-                        env_var='F5_CSI_DCOS_AUTH_TOKEN',
+                        env_var='F5_CC_DCOS_AUTH_TOKEN',
                         help="DC/OS ACS Token")
 
     return parser
@@ -139,13 +139,13 @@ def get_marathon_auth_params(args):
 def set_logging_args(parser):
     """Add logging-related args to the parser."""
     parser.add_argument("--log-format",
-                        env_var='F5_CSI_LOG_FORMAT',
+                        env_var='F5_CC_LOG_FORMAT',
                         help="Set log message format",
                         default="%(asctime)s %(name)s: %(levelname)"
                         " -8s: %(message)s"
                         )
     parser.add_argument("--log-level",
-                        env_var='F5_CSI_LOG_LEVEL',
+                        env_var='F5_CC_LOG_LEVEL',
                         type=parse_log_level,
                         help="Set logging level. Valid log levels are: "
                         "DEBUG, INFO, WARNING, ERROR, and CRITICAL",

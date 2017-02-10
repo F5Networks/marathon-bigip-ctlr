@@ -7,7 +7,7 @@
     "type": "DOCKER",
     "forcePullImage": true,
     "docker": {
-      "image": "docker-registry.pdbld.f5net.com/velcro/f5-marathon-lb:latest",
+      "image": "docker-registry.pdbld.f5net.com/velcro/marathon-bigip-ctlr:latest",
       "network": "BRIDGE"
     }
   },

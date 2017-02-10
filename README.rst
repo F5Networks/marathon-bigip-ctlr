@@ -25,7 +25,7 @@ F5 Container Service Integrator for Mesos
 Introduction
 ------------
 
-The F5® Container Service Integrator™ (CSI) for `Mesos <https://mesos.apache.org/>`_ provides an integration for the `Marathon <https://github.com/mesosphere/marathon>`_ orchestration environment that makes L4-L7 services available to users deploying miscroservices-based applications in a containerized infrastructure.
+The F5® Marathon BIG-IP Controller™ for `Mesos <https://mesos.apache.org/>`_ provides an integration for the `Marathon <https://github.com/mesosphere/marathon>`_ orchestration environment that makes L4-L7 services available to users deploying miscroservices-based applications in a containerized infrastructure.
 
 Documentation
 -------------
@@ -52,7 +52,7 @@ coming soon
 Filing Issues
 `````````````
 
-If you find an issue, we would love to hear about it. Please open a new `issue <https://bldr-git.int.lineratesystems.com/velcro/f5-marathon-lb/issues>`_ for each bug you'd like to report or feature you'd like to request. Please be specific, and include as much information about your environment and the issue as possible.
+If you find an issue, we would love to hear about it. Please open a new `issue <https://bldr-git.int.lineratesystems.com/velcro/marathon_bigip-ctlr/issues>`_ for each bug you'd like to report or feature you'd like to request. Please be specific, and include as much information about your environment and the issue as possible.
 
 Test
 ````
@@ -63,7 +63,7 @@ Project Setup
 `````````````
 
 Gitlab F5MLB project:
-git@bldr-git.int.lineratesystes.com:velcro/f5-marathon-lb.git
+git@bldr-git.int.lineratesystes.com:velcro/marathon-bigip-ctlr.git
 
 Manual environment setup
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,7 +82,7 @@ To run unit tests: ``python -m unittest discover -v``.
     sudo apt-get update
     sudo apt-get install gcc git python python-dev python-pip
     git clone [gitlab F5MLB project]
-    cd f5-marathon-lb
+    cd marathon-bigip-ctlr
     pip install -r requirements.txt
     pip install flake8 flake8_docstrings mock
 

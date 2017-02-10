@@ -64,19 +64,19 @@ endif
 
 # - set testenv config file
 ifeq ($(orchestration), marathon)
-  repo_name := f5-marathon-lb
+  repo_name := marathon-bigip-ctlr
   testenv_config := mesos.testenv.yaml
   project_dir := velcro.marathon-bigip-ctlr
 else ifeq ($(orchestration), k8s)
-  repo_name := f5-k8s-controller
+  repo_name := k8s-bigip-ctlr
   testenv_config := k8s.testenv.yaml
   project_dir := velcro.k8s-bigip-ctlr
 endif
 
-repo := git+ssh://git@bldr-git.int.lineratesystems.com/velcro/$(repo_name).git
+namespace := velcro
+repo := git+ssh://git@bldr-git.int.lineratesystems.com/$(namespace)/$(repo_name).git
 systest_pkg := systest_f5mlb
 registry := docker-registry.pdbld.f5net.com
-namespace := velcro
 bigip_controller_img := $(registry)/$(namespace)/$(repo_name):master
 ssh_conf := testenv_symbols/testenv_ssh_config
 

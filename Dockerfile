@@ -13,11 +13,11 @@ RUN apk add --update git gcc musl-dev python python-dev py-pip openssl openssl-d
     apk del gcc git musl-dev python-dev openssl-dev libffi-dev && \
     rm -rf /var/cache/apk/*
 
-# Move the f5-marathon-lb files into place
+# Move the marathon-bigip-ctlr files into place
 COPY run $APPPATH
-COPY f5_marathon_lb.py $APPPATH
+COPY marathon-bigip-ctlr.py $APPPATH
 COPY common.py $APPPATH
 COPY _f5.py $APPPATH
 
-# The run script is the entry point to f5-marathon-lb
+# The run script is the entry point to marathon-bigip-ctlr
 ENTRYPOINT [ "/app/run" ]

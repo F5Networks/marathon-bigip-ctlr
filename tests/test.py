@@ -1,4 +1,4 @@
-"""f5-marathon-lb Unit Tests.
+"""Controller Unit Tests.
 
 Units tests for testing command-line args, Marathon state parsing, and
 BIG-IP resource management.
@@ -14,33 +14,33 @@ import requests
 import os
 from mock import Mock
 from mock import patch
-from f5_marathon_lb import get_apps, parse_args
 from common import DCOSAuth, ipv4_to_mac
 from f5.bigip import BigIP
 from _f5 import CloudBigIP
 from StringIO import StringIO
+ctlr = __import__('marathon-bigip-ctlr')
 
-args_env = ['F5_CSI_SYSLOG_SOCKET',
-            'F5_CSI_LOG_FORMAT',
-            'F5_CSI_MARATHON_AUTH',
+args_env = ['F5_CC_SYSLOG_SOCKET',
+            'F5_CC_LOG_FORMAT',
+            'F5_CC_MARATHON_AUTH',
             'MARATHON_URL',
-            'F5_CSI_LISTENING_ADDR',
-            'F5_CSI_CALLBACK_URL',
-            'F5_CSI_BIGIP_HOSTNAME',
-            'F5_CSI_BIGIP_USERNAME',
-            'F5_CSI_BIGIP_PASSWORD',
-            'F5_CSI_PARTITIONS',
-            'F5_CSI_USE_HEALTHCHECK',
-            'F5_CSI_SSE_TIMEOUT',
-            'F5_CSI_MARATHON_CA_CERT',
-            'F5_CSI_DCOS_AUTH_CREDENTIALS',
-            'F5_CSI_DCOS_AUTH_TOKEN']
+            'F5_CC_LISTENING_ADDR',
+            'F5_CC_CALLBACK_URL',
+            'F5_CC_BIGIP_HOSTNAME',
+            'F5_CC_BIGIP_USERNAME',
+            'F5_CC_BIGIP_PASSWORD',
+            'F5_CC_PARTITIONS',
+            'F5_CC_USE_HEALTHCHECK',
+            'F5_CC_SSE_TIMEOUT',
+            'F5_CC_MARATHON_CA_CERT',
+            'F5_CC_DCOS_AUTH_CREDENTIALS',
+            'F5_CC_DCOS_AUTH_TOKEN']
 
 
 class ArgTest(unittest.TestCase):
-    """Test f5-marathon-lb arg parsing."""
+    """Test marathon-bigip-ctlr arg parsing."""
 
-    _args_app_name = ['f5-marathon-lb']
+    _args_app_name = ['marathon-bigip-ctlr.py']
     _args_mandatory = ['--marathon', 'http://10.0.0.10:8080',
                        '--partition', 'mesos',
                        '--hostname', '10.10.1.145',
@@ -65,22 +65,24 @@ class ArgTest(unittest.TestCase):
     def test_no_args(self):
         """Test: No command-line args."""
         sys.argv[0:] = self._args_app_name
-        self.assertRaises(SystemExit, parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
         expected = \
-            "usage: f5-marathon-lb [-h] [--longhelp]" \
-            """ [--marathon MARATHON [MARATHON ...]]
-                      [--hostname HOSTNAME] [--username USERNAME]
-                      [--password PASSWORD] [--partition PARTITION]
-                      [--health-check] [--marathon-ca-cert MARATHON_CA_CERT]
-                      [--sse-timeout SSE_TIMEOUT]
-                      [--verify-interval VERIFY_INTERVAL]
-                      [--log-format LOG_FORMAT] [--log-level LOG_LEVEL]
-                      [--marathon-auth-credential-file""" \
+            "usage: marathon-bigip-ctlr.py [-h] [--longhelp]\n" \
+            """                              [--marathon MARATHON [MARATHON ...]]
+                              [--hostname HOSTNAME] [--username USERNAME]
+                              [--password PASSWORD] [--partition PARTITION]
+                              [--health-check]
+                              [--marathon-ca-cert MARATHON_CA_CERT]
+                              [--sse-timeout SSE_TIMEOUT]
+                              [--verify-interval VERIFY_INTERVAL]
+                              [--log-format LOG_FORMAT]
+                              [--log-level LOG_LEVEL]
+                              [--marathon-auth-credential-file""" \
         """ MARATHON_AUTH_CREDENTIAL_FILE]\n \
-                     [--dcos-auth-credentials DCOS_AUTH_CREDENTIALS]
-                      [--dcos-auth-token DCOS_AUTH_TOKEN]\n""" \
-        "f5-marathon-lb: error: argument --marathon/-m is required\n"
+                             [--dcos-auth-credentials DCOS_AUTH_CREDENTIALS]
+                              [--dcos-auth-token DCOS_AUTH_TOKEN]\n""" \
+        "marathon-bigip-ctlr.py: error: argument --marathon/-m is required\n"
 
         output = self.out.getvalue()
         self.assertEqual(output, expected)
@@ -88,7 +90,7 @@ class ArgTest(unittest.TestCase):
     def test_all_mandatory_args(self):
         """Test: All mandatory command-line args."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos'])
         self.assertEqual(args.hostname, 'https://10.10.1.145')
@@ -104,11 +106,11 @@ class ArgTest(unittest.TestCase):
         """Test: All mandatory command-line args."""
         sys.argv[0:] = self._args_app_name
         os.environ['MARATHON_URL'] = 'http://10.0.0.10:8080'
-        os.environ['F5_CSI_PARTITIONS'] = '[mesos, mesos2]'
-        os.environ['F5_CSI_BIGIP_HOSTNAME'] = '10.10.1.145'
-        os.environ['F5_CSI_BIGIP_USERNAME'] = 'admin'
-        os.environ['F5_CSI_BIGIP_PASSWORD'] = 'default'
-        args = parse_args()
+        os.environ['F5_CC_PARTITIONS'] = '[mesos, mesos2]'
+        os.environ['F5_CC_BIGIP_HOSTNAME'] = '10.10.1.145'
+        os.environ['F5_CC_BIGIP_USERNAME'] = 'admin'
+        os.environ['F5_CC_BIGIP_PASSWORD'] = 'default'
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos', 'mesos2'])
         self.assertEqual(args.hostname, 'https://10.10.1.145')
@@ -124,7 +126,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
         # No scheme
         args = ['--marathon', 'http://10.0.0.10:8080',
@@ -133,7 +135,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 443)
 
@@ -144,7 +146,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 443)
 
@@ -155,7 +157,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 555)
 
@@ -166,7 +168,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
     def test_partition_arg(self):
         """Test: Wildcard partition arg."""
@@ -176,14 +178,14 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.partition, ['*'])
 
         # test via env var
         partitions_env = '*'
         sys.argv[0:] = self._args_app_name + self._args_without_partition
-        os.environ['F5_CSI_PARTITIONS'] = partitions_env
-        args = parse_args()
+        os.environ['F5_CC_PARTITIONS'] = partitions_env
+        args = ctlr.parse_args()
         self.assertEqual(args.partition, ['*'])
 
     def test_multiple_partition_arg(self):
@@ -196,41 +198,41 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.partition, ['mesos-1', 'mesos-2', 'mesos-3'])
 
         # test via env var
         partitions_env = '[mesos7, mesos8]'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_PARTITIONS'] = partitions_env
-        args = parse_args()
+        os.environ['F5_CC_PARTITIONS'] = partitions_env
+        args = ctlr.parse_args()
         # command-line overrides env var
         self.assertEqual(args.partition, ['mesos'])
 
         sys.argv[0:] = self._args_app_name + self._args_without_partition
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.partition, ['mesos7', 'mesos8'])
 
     def test_health_check_arg(self):
         """Test: 'Health Check' arg."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.health_check, False)
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--health-check']
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.health_check, True)
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + ['-H']
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.health_check, True)
 
         # test via env var
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.health_check, False)
-        os.environ['F5_CSI_USE_HEALTHCHECK'] = 'True'
-        args = parse_args()
+        os.environ['F5_CC_USE_HEALTHCHECK'] = 'True'
+        args = ctlr.parse_args()
         self.assertEqual(args.health_check, True)
 
     def test_log_format_arg(self):
@@ -238,14 +240,14 @@ class ArgTest(unittest.TestCase):
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--log-format', log_format]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.log_format, log_format)
 
         # test via env var
         env_log_format = '%(asctime)s - %(message)s'
-        os.environ['F5_CSI_LOG_FORMAT'] = env_log_format
+        os.environ['F5_CC_LOG_FORMAT'] = env_log_format
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.log_format, env_log_format)
 
     def test_log_level_arg(self):
@@ -255,29 +257,29 @@ class ArgTest(unittest.TestCase):
         for level in levels:
             sys.argv[0:] = self._args_app_name + self._args_mandatory + \
                 ['--log-level', level]
-            args = parse_args()
+            args = ctlr.parse_args()
             self.assertEqual(args.log_level, getattr(logging, level))
 
         # Test default
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.log_level, getattr(logging, 'INFO'))
 
         # Test invalid
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--log-level', 'INCONCEIVABLE']
-        self.assertRaises(SystemExit, parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
         # Test invalid (via env)
-        os.environ['F5_CSI_LOG_LEVEL'] = 'INCONCEIVABLE'
+        os.environ['F5_CC_LOG_LEVEL'] = 'INCONCEIVABLE'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        self.assertRaises(SystemExit, parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
         # Test all valid levels (via env)
         for level in levels:
-            os.environ['F5_CSI_LOG_LEVEL'] = level
+            os.environ['F5_CC_LOG_LEVEL'] = level
             sys.argv[0:] = self._args_app_name + self._args_mandatory
-            args = parse_args()
+            args = ctlr.parse_args()
             self.assertEqual(args.log_level, getattr(logging, level))
 
     def test_marathon_cred_arg(self):
@@ -285,14 +287,14 @@ class ArgTest(unittest.TestCase):
         auth_file = '/tmp/auth'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-auth-credential-file', auth_file]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon_auth_credential_file, auth_file)
 
         # test via env var
         env_auth_file = '/tmp/auth_from_env'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_MARATHON_AUTH'] = env_auth_file
-        args = parse_args()
+        os.environ['F5_CC_MARATHON_AUTH'] = env_auth_file
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon_auth_credential_file, env_auth_file)
 
     def test_timeout_arg(self):
@@ -300,17 +302,17 @@ class ArgTest(unittest.TestCase):
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--sse-timeout', str(timeout)]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.sse_timeout, timeout)
 
         # test default value
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.sse_timeout, 30)
 
         # test via env var
-        os.environ['F5_CSI_SSE_TIMEOUT'] = str(timeout)
-        args = parse_args()
+        os.environ['F5_CC_SSE_TIMEOUT'] = str(timeout)
+        args = ctlr.parse_args()
         self.assertEqual(args.sse_timeout, timeout)
 
     def test_verify_interval_arg(self):
@@ -318,17 +320,17 @@ class ArgTest(unittest.TestCase):
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--verify-interval', str(timeout)]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.verify_interval, timeout)
 
         # test default value
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.verify_interval, 30)
 
         # test via env var
-        os.environ['F5_CSI_VERIFY_INTERVAL'] = str(timeout)
-        args = parse_args()
+        os.environ['F5_CC_VERIFY_INTERVAL'] = str(timeout)
+        args = ctlr.parse_args()
         self.assertEqual(args.verify_interval, timeout)
 
     def test_marathon_ca_cert_arg(self):
@@ -337,14 +339,14 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-ca-cert', cert]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon_ca_cert, cert)
 
         # test via env var
         env_cert = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_MARATHON_CA_CERT'] = env_cert
-        args = parse_args()
+        os.environ['F5_CC_MARATHON_CA_CERT'] = env_cert
+        args = ctlr.parse_args()
         self.assertEqual(args.marathon_ca_cert, env_cert)
 
     def test_auth_credentials_arg(self):
@@ -387,7 +389,7 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--dcos-auth-credentials', creds]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.dcos_auth_credentials, creds)
 
         # Mock 'requests.post()' and verify that the auth_request gets the
@@ -406,8 +408,8 @@ class ArgTest(unittest.TestCase):
         # test via env var
         env_creds = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_DCOS_AUTH_CREDENTIALS'] = env_creds
-        args = parse_args()
+        os.environ['F5_CC_DCOS_AUTH_CREDENTIALS'] = env_creds
+        args = ctlr.parse_args()
         self.assertEqual(args.dcos_auth_credentials, env_creds)
 
     def test_auth_token_arg(self):
@@ -422,7 +424,7 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--dcos-auth-token', token]
-        args = parse_args()
+        args = ctlr.parse_args()
         self.assertEqual(args.dcos_auth_token, token)
 
         url = 'http://dcos.com/acs/api/v1/auth/login'
@@ -440,8 +442,8 @@ class ArgTest(unittest.TestCase):
         # test via env var
         env_token = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        os.environ['F5_CSI_DCOS_AUTH_TOKEN'] = env_token
-        args = parse_args()
+        os.environ['F5_CC_DCOS_AUTH_TOKEN'] = env_token
+        args = ctlr.parse_args()
         self.assertEqual(args.dcos_auth_token, env_token)
 
     def request_response(self, token):
@@ -823,7 +825,7 @@ class MarathonTest(BigIPTest):
         """Test: Exception handling."""
         # Get the test data
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
 
         # Successful configuration (no retry)
         self.assertFalse(self.bigip.regenerate_config_f5(apps))
@@ -859,7 +861,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -889,7 +891,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -925,7 +927,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -960,7 +962,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -995,7 +997,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1033,7 +1035,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1071,7 +1073,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1106,7 +1108,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1144,7 +1146,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1191,7 +1193,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1249,7 +1251,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1364,7 +1366,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1419,7 +1421,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1474,7 +1476,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1511,7 +1513,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, False)
+        apps = ctlr.get_apps(self.cloud_data, False)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1576,7 +1578,7 @@ class MarathonTest(BigIPTest):
             Mock(side_effect=self.mock_get_iapp_list)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
@@ -1616,7 +1618,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         https_app_count = 0
@@ -1649,7 +1651,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
 
         # Restore the mocked 'update' functions to their original state
         self.bigip.pool_update = self.bigip.pool_update_orig
@@ -1801,7 +1803,7 @@ class KubernetesTest(BigIPTest):
 
     def setUp(self):
         """Test suite set up."""
-        super(KubernetesTest, self).setUp('kubernetes', 'velcro')
+        super(KubernetesTest, self).setUp('kubernetes', 'k8s')
 
     def test_svc_create(self,
                         cloud_state='tests/kubernetes_one_svc_two_nodes.json',
@@ -2029,8 +2031,8 @@ class KubernetesTest(BigIPTest):
             side_effect=self.mock_get_virtual_address)
 
         # Create a mock Pool
-        pool_data_unchanged = {'monitor': '/velcro/foo_10.128.10.240_5051 and '
-                                          '/velcro/foo_10.128.10.240_5051_1',
+        pool_data_unchanged = {'monitor': '/k8s/foo_10.128.10.240_5051 and '
+                                          '/k8s/foo_10.128.10.240_5051_1',
                                'balance': 'round-robin'}
         pool = self.create_mock_pool('foo_10.128.10.240_5051',
                                      **pool_data_unchanged)
@@ -2039,8 +2041,8 @@ class KubernetesTest(BigIPTest):
         virtual_data_unchanged = {'enabled': True,
                                   'disabled': False,
                                   'ipProtocol': 'tcp',
-                                  'destination': '/velcro/10.128.10.240:5051',
-                                  'pool': '/velcro/foo_10.128.10.240_5051',
+                                  'destination': '/k8s/10.128.10.240:5051',
+                                  'pool': '/k8s/foo_10.128.10.240_5051',
                                   'sourceAddressTranslation':
                                   {'type': 'automap'},
                                   'profiles': [{'partition': 'Common',
@@ -2155,8 +2157,6 @@ class KubernetesTest(BigIPTest):
         self.assertEqual(self.bigip.net.fdb.tunnels.tunnel.load.call_count, 1)
 
         # Compare final content with self.network_state - should be the same
-        print "EXPECTED: {}".format(self.compute_fdb_records())
-        print "ACTUAL {}".format(self.vxlan_tunnel.records)
         self.assertEqual(self.compute_fdb_records(), self.vxlan_tunnel.records)
 
     def test_network_1_existing_vxlan_nodes_0_requested_vxlan_nodes(

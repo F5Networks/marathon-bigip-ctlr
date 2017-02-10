@@ -11,7 +11,7 @@
           "servicePort": 10000
         },
         "frontend": {
-          "partition": "velcro",
+          "partition": "k8s",
           "iapp": "/Common/f5.http",
           "iappTableName": "pool__members",
           "iappOptions": {

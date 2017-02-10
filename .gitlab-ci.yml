@@ -35,45 +35,45 @@ docs_tests:
 
 
 # Create the docker container and upload it to the internal docker registry with the tags
-#   <PROJ_NAMESPACE>/tdp-controller:<COMMIT_ID>
-#   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>
-#   <PROJ_NAMESPACE>/tdp-controller:<BRANCH>-<BUILD_ID>
+#   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<COMMIT_ID>
+#   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<BRANCH>
+#   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<BRANCH>-<BUILD_ID>
 dockerize:
   script:
     - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
     - REGISTRY="docker-registry.pdbld.f5net.com"
-    - BUILD_TAG="$REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF"
+    - BUILD_TAG="$REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF"
     - docker build --no-cache -t $BUILD_TAG .
-    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
+    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
+    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
     - if [ -v CI_BUILD_TAG ]; then
     -   if [ "$CI_BUILD_REF_NAME" != "$CI_BUILD_TAG" ]; then
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_TAG
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
     -   fi
     -   if [[ $CI_BUILD_TAG =~ $TEST_RE ]]; then
     -     latest=`git tag -l | sort -V | tail -n1`
     -     if [ "$latest" == "$CI_BUILD_TAG" ]; then
-    -       docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
-    -       docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
-    -       docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:latest
+    -       docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
+    -       docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
+    -       docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
     -     fi
     -     major=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\1#"`
     -     minor=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\2#"`
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:v$major.$minor
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
+    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
+    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
+    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
     -   fi
     - fi
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF_NAME
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/f5-marathon-lb:$CI_BUILD_REF
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF
   stage: deploy
   tags:
     - docker-build

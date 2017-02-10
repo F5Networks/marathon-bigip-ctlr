@@ -9,7 +9,7 @@
         "container": {
             "docker": {
                 "forcePullImage": false,
-                "image": "edarzins/node-web-app",
+                "image": "user/node-web-app",
                 "network": "BRIDGE",
                 "parameters": [],
                 "portMappings": [
@@ -211,7 +211,7 @@
         "container": {
             "docker": {
                 "forcePullImage": false,
-                "image": "docker-registry.pdbld.f5net.com/darzins/f5-marathon-lb:latest",
+                "image": "docker-registry.pdbld.f5net.com/user/marathon-bigip-ctlr:latest",
                 "network": "BRIDGE",
                 "parameters": [],
                 "privileged": false

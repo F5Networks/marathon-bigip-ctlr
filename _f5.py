@@ -29,7 +29,7 @@ from f5.bigip import BigIP
 import icontrol.session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-logger = logging.getLogger('marathon_lb')
+logger = logging.getLogger('controller')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 

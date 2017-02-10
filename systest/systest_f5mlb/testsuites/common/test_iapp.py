@@ -38,7 +38,7 @@ def test_iapp_f5_http(ssh, orchestration, bigip, bigip_controller):
     hm_name = iapp_name + "_http_monitor"
     assert bigip.virtual_servers.list(vs_name, partition) == [vs_name]
     assert bigip.pools.list(pool_name, partition) == [pool_name]
-    # FIXME (kevin): remove when f5-k8s-controller supports health monitors
+    # FIXME (kevin): remove when k8s-bigip-ctlr supports health monitors
     if symbols.orchestration == "marathon":
         assert bigip.health_monitors.http.list(hm_name, partition) == [hm_name]
 

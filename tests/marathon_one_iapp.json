@@ -9,7 +9,7 @@
         "container": {
             "docker": {
                 "forcePullImage": false,
-                "image": "edarzins/node-web-app",
+                "image": "user/node-web-app",
                 "network": "BRIDGE",
                 "parameters": [],
                 "portMappings": [

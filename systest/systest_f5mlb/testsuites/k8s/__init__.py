@@ -1,1 +1,1 @@
-"""System tests for f5mlb in a k8s environment."""
+"""System tests for bigip controller in a k8s environment."""

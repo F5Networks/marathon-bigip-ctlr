@@ -1,1 +1,1 @@
-"""Automated system tests for the f5-marathon-lb component."""
+"""Automated system tests for the bigip controller component."""
