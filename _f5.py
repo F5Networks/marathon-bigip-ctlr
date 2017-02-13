@@ -424,6 +424,9 @@ class CloudBigIP(BigIP):
             frontend = 'iapp' if app.iapp else app.bindAddr
             frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), frontend,
                                           app.servicePort)
+            # The Marathon appId contains the full path, replace all '/' in
+            # the name with '_'
+            frontend_name = frontend_name.replace('/', '_')
             f5_service['name'] = frontend_name
             if app.bindAddr:
                 logger.debug("Frontend at %s:%d with backend %s", app.bindAddr,

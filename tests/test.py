@@ -853,6 +853,48 @@ class MarathonTest(BigIPTest):
         self.bigip._apply_config = Mock(side_effect=self.raiseTypeError)
         self.assertRaises(TypeError, self.bigip.regenerate_config_f5, apps)
 
+    def test_app_frontend_name(
+            self,
+            cloud_state='tests/marathon_one_app_in_subdir.json',
+            bigip_state='tests/bigip_test_blank.json',
+            hm_state='tests/bigip_test_blank.json'):
+        """Test: Verify frontend name when the app is in a subdirectory."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = get_apps(self.cloud_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertTrue(self.bigip.virtual_create.called)
+        self.assertTrue(self.bigip.pool_create.called)
+        self.assertTrue(self.bigip.healthcheck_create.called)
+        self.assertTrue(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+
+        expected_name = 'my_services_test-2_server-app_10.128.10.240_80'
+        self.assertEquals(self.bigip.virtual_create.call_args[0][1],
+                          expected_name)
+        self.assertEquals(self.bigip.pool_create.call_args[0][1],
+                          expected_name)
+        self.assertEquals(self.bigip.member_create.call_args[0][1],
+                          expected_name)
+
     def test_no_change(self, cloud_state='tests/marathon_two_apps.json',
                        bigip_state='tests/bigip_test_no_change.json',
                        hm_state='tests/bigip_test_two_monitors.json'):
