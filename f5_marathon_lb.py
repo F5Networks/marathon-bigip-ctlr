@@ -466,6 +466,7 @@ class MarathonEventProcessor(object):
         self.__condition = threading.Condition()
         self.__thread = threading.Thread(target=self.do_reset)
         self.__pending_reset = False
+        self.__thread.daemon = True
         self.__thread.start()
         self.__timer = None
 
