@@ -1,1 +1,1 @@
-"""System tests for f5mlb in a marathon environment."""
+"""System tests for bigip controller in a marathon environment."""

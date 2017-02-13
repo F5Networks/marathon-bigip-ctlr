@@ -29,7 +29,7 @@ from f5.bigip import BigIP
 import icontrol.session
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-logger = logging.getLogger('marathon_lb')
+logger = logging.getLogger('controller')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
@@ -55,7 +55,7 @@ def healthcheck_timeout_calculate(data):
     # Calculate timeout
     # See the f5 monitor docs for explanation of settings:
     # https://goo.gl/JJWUIg
-    # Formula to match up marathon settings with f5 settings:
+    # Formula to match up the cloud settings with f5 settings:
     # (( maxConsecutiveFailures - 1) * intervalSeconds )
     # + timeoutSeconds + 1
     timeout = (
@@ -531,15 +531,15 @@ class CloudBigIP(BigIP):
         for partition in unique_partitions:
             logger.debug("Doing config for partition '%s'" % partition)
 
-            marathon_virtual_list = \
+            cloud_virtual_list = \
                 [x for x in config.keys()
                  if config[x]['partition'] == partition and
                  'iapp' not in config[x]]
-            marathon_pool_list = \
+            cloud_pool_list = \
                 [x for x in config.keys()
                  if config[x]['partition'] == partition and
                  'iapp' not in config[x]]
-            marathon_iapp_list = \
+            cloud_iapp_list = \
                 [x for x in config.keys()
                  if config[x]['partition'] == partition and
                  'iapp' in config[x]]
@@ -547,33 +547,33 @@ class CloudBigIP(BigIP):
             # Configure iApps
             f5_iapp_list = self.get_iapp_list(partition)
             log_sequence('f5_iapp_list', f5_iapp_list)
-            log_sequence('marathon_iapp_list', marathon_iapp_list)
+            log_sequence('cloud_iapp_list', cloud_iapp_list)
 
             # iapp delete
-            iapp_delete = list_diff(f5_iapp_list, marathon_iapp_list)
+            iapp_delete = list_diff(f5_iapp_list, cloud_iapp_list)
             log_sequence('iApps to delete', iapp_delete)
             for iapp in iapp_delete:
                 self.iapp_delete(partition, iapp)
 
             # iapp add
-            iapp_add = list_diff(marathon_iapp_list, f5_iapp_list)
+            iapp_add = list_diff(cloud_iapp_list, f5_iapp_list)
             log_sequence('iApps to add', iapp_add)
             for iapp in iapp_add:
                 self.iapp_create(partition, iapp, config[iapp])
 
             # iapp update
-            iapp_intersect = list_intersect(marathon_iapp_list, f5_iapp_list)
+            iapp_intersect = list_intersect(cloud_iapp_list, f5_iapp_list)
             log_sequence('iApps to update', iapp_intersect)
             for iapp in iapp_intersect:
                 self.iapp_update(partition, iapp, config[iapp])
 
             # this is kinda kludgey: health monitor has the same name as the
             # virtual, and there is no more than 1 monitor per virtual.
-            marathon_healthcheck_list = []
-            for v in marathon_virtual_list:
+            cloud_healthcheck_list = []
+            for v in cloud_virtual_list:
                 for hc in config[v]['health']:
                     if 'protocol' in hc:
-                        marathon_healthcheck_list.append(v)
+                        cloud_healthcheck_list.append(v)
 
             f5_pool_list = self.get_pool_list(partition)
             f5_virtual_list = self.get_virtual_list(partition)
@@ -585,13 +585,13 @@ class CloudBigIP(BigIP):
             f5_healthcheck_dict = self.get_healthcheck_list(partition)
             logger.debug("f5_healthcheck_dict:   %s", f5_healthcheck_dict)
             # and then we need just the list to identify differences from the
-            # list returned from marathon
+            # list returned from the cloud environment
             f5_healthcheck_list = f5_healthcheck_dict.keys()
 
             # The virtual servers, pools, and health monitors for iApps are
             # managed by the iApps themselves, so remove them from the lists we
             # manage
-            for iapp in marathon_iapp_list:
+            for iapp in cloud_iapp_list:
                 f5_virtual_list = \
                     [x for x in f5_virtual_list if not x.startswith(iapp)]
                 f5_pool_list = \
@@ -602,24 +602,24 @@ class CloudBigIP(BigIP):
             log_sequence('f5_pool_list', f5_pool_list)
             log_sequence('f5_virtual_list', f5_virtual_list)
             log_sequence('f5_healthcheck_list', f5_healthcheck_list)
-            log_sequence('marathon_pool_list', marathon_pool_list)
-            log_sequence('marathon_virtual_list', marathon_virtual_list)
+            log_sequence('cloud_pool_list', cloud_pool_list)
+            log_sequence('cloud_virtual_list', cloud_virtual_list)
 
             # virtual delete
-            virt_delete = list_diff(f5_virtual_list, marathon_virtual_list)
+            virt_delete = list_diff(f5_virtual_list, cloud_virtual_list)
             log_sequence('Virtual Servers to delete', virt_delete)
             for virt in virt_delete:
                 self.virtual_delete(partition, virt)
 
             # pool delete
-            pool_delete_list = list_diff(f5_pool_list, marathon_pool_list)
+            pool_delete_list = list_diff(f5_pool_list, cloud_pool_list)
             log_sequence('Pools to delete', pool_delete_list)
             for pool in pool_delete_list:
                 self.pool_delete(partition, pool)
 
             # healthcheck delete
             health_delete = list_diff(f5_healthcheck_list,
-                                      marathon_healthcheck_list)
+                                      cloud_healthcheck_list)
             log_sequence('Healthchecks to delete', health_delete)
             for hc in health_delete:
                 self.healthcheck_delete(partition, hc,
@@ -628,7 +628,7 @@ class CloudBigIP(BigIP):
             # healthcheck config needs to happen before pool config because
             # the pool is where we add the healthcheck
             # healthcheck add: use the name of the virt for the healthcheck
-            healthcheck_add = list_diff(marathon_healthcheck_list,
+            healthcheck_add = list_diff(cloud_healthcheck_list,
                                         f5_healthcheck_list)
             log_sequence('Healthchecks to add', healthcheck_add)
             for hc in healthcheck_add:
@@ -636,19 +636,19 @@ class CloudBigIP(BigIP):
                     self.healthcheck_create(partition, item)
 
             # pool add
-            pool_add = list_diff(marathon_pool_list, f5_pool_list)
+            pool_add = list_diff(cloud_pool_list, f5_pool_list)
             log_sequence('Pools to add', pool_add)
             for pool in pool_add:
                 self.pool_create(partition, pool, config[pool])
 
             # virtual add
-            virt_add = list_diff(marathon_virtual_list, f5_virtual_list)
+            virt_add = list_diff(cloud_virtual_list, f5_virtual_list)
             log_sequence('Virtual Servers to add', virt_add)
             for virt in virt_add:
                 self.virtual_create(partition, virt, config[virt])
 
             # healthcheck intersection
-            healthcheck_intersect = list_intersect(marathon_virtual_list,
+            healthcheck_intersect = list_intersect(cloud_virtual_list,
                                                    f5_healthcheck_list)
             log_sequence('Healthchecks to update', healthcheck_intersect)
 
@@ -657,13 +657,13 @@ class CloudBigIP(BigIP):
                     self.healthcheck_update(partition, hc, item)
 
             # pool intersection
-            pool_intersect = list_intersect(marathon_pool_list, f5_pool_list)
+            pool_intersect = list_intersect(cloud_pool_list, f5_pool_list)
             log_sequence('Pools to update', pool_intersect)
             for pool in pool_intersect:
                 self.pool_update(partition, pool, config[pool])
 
             # virt intersection
-            virt_intersect = list_intersect(marathon_virtual_list,
+            virt_intersect = list_intersect(cloud_virtual_list,
                                             f5_virtual_list)
             log_sequence('Virtual Servers to update', virt_intersect)
 
@@ -678,15 +678,15 @@ class CloudBigIP(BigIP):
                 logger.debug("Pool: %s", pool)
 
                 f5_member_list = self.get_pool_member_list(partition, pool)
-                marathon_member_list = (config[pool]['nodes']).keys()
+                cloud_member_list = (config[pool]['nodes']).keys()
 
                 member_delete_list = list_diff(f5_member_list,
-                                               marathon_member_list)
+                                               cloud_member_list)
                 log_sequence('Pool members to delete', member_delete_list)
                 for member in member_delete_list:
                     self.member_delete(partition, pool, member)
 
-                member_add = list_diff(marathon_member_list, f5_member_list)
+                member_add = list_diff(cloud_member_list, f5_member_list)
                 log_sequence('Pool members to add', member_add)
                 for member in member_add:
                     self.member_create(partition, pool, member,
@@ -697,7 +697,7 @@ class CloudBigIP(BigIP):
                 # either of these properties will result in a new member being
                 # created and the old one being deleted. I'm leaving this here
                 # though in case we add other properties to members
-                member_update_list = list_intersect(marathon_member_list,
+                member_update_list = list_intersect(cloud_member_list,
                                                     f5_member_list)
                 log_sequence('Pool members to update', member_update_list)
 

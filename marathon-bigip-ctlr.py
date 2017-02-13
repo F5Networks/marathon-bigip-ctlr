@@ -1,18 +1,18 @@
 #!/usr/bin/env python
-"""f5-marathon-lb.
+"""marathon-bigip-ctlr.
 
-f5-marathon-lb is a service discovery and load balancing tool
+marathon-bigip-ctlr is a service discovery and load balancing tool
 for Marathon to configure an F5 BIG-IP. It reads the Marathon task information
 and dynamically generates BIG-IP configuration details.
 
-To gather the task information, marathon-lb needs to know where
+To gather the task information, marathon-bigip-ctlr needs to know where
 to find Marathon. The service configuration details are stored in labels.
 
 Every service port in Marathon can be configured independently.
 
 ### Configuration
 Service configuration lives in Marathon via labels.
-f5-marathon-lb just needs to know where to find Marathon.
+marathon-bigip-ctlr just needs to know where to find Marathon.
 """
 
 from sseclient import SSEClient
@@ -136,7 +136,7 @@ label_keys = {
     'F5_{0}_IAPP_OPTION_': set_iapp_option
 }
 
-logger = logging.getLogger('marathon_lb')
+logger = logging.getLogger('controller')
 
 
 class MarathonBackend(object):
@@ -553,19 +553,19 @@ def get_arg_parser():
                              "http://marathon1:8080 http://marathon2:8080"
                         )
     parser.add_argument("--hostname",
-                        env_var='F5_CSI_BIGIP_HOSTNAME',
+                        env_var='F5_CC_BIGIP_HOSTNAME',
                         help="F5 BIG-IP hostname"
                         )
     parser.add_argument("--username",
-                        env_var='F5_CSI_BIGIP_USERNAME',
+                        env_var='F5_CC_BIGIP_USERNAME',
                         help="F5 BIG-IP username"
                         )
     parser.add_argument("--password",
-                        env_var='F5_CSI_BIGIP_PASSWORD',
+                        env_var='F5_CC_BIGIP_PASSWORD',
                         help="F5 BIG-IP password"
                         )
     parser.add_argument("--partition",
-                        env_var='F5_CSI_PARTITIONS',
+                        env_var='F5_CC_PARTITIONS',
                         help="[required] Only generate config for apps which"
                         " match the specified partition. Use '*' to match all"
                         " partitions.  Can use this arg multiple times to"
@@ -573,19 +573,19 @@ def get_arg_parser():
                         action="append",
                         default=list())
     parser.add_argument("--health-check", "-H",
-                        env_var='F5_CSI_USE_HEALTHCHECK',
+                        env_var='F5_CC_USE_HEALTHCHECK',
                         help="If set, respect Marathon's health check "
                         "statuses before adding the app instance into "
                         "the backend pool.",
                         action="store_true")
     parser.add_argument("--marathon-ca-cert",
-                        env_var='F5_CSI_MARATHON_CA_CERT',
+                        env_var='F5_CC_MARATHON_CA_CERT',
                         help="CA certificate for Marathon HTTPS connections")
     parser.add_argument('--sse-timeout', "-t", type=int,
-                        env_var='F5_CSI_SSE_TIMEOUT',
+                        env_var='F5_CC_SSE_TIMEOUT',
                         default=30, help='Marathon event stream timeout')
     parser.add_argument('--verify-interval', "-v", type=int,
-                        env_var='F5_CSI_VERIFY_INTERVAL',
+                        env_var='F5_CC_VERIFY_INTERVAL',
                         default=30, help="Interval at which to verify "
                         "the BIG-IP configuration.")
 

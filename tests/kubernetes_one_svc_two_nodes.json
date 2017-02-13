@@ -27,7 +27,7 @@
         "frontend": {
           "balance": "round-robin",
           "mode": "http",
-          "partition": "velcro",
+          "partition": "k8s",
           "virtualAddress": {
             "bindAddr": "10.128.10.240",
             "port": 5051

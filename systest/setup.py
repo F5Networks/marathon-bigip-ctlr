@@ -2,7 +2,7 @@
 
 """Standard python packaging script.
 
-This module allows us to install the f5-marathon-lb system tests via pip.
+This module allows us to install the bigip controller system tests via pip.
 """
 
 import os
@@ -23,7 +23,7 @@ os.system("pip install -r requirements.txt")
 setup(
     name="systest_f5mlb",
     version=VERSION,
-    description="System tests for the f5-marathon-lb velcro component.",
+    description="System tests for the bigip controller component.",
     packages=find_packages(exclude=["docs"]),
     install_requires=[
         "systest-common>0,<1",

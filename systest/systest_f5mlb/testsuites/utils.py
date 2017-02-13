@@ -67,18 +67,18 @@ DEFAULT_BIGIP2_MGMT_IP = getattr(symbols, 'bigip2_mgmt_ip', None)
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
         "MARATHON_URL": symbols.marathon_url,
-        "F5_CSI_SYSLOG_SOCKET": "/dev/null",
-        "F5_CSI_PARTITIONS": DEFAULT_F5MLB_PARTITION,
-        "F5_CSI_BIGIP_HOSTNAME": DEFAULT_BIGIP_MGMT_IP,
-        "F5_CSI_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
-        "F5_CSI_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
-        "F5_CSI_VERIFY_INTERVAL": str(DEFAULT_F5MLB_VERIFY_INTERVAL)
+        "F5_CC_SYSLOG_SOCKET": "/dev/null",
+        "F5_CC_PARTITIONS": DEFAULT_F5MLB_PARTITION,
+        "F5_CC_BIGIP_HOSTNAME": DEFAULT_BIGIP_MGMT_IP,
+        "F5_CC_BIGIP_USERNAME": DEFAULT_BIGIP_USERNAME,
+        "F5_CC_BIGIP_PASSWORD": DEFAULT_BIGIP_PASSWORD,
+        "F5_CC_VERIFY_INTERVAL": str(DEFAULT_F5MLB_VERIFY_INTERVAL)
     }
     BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
-    BIGIP2_F5MLB_CONFIG['F5_CSI_BIGIP_HOSTNAME'] = DEFAULT_BIGIP2_MGMT_IP
+    BIGIP2_F5MLB_CONFIG['F5_CC_BIGIP_HOSTNAME'] = DEFAULT_BIGIP2_MGMT_IP
 elif symbols.orchestration == "k8s":
     DEFAULT_F5MLB_CONFIG = {
-        'cmd': "/app/bin/f5-k8s-controller",
+        'cmd': "/app/bin/k8s-bigip-ctlr",
         'args': [
             "--bigip-partition", DEFAULT_F5MLB_PARTITION,
             "--bigip-url", DEFAULT_BIGIP_MGMT_IP,
