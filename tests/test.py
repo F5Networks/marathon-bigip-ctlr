@@ -1857,6 +1857,27 @@ class MarathonTest(BigIPTest):
         self.assertFalse(self.bigip.member_create.called)
         self.assertFalse(self.bigip.member_delete.called)
 
+    def test_backoff_timer(self):
+        """Test tight loop backoff."""
+        cb = Mock()
+        ep = ctlr.MarathonEventProcessor({}, 1, {})
+        # Set our times for fast unit testing
+        ep._max_backoff_time = 0.1
+        ep._backoff_timer = 0.025
+
+        self.assertEqual(ep._max_backoff_time, 0.1)
+        self.assertEqual(ep._backoff_timer, 0.025)
+        # First call doubles the _backoff_timer
+        ctlr.MarathonEventProcessor.retry_backoff(ep, cb)
+        self.assertEqual(ep._backoff_timer, 0.05)
+        # Second call doubles the _backoff_timer
+        ctlr.MarathonEventProcessor.retry_backoff(ep, cb)
+        self.assertEqual(ep._backoff_timer, 0.1)
+        # No change to backoff_timer as we hit _max_backoff_time
+        ctlr.MarathonEventProcessor.retry_backoff(ep, cb)
+        self.assertEqual(ep._backoff_timer, 0.1)
+        self.assertEqual(cb.call_count, 3)
+
 
 class KubernetesTest(BigIPTest):
     """Kubernetes/Big-IP configuration tests.
