@@ -863,7 +863,7 @@ class MarathonTest(BigIPTest):
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
 
         # Do the BIG-IP configuration
-        apps = get_apps(self.cloud_data, True)
+        apps = ctlr.get_apps(self.cloud_data, True)
         self.bigip.regenerate_config_f5(apps)
 
         self.check_labels(self.cloud_data, apps)
