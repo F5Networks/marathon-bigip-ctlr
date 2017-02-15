@@ -78,3 +78,19 @@ dockerize:
   tags:
     - docker-build
 
+
+attributions generator:
+  image: docker-registry.pdbld.f5net.com/velcro/attributions-generator:master
+  stage: deploy
+  script:
+    - /usr/local/bin/run-backends.sh $PWD
+    - node /frontEnd/frontEnd.js $PWD
+  tags:
+    - docker
+  artifacts:
+    paths:
+      - Licenses_generated.json
+      - flatfile_attributions.json
+      - golang_attributions.json
+      - pip_attributions.json
+      - ATTRIBUTIONS.md
