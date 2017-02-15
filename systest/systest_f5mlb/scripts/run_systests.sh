@@ -31,6 +31,16 @@ else
     include_tags="$4"
 fi
 
+if [ "$5" == "" ]; then
+    echo "ERROR: no pool_mode value provided!"
+    exit 1
+else
+    # - pool_mode is pytest variable that runs the tests with the controller in
+    # with the specified pool_member_typw
+    #   "nodeport" or "cluster"
+    pool_mode="$5"
+fi
+
 # - create the local results directory
 results_dir="~/test_results"
 if [[ ! -e "$results_dir" ]]; then
@@ -47,6 +57,7 @@ cd $systestdir
 py.test \
     -svvra \
     --symbols ~/testenv_symbols/testenv_symbols.json \
+    --vars controller-pool-mode:$pool_mode \
     --include $include_tags \
     --exclude incomplete no_regression no_$orchestration \
     --autolog-outputdir $results_dir \

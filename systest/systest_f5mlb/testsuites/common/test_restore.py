@@ -169,13 +169,14 @@ def test_restore_after_node_update(orchestration, bigip, bigip_controller):
     doesn't care about.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_northsouth_service(orchestration)
+    utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    instances = svc.instances.get()
 
     # - modify managed node and verify reset
+    members = bigip.pool_members.get(partition=default_partition)
+    member_node_addrs = sorted([mem.address for mem in members])
     node = bigip.node.get(
-        name=instances[0].host, partition=default_partition
+        name=member_node_addrs[0], partition=default_partition
     )
     node_state_orig = node.state
     node.state = "user-down"
@@ -305,14 +306,19 @@ def test_restore_after_pool_member_delete(
     default_partition = utils.DEFAULT_F5MLB_PARTITION
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    instances = svc.instances.get()
-    obj_name = "%s:%d" % (instances[0].host, instances[0].ports[0])
+    objs = utils.get_backend_objects_exp(svc, bigip_controller)
+    expected_members = objs['pool_members']
 
     # - delete managed pool member and verify recreate
-    assert bigip.pool_members.list(partition=default_partition) == [obj_name]
-    bigip.pool_member.delete(name=obj_name, partition=default_partition)
+    actual_members = sorted(
+            bigip.pool_members.list(partition=default_partition))
+    assert actual_members == expected_members
+    bigip.pool_member.delete(
+            name=actual_members[0], partition=default_partition)
     utils.wait_for_bigip_controller()
-    assert bigip.pool_members.list(partition=default_partition) == [obj_name]
+    actual_members = sorted(
+            bigip.pool_members.list(partition=default_partition))
+    assert actual_members == expected_members
 
 
 @meta_test(id="f5mlb-13", tags=[])
@@ -323,18 +329,26 @@ def test_restore_after_node_delete(orchestration, bigip, bigip_controller):
     recreate it.
     """
     default_partition = utils.DEFAULT_F5MLB_PARTITION
-    svc = utils.create_managed_northsouth_service(orchestration)
+    utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    instances = svc.instances.get()
-    obj_name = instances[0].host
-    member_name = "%s:%d" % (instances[0].host, instances[0].ports[0])
 
     # - delete managed node and verify recreate
-    assert bigip.nodes.list(partition=default_partition) == [obj_name]
-    bigip.pool_member.delete(name=member_name, partition=default_partition)
-    bigip.node.delete(obj_name, partition=default_partition)
+    # No pool members can exist that use the node, or it can't be deleted
+    members = bigip.pool_members.get(partition=default_partition)
+    node_names = sorted(bigip.nodes.list(partition=default_partition))
+    member_node_addrs = sorted([mem.address for mem in members])
+    assert len(node_names), "precondition: need nodes to exist"
+    assert node_names == member_node_addrs, \
+        "precondition: unexpected nodes don't exist"
+
+    for member in members:
+        if member.address == node_names[0]:
+            member.delete()
+    bigip.node.delete(node_names[0], partition=default_partition)
+
     utils.wait_for_bigip_controller()
-    assert bigip.nodes.list(partition=default_partition) == [obj_name]
+    assert bigip.nodes.list(partition=default_partition) == node_names, \
+        "The controller didn't recreate the deleted node"
 
 
 @meta_test(id="f5mlb-14", tags=[])
@@ -379,7 +393,7 @@ def test_restore_after_bigip_controller_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_uid = svc.uid
     if symbols.orchestration == "k8s":
@@ -390,7 +404,7 @@ def test_restore_after_bigip_controller_delete(
     assert svc.uid == old_uid
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate bigip-controller and verify restoration
-    bigip_controller = utils.create_bigip_controller(orchestration)
+    bigip_controller.create()
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
     assert utils.get_backend_objects(bigip) == backend_objs_exp
@@ -406,7 +420,7 @@ def test_restore_after_bigip_controller_delete_then_svc_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -419,7 +433,7 @@ def test_restore_after_bigip_controller_delete_then_svc_delete(
     assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate bigip-controller and verify restoration
-    bigip_controller = utils.create_bigip_controller(orchestration)
+    bigip_controller.create()
     utils.wait_for_bigip_controller()
     assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == {}
@@ -436,7 +450,7 @@ def test_restore_after_bigip_controller_delete_then_svc_update(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -446,7 +460,7 @@ def test_restore_after_bigip_controller_delete_then_svc_update(
     utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate bigip-controller and verify restoration
-    bigip_controller = utils.create_bigip_controller(orchestration)
+    bigip_controller.create()
     utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == {}
 
@@ -461,7 +475,7 @@ def test_restore_after_bigip_controller_delete_then_backend_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
     bigip_controller.delete()
@@ -474,7 +488,7 @@ def test_restore_after_bigip_controller_delete_then_backend_delete(
     orig_va_list = backend_objs_exp.pop('virtual_addresses')
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - recreate bigip-controller and verify restoration
-    bigip_controller = utils.create_bigip_controller(orchestration)
+    bigip_controller.create()
     utils.wait_for_bigip_controller()
     backend_objs_exp['virtual_servers'] = orig_vs_list
     backend_objs_exp['virtual_addresses'] = orig_va_list
@@ -492,7 +506,7 @@ def test_restore_after_bigip_controller_delete_then_backend_update(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
     bigip_controller.delete()
@@ -515,7 +529,7 @@ def test_restore_after_bigip_controller_delete_then_backend_update(
     assert virtual_server.destination == new_dest
     assert virtual_server.description == new_desc
     # - recreate bigip-controller and verify restoration
-    bigip_controller = utils.create_bigip_controller(orchestration)
+    bigip_controller.create()
     utils.wait_for_bigip_controller()
     virtual_server.refresh()
     assert virtual_server.destination == old_dest
@@ -535,7 +549,7 @@ def test_restore_after_bigip_controller_suspend(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_uid = svc.uid
     if symbols.orchestration == "k8s":
@@ -564,7 +578,7 @@ def test_restore_after_bigip_controller_suspend_then_svc_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -596,7 +610,7 @@ def test_restore_after_bigip_controller_suspend_then_svc_update(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -623,7 +637,7 @@ def test_restore_after_bigip_controller_suspend_then_backend_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -656,7 +670,7 @@ def test_restore_after_bigip_controller_suspend_then_backend_update(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     if symbols.orchestration == "k8s":
         orchestration.namespace = "kube-system"
@@ -725,7 +739,7 @@ def test_restore_after_svc_becomes_unmanaged(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc)
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - remove bigip-controller decorations from the managed service
     utils.unmanage_northsouth_service(orchestration, svc)

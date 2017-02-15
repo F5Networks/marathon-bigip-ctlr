@@ -41,10 +41,18 @@ def pytest_namespace():
     }
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='session', autouse=False)
 def orchestration(request):
-    """Provide an orchestration connection."""
-    return common.orchestration.connect(**vars(symbols))
+    """Provide a orchestration connection.
+
+    Attempt to clean all previous objects
+    """
+    conn = common.orchestration.connect(**vars(symbols))
+    conn.namespace = 'kube-system'
+    conn.apps.delete(ptn="test-bigip-controller")
+    conn.namespace = 'default'
+
+    return conn
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -141,7 +149,11 @@ def bigip2_addto_test_fx(request, orchestration, bigip2):
 @pytest.fixture(scope='function')
 def bigip_controller(request, orchestration):
     """Provide a default bigip-controller service."""
-    controller = utils.create_bigip_controller(orchestration)
+    mode = request.config._meta.vars.get(
+        'controller-pool-mode', utils.POOL_MODE_CLUSTER)
+    assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
+
+    controller = utils.BigipController(orchestration, pool_mode=mode).create()
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
@@ -156,10 +168,12 @@ def bigip_controller(request, orchestration):
 @pytest.fixture(scope='function')
 def bigip2_controller(request, orchestration, bigip2_addto_test_fx):
     """Provide a second bigip-controller service."""
-    controller = \
-        utils.create_bigip_controller(orchestration,
-                                      id=utils.BIGIP2_F5MLB_NAME,
-                                      config=utils.BIGIP2_F5MLB_CONFIG)
+    mode = request.config._meta.vars.get(
+        'controller-pool-mode', utils.POOL_MODE_CLUSTER)
+    assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
+    controller = utils.BigipController(
+        orchestration, pool_mode=mode, id=utils.BIGIP2_F5MLB_NAME,
+        config=utils.BIGIP2_F5MLB_CONFIG).create()
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):

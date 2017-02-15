@@ -27,7 +27,7 @@ MAX_WAIT_DEPLOY = 10
 
 
 def verify_config_produces_managed_svc(
-        orchestration, bigip, param="", input_val=""):
+        orchestration, bigip, bigip_controller, param="", input_val=""):
     """Verify managed north-south service will deploy with given input."""
     config = _get_managed_northsouth_service_config(param, input_val)
     svc = utils.create_managed_northsouth_service(
@@ -38,7 +38,7 @@ def verify_config_produces_managed_svc(
         assert svc.instances.count() > 0
         # - verify bigip objects created for managed service
         utils.wait_for_bigip_controller()
-        backend_objs_exp = utils.get_backend_objects_exp(svc)
+        backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
         assert utils.get_backend_objects(bigip) == backend_objs_exp
     except:
         raise

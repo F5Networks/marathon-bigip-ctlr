@@ -41,6 +41,8 @@ all:
 	@printf "  \nOptional arguments:\n"
 	@printf "  bigip_ver - the version of BIG-IP to test against.\n"
 	@printf "      Valid values: v12.1.0, v12.0.0, v11.6.1.\n"
+	@printf "  bigip_pool_mode - pool member mode to use for the tests\n"
+	@printf "      Valid values: nodeport cluster.\n"
 
 VALID_ORCHESTRATIONS := marathon k8s
 VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s)
@@ -67,10 +69,12 @@ ifeq ($(orchestration), marathon)
   repo_name := marathon-bigip-ctlr
   testenv_config := mesos.testenv.yaml
   project_dir := velcro.marathon-bigip-ctlr
+  bigip_pool_mode ?= cluster
 else ifeq ($(orchestration), k8s)
   repo_name := k8s-bigip-ctlr
   testenv_config := k8s.testenv.yaml
   project_dir := velcro.k8s-bigip-ctlr
+  bigip_pool_mode ?= nodeport
 endif
 
 namespace := velcro
@@ -161,7 +165,7 @@ functest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(func_session) $(orchestration) func"
+		$(systest_pkg) $(func_session) $(orchestration) func $(bigip_pool_mode)"
 
 functest-teardown:
 	@echo "downloading $(orchestration) functional test results ..."
@@ -186,7 +190,7 @@ scaletest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(scale_session) $(orchestration) scale"
+		$(systest_pkg) $(scale_session) $(orchestration) scale $(bigip_pool_mode)"
 
 scaletest-teardown:
 	@echo "downloading $(orchestration) scale test results ..."
@@ -216,7 +220,7 @@ hatest-run:
 		"export OS_PASSWORD=$(OS_PASSWORD) &&" \
 		"export OS_AUTH_URL=$(OS_AUTH_URL) &&" \
 		"~/run_systests.sh \
-		$(systest_pkg) $(ha_session) $(orchestration) ha"
+		$(systest_pkg) $(ha_session) $(orchestration) ha $(bigip_pool_mode)"
 
 hatest-teardown:
 	@echo "downloading $(orchestration) HA test results ..."
