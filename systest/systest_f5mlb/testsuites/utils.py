@@ -22,6 +22,12 @@ import time
 from pytest import symbols
 
 
+def _is_kubernetes():
+    if symbols.orchestration == "openshift" or symbols.orchestration == "k8s":
+        return True
+    return False
+
+
 REGISTRY = "docker-registry.pdbld.f5net.com"
 TEST_NGINX_IMG = \
         "docker-registry.pdbld.f5net.com/systest-common/test-nginx:20170211"
@@ -45,7 +51,7 @@ DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_LB_ALGORITHM = "round-robin"
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_WAIT = 5
-elif symbols.orchestration == "k8s":
+elif _is_kubernetes():
     DEFAULT_F5MLB_WAIT = 20
 DEFAULT_F5MLB_VERIFY_INTERVAL = 2
 DEFAULT_F5MLB_NAMESPACE = "default"
@@ -84,6 +90,13 @@ POOL_MODE_NODEPORT = 'nodeport'
 POOL_MODE_CLUSTER = 'cluster'
 POOL_MODES = [POOL_MODE_NODEPORT, POOL_MODE_CLUSTER]
 
+DEFAULT_BIGIP_VXLAN_PROFILE = "vxlan-multipoint"
+DEFAULT_BIGIP_VXLAN_TUNNEL = "vxlan-tunnel-mp"
+DEFAULT_BIGIP_OPENSHIFT_SELFNAME = "openshift-selfip"
+DEFAULT_BIGIP_OPENSHIFT_SELFIP = "10.131.255.1/14"
+DEFAULT_BIGIP_OPENSHIFT_SUBNET = "10.131.255.0/31"
+DEFAULT_OPENSHIFT_USER = "run-as-anyid"
+
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
         "MARATHON_URL": symbols.marathon_url,
@@ -96,7 +109,17 @@ if symbols.orchestration == "marathon":
     }
     BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
     BIGIP2_F5MLB_CONFIG['F5_CC_BIGIP_HOSTNAME'] = DEFAULT_BIGIP2_MGMT_IP
-elif symbols.orchestration == "k8s":
+
+    DEFAULT_SVC_CONFIG = {
+        'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
+        'F5_0_BIND_ADDR': DEFAULT_F5MLB_BIND_ADDR,
+        'F5_0_PORT': DEFAULT_F5MLB_PORT,
+        'F5_0_MODE': DEFAULT_F5MLB_MODE,
+        'F5_0_BALANCE': DEFAULT_F5MLB_LB_ALGORITHM,
+    }
+    BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
+    BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
+elif _is_kubernetes():
     DEFAULT_F5MLB_CONFIG = {
         'cmd': "/app/bin/k8s-bigip-ctlr",
         'args': [
@@ -111,17 +134,6 @@ elif symbols.orchestration == "k8s":
     BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
     BIGIP2_F5MLB_CONFIG['args'][3] = DEFAULT_BIGIP2_MGMT_IP
 
-if symbols.orchestration == "marathon":
-    DEFAULT_SVC_CONFIG = {
-        'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
-        'F5_0_BIND_ADDR': DEFAULT_F5MLB_BIND_ADDR,
-        'F5_0_PORT': DEFAULT_F5MLB_PORT,
-        'F5_0_MODE': DEFAULT_F5MLB_MODE,
-        'F5_0_BALANCE': DEFAULT_F5MLB_LB_ALGORITHM,
-    }
-    BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
-    BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
-elif symbols.orchestration == "k8s":
     DEFAULT_SVC_CONFIG = {
         'name': "x",
         'labels': {'f5type': "virtual-server"},
@@ -157,7 +169,25 @@ elif symbols.orchestration == "k8s":
     BIGIP2_SVC_CONFIG['data']['data']['virtualServer']['frontend'][
             'virtualAddress']['bindAddr'] = BIGIP2_F5MLB_BIND_ADDR
 
+if symbols.orchestration == "openshift":
+    vxlan_name = ("/" + DEFAULT_F5MLB_PARTITION + "/" +
+                  DEFAULT_BIGIP_VXLAN_TUNNEL)
+    DEFAULT_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
+    DEFAULT_F5MLB_CONFIG['args'].append(vxlan_name)
+
+    BIGIP2_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
+    BIGIP2_F5MLB_CONFIG['args'].append(vxlan_name)
+
 _next_id = 1
+
+
+def controller_namespace():
+    """Return the appropriate namespace for kubernetes flavor."""
+    if symbols.orchestration == "openshift":
+        return 'management-infra'
+    elif symbols.orchestration == "k8s":
+        return 'kube-system'
+    return None
 
 
 def unique_id(prefix):
@@ -191,8 +221,13 @@ def create_managed_northsouth_service(
     _lbls = copy.deepcopy(labels)
     if symbols.orchestration == "marathon":
         _lbls.update(config)
-    if symbols.orchestration == "k8s":
+    if _is_kubernetes():
         orchestration.namespace = "default"
+    if symbols.orchestration == "openshift":
+        service_account = DEFAULT_OPENSHIFT_USER
+    else:
+        service_account = None
+
     svc = orchestration.app.create(
         id=id,
         cpus=cpus,
@@ -211,13 +246,14 @@ def create_managed_northsouth_service(
         container_force_pull_image=True,
         health_checks=health_checks,
         num_instances=num_instances,
-        wait_for_deploy=wait_for_deploy
+        wait_for_deploy=wait_for_deploy,
+        service_account=service_account
     )
     # By waiting until the app is deployed before creating the VS Resource,
     # the big-ip won't fail any health checks, and things go faster.
     #
     # The reverse order is tested in ??????
-    if symbols.orchestration == "k8s":
+    if _is_kubernetes():
         config['name'] = "%s-map" % id
         config['data']['data']['virtualServer']['backend']['serviceName'] = id
         orchestration.app.create_configmap(config)
@@ -229,7 +265,7 @@ def unmanage_northsouth_service(orchestration, svc):
     if symbols.orchestration == "marathon":
         svc.labels = {}
         svc.update()
-    if symbols.orchestration == "k8s":
+    if _is_kubernetes():
         orchestration.namespace = "default"
         orchestration.app.delete_configmap("%s-map" % svc.id)
 
@@ -258,7 +294,11 @@ class BigipController(object):
                 'env': config,
                 'wait_for_deploy': wait_for_deploy,
                 }
-        elif symbols.orchestration == "k8s":
+        elif _is_kubernetes():
+            service_account = None
+            if symbols.orchestration == "openshift":
+                service_account = "management-admin"
+
             self.app_kwargs = {
                 'id': id,
                 'cpus': cpus,
@@ -269,15 +309,16 @@ class BigipController(object):
                 'cmd': config['cmd'],
                 'args': config['args'] + ['--pool-member-type', pool_mode],
                 'wait_for_deploy': wait_for_deploy,
+                'service_account': service_account,
                 }
         else:
             assert False, "Unsupported orchestration " + orchestration
 
     def create(self):
         """Create and start the controller instance."""
-        if symbols.orchestration == "k8s":
+        if _is_kubernetes():
             save_namespace = self.orchestration.namespace
-            self.orchestration.namespace = "kube-system"
+            self.orchestration.namespace = controller_namespace()
             self.app = self.orchestration.app.create(**self.app_kwargs)
             self.orchestration.namespace = save_namespace
         else:
@@ -301,8 +342,13 @@ class BigipController(object):
 
 def create_unmanaged_service(orchestration, id, labels={}):
     """Create a microservice with no bigip-controller decorations."""
-    if symbols.orchestration == "k8s":
+    if symbols.orchestration == "openshift":
+        service_account = DEFAULT_OPENSHIFT_USER
+    else:
+        service_account = None
+    if _is_kubernetes():
         orchestration.namespace = "default"
+
     return orchestration.app.create(
         id=id,
         cpus=DEFAULT_SVC_CPUS,
@@ -317,7 +363,8 @@ def create_unmanaged_service(orchestration, id, labels={}):
                 'protocol': "tcp"
             }
         ],
-        container_force_pull_image=True
+        container_force_pull_image=True,
+        service_account=service_account
     )
 
 
@@ -332,7 +379,7 @@ def get_backend_object_name(svc, port_idx=0):
                 str(svc.labels['F5_%d_PORT' % port_idx])
             )
         )
-    if symbols.orchestration == "k8s":
+    if _is_kubernetes():
         return (
             "%s_%s_%s" % (svc.id, svc.vs_bind_addr, svc.vs_port)
         )
@@ -405,7 +452,7 @@ def get_backend_objects_exp(svc, bigip_controller):
         nodes = set([i.host for i in instances])
     if symbols.orchestration == "marathon":
         virtual_addr = svc.labels['F5_0_BIND_ADDR']
-    elif symbols.orchestration == "k8s":
+    elif _is_kubernetes():
         virtual_addr = DEFAULT_F5MLB_BIND_ADDR
     pool_members = get_backend_pool_members_exp(svc, bigip_controller)
     ret = {
@@ -466,7 +513,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
     if symbols.orchestration == "marathon":
         return _get_svc_url_marathon(svc, protocol, ipaddr, port)
-    elif symbols.orchestration == "k8s":
+    elif _is_kubernetes():
         return _get_svc_url_k8s(svc, protocol, ipaddr, port)
 
 
