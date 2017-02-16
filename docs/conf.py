@@ -80,8 +80,8 @@ source_parsers = {
 master_doc = 'README'
 
 # General information about the project.
-project = u'f-marathon-bigip-controller'
-copyright = u'2016 F5 Networks Inc'
+project = u'F5 Marathon BIG-IP Controller'
+copyright = u'2016,2017 F5 Networks Inc'
 author = u'F5 Networks'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -169,7 +169,7 @@ html_theme = 'sphinx_rtd_theme'
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-html_title = 'f5-marathon-bigip-controller'
+html_title = 'F5 Marathon BIG-IP Controller'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #

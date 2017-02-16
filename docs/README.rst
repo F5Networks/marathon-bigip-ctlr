@@ -1,11 +1,11 @@
-f5-marathon-bigip-controller
-============================
+F5 Marathon BIG-IP Controller
+=============================
 
 .. toctree::
     :hidden:
     :maxdepth: 2
 
-``F5-marathon-bigip-controller`` is a `Marathon Application`_ that manages F5 BIG-IP `Local Traffic Manager <https://f5.com/products/big-ip/local-traffic-manager-ltm>`_ (LTM) services.
+The F5 Marathon BIG-IP Controller is a `Marathon Application`_ that manages F5 BIG-IP `Local Traffic Manager <https://f5.com/products/big-ip/local-traffic-manager-ltm>`_ (LTM) services.
 
 Features
 --------
@@ -19,7 +19,7 @@ Features
 Guides
 ------
 
-The ``f5-marathon-bigip-controller`` user documentation is available at `add link <#tbd>`_.
+The F5 Marathon BIG-IP Controller user documentation is available at `add link <#tbd>`_.
 
 Getting Started
 ```````````````
@@ -40,7 +40,7 @@ Troubleshooting
 Architecture
 ------------
 
-``F5-marathon-bigip-controller`` is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
+The F5 Marathon BIG-IP Controller is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
 
 - matches the Marathon App to the specified BIG-IP partition;
 - creates a virtual server and pool for each `port-mapping <https://mesosphere.github.io/marathon/docs/ports.html>`_ ;
@@ -50,7 +50,7 @@ Architecture
 Configuration Parameters
 ------------------------
 
-``F5-marathon-bigip-controller`` configurations must be valid JSON.
+The F5 Marathon BIG-IP Controller configurations must be valid JSON.
 
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | Parameter                         | Type      | Required  | Default       | Description                   | Allowed Values    |
@@ -209,7 +209,7 @@ Example Configuration Files
 Usage Example
 -------------
 
-``F5-marathon-bigip-controller`` configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- running the command below on the Mesos master creates objects  in the ``/mesos`` partition on the BIG-IP.
+The F5 Marathon BIG-IP Controller configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- running the command below on the Mesos master creates objects  in the ``/mesos`` partition on the BIG-IP.
 
 ::
 
