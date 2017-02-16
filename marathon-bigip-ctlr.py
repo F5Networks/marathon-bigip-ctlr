@@ -484,6 +484,8 @@ class MarathonEventProcessor(object):
         self.__thread.daemon = True
         self.__thread.start()
         self.__timer = None
+        self._backoff_timer = 1
+        self._max_backoff_time = 128
 
         # Fetch the base data
         self.reset_from_tasks()
@@ -510,10 +512,11 @@ class MarathonEventProcessor(object):
                     if self.__bigip.regenerate_config_f5(self.__apps):
                         # Timeout (or some other retryable error occurred),
                         # do a reset so that we try again
-                        self.reset_from_tasks()
+                        self.retry_backoff(self.reset_from_tasks)
                     else:
                         # Reconfig was successful
                         self.start_checkpoint_timer()
+                        self._backoff_timer = 1
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
@@ -524,6 +527,16 @@ class MarathonEventProcessor(object):
                 except:
                     logger.exception("Unexpected error!")
                     self.start_checkpoint_timer()
+
+    def retry_backoff(self, func):
+        """Tight loop backoff in case of error response."""
+        e = threading.Event()
+        logger.error("Error applying config, will try again in %s seconds",
+                     self._backoff_timer)
+        e.wait(self._backoff_timer)
+        if self._backoff_timer < self._max_backoff_time:
+            self._backoff_timer *= 2
+        func()
 
     def start_checkpoint_timer(self):
         """Start timer to checkpoint the BIG-IP config."""
