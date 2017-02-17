@@ -34,6 +34,7 @@ import logging
 import json
 import requests
 import f5
+import urllib
 from operator import attrgetter
 from common import resolve_ip, list_diff, list_diff_exclusive, list_intersect,\
                    ipv4_to_mac, extract_partition_and_name,\
@@ -802,7 +803,8 @@ class CloudBigIP(BigIP):
             node_name: Node name
             partition: Partition name
         """
-        node = self.ltm.nodes.node.load(name=node_name, partition=partition)
+        node = self.ltm.nodes.node.load(name=urllib.quote(node_name),
+                                        partition=partition)
         node.delete()
 
     def get_pool(self, partition, name):
@@ -909,7 +911,8 @@ class CloudBigIP(BigIP):
             member: Name of pool member
         """
         p = self.get_pool(partition, pool)
-        m = p.members_s.members.load(name=member, partition=partition)
+        m = p.members_s.members.load(name=urllib.quote(member),
+                                     partition=partition)
         return m
 
     def get_pool_member_list(self, partition, pool):
@@ -978,8 +981,10 @@ class CloudBigIP(BigIP):
             partition: Partition name
             name: Name of the node
         """
-        if self.ltm.nodes.node.exists(name=name, partition=partition):
-            return self.ltm.nodes.node.load(name=name, partition=partition)
+        if self.ltm.nodes.node.exists(name=urllib.quote(name),
+                                      partition=partition):
+            return self.ltm.nodes.node.load(name=urllib.quote(name),
+                                            partition=partition)
         else:
             return None
 
@@ -1005,7 +1010,8 @@ class CloudBigIP(BigIP):
             virtual: Name of the Virtual Server
         """
         # return virtual object
-        v = self.ltm.virtuals.virtual.load(name=virtual, partition=partition)
+        v = self.ltm.virtuals.virtual.load(name=urllib.quote(virtual),
+                                           partition=partition)
         return v
 
     def get_virtual_list(self, partition):
@@ -1106,11 +1112,11 @@ class CloudBigIP(BigIP):
             name: Name of the Virtual Address
         """
         if not self.ltm.virtual_address_s.virtual_address.exists(
-                name=name, partition=partition):
+                name=urllib.quote(name), partition=partition):
             return None
         else:
             return self.ltm.virtual_address_s.virtual_address.load(
-                name=name, partition=partition)
+                name=urllib.quote(name), partition=partition)
 
     def virtual_address_create(self, partition, name):
         """Create a Virtual Address.
@@ -1141,9 +1147,11 @@ class CloudBigIP(BigIP):
         """
         # return hc object
         if hc_type == 'http':
-            hc = self.ltm.monitor.https.http.load(name=hc, partition=partition)
+            hc = self.ltm.monitor.https.http.load(name=urllib.quote(hc),
+                                                  partition=partition)
         elif hc_type == 'tcp':
-            hc = self.ltm.monitor.tcps.tcp.load(name=hc, partition=partition)
+            hc = self.ltm.monitor.tcps.tcp.load(name=urllib.quote(hc),
+                                                partition=partition)
 
         return hc
 
@@ -1309,9 +1317,9 @@ class CloudBigIP(BigIP):
         """
         exists = {}
         exists['http'] = self.ltm.monitor.https.http.exists(
-            name=name, partition=partition)
+            name=urllib.quote(name), partition=partition)
         exists['tcp'] = self.ltm.monitor.tcps.tcp.exists(
-            name=name, partition=partition)
+            name=urllib.quote(name), partition=partition)
         return exists
 
     def get_http_healthmonitor(self):
@@ -1465,7 +1473,7 @@ class CloudBigIP(BigIP):
             name: Application Service name
         """
         a = self.sys.application.services.service.load(
-                name=name,
+                name=urllib.quote(name),
                 partition=partition
                 )
         return a
@@ -1491,8 +1499,8 @@ class CloudBigIP(BigIP):
             vxlan_name: Name of the vxlan tunnel
         """
         partition, name = extract_partition_and_name(vxlan_name)
-        vxlan_tunnel = self.net.fdb.tunnels.tunnel.load(partition=partition,
-                                                        name=name)
+        vxlan_tunnel = self.net.fdb.tunnels.tunnel.load(
+            partition=partition, name=urllib.quote(name))
         return vxlan_tunnel
 
     def get_fdb_records(self, vxlan_name):
