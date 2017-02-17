@@ -1631,6 +1631,40 @@ class MarathonTest(BigIPTest):
         self.assertEquals(expected_tables, iapp_def['tables'])
         self.assertEquals(expected_variables, iapp_def['variables'])
 
+    def test_new_iapp_nondefault_column_names(
+            self,
+            cloud_state='tests/marathon_one_iapp_column_names.json',
+            bigip_state='tests/bigip_test_blank.json',
+            hm_state='tests/bigip_test_blank.json'):
+        """Test: Marathon app with iApp, override pool-member column names."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, False)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        self.assertEquals(self.bigip.iapp_create.call_count, 1)
+
+        expected_name = 'server-app2_iapp_10000'
+        self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
+                          expected_name)
+
+        # Verify the iapp variables and tables
+        expected_tables = \
+            [{'columnNames': [u'IPAddress', u'Port', u'ConnectionLimit'],
+              'rows':
+              [{'row': ['10.141.141.10', '31698', '0']},
+               {'row': ['10.141.141.10', '31269', '0']},
+               {'row': ['10.141.141.10', '31748', '0']},
+               {'row': ['10.141.141.10', '31256', '0']}],
+                'name': u'pool__members'}]
+        config = self.bigip.iapp_create.call_args_list[0][0][2]
+        iapp_def = self.bigip.iapp_build_definition(config)
+        self.assertEquals(expected_tables, iapp_def['tables'])
+
     def test_delete_iapp(self, cloud_state='tests/marathon_no_apps.json',
                          bigip_state='tests/bigip_test_blank.json',
                          hm_state='tests/bigip_test_blank.json'):

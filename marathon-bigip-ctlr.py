@@ -114,6 +114,15 @@ def set_iapp_table(x, k, v):
     x.iappTableName = v
 
 
+def set_iapp_pool_member_table_column_names(x, k, v):
+    """App label callback.
+
+    Set the pool-member table column names in the iApp from label
+    F5_n_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES
+    """
+    x.iappPoolMemberTableColumnNames = [z.strip() for z in v.split(",")]
+
+
 def set_iapp_variable(x, k, v):
     """App label callback.
 
@@ -147,6 +156,8 @@ label_keys = {
     'F5_{0}_SSL_PROFILE': set_profile,
     'F5_{0}_IAPP_TEMPLATE': set_iapp,
     'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_table,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
+    set_iapp_pool_member_table_column_names,
     'F5_{0}_IAPP_VARIABLE_': set_iapp_variable,
     'F5_{0}_IAPP_OPTION_': set_iapp_option
 }
@@ -197,6 +208,8 @@ class MarathonService(object):
         self.partition = None
         self.iapp = None
         self.iappTableName = None
+        self.iappPoolMemberTableColumnNames = \
+            ['addr', 'port', 'connection_limit']
         self.iappVariables = {}
         self.iappOptions = {}
         self.mode = 'tcp'

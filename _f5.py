@@ -308,6 +308,11 @@ class CloudBigIP(BigIP):
                                       'tableName': frontend['iappTableName'],
                                       'variables': frontend['iappVariables'],
                                       'options': frontend['iappOptions']}
+                column_names = frontend.get(
+                    'iappPoolMemberTableColumnNames',
+                    ['addr', 'port', 'connection_limit'])
+                f5_service['iapp']['poolMemberTableColumnNames'] = \
+                    column_names
             else:
                 f5_service['virtual'] = {}
                 f5_service['pool'] = {}
@@ -428,6 +433,8 @@ class CloudBigIP(BigIP):
             if app.iapp:
                 f5_service['iapp'] = {'template': app.iapp,
                                       'tableName': app.iappTableName,
+                                      'poolMemberTableColumnNames':
+                                      app.iappPoolMemberTableColumnNames,
                                       'variables': app.iappVariables,
                                       'options': app.iappOptions}
 
@@ -1399,8 +1406,8 @@ class CloudBigIP(BigIP):
             var = {'name': key, 'value': config['iapp']['variables'][key]}
             variables.append(var)
 
-        # Build table
-        tables = [{'columnNames': ['addr', 'port', 'connection_limit'],
+        # Build pool-member table
+        tables = [{'columnNames': config['iapp']['poolMemberTableColumnNames'],
                    'name': config['iapp']['tableName'],
                    'rows': []
                    }]
