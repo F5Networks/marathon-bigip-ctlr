@@ -16,6 +16,7 @@
 
 
 import functools
+import subprocess
 
 import pytest
 from pytest import symbols
@@ -41,6 +42,28 @@ def pytest_namespace():
     }
 
 
+@pytest.fixture(scope='session', autouse=True)
+def openshift_service_acct(request):
+    """Provide a service account with attached to anyuid scc."""
+    if symbols.orchestration == "openshift":
+        def teardown():
+            cmd = ['oc', 'delete', 'serviceaccount',
+                   utils.DEFAULT_OPENSHIFT_USER]
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        try:
+            teardown()
+        except subprocess.CalledProcessError:
+            pass
+        cmd = ['oc', 'create', 'serviceaccount', utils.DEFAULT_OPENSHIFT_USER]
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        cmd = ['oc', 'adm', 'policy', 'add-scc-to-user', 'anyuid', '-z',
+               utils.DEFAULT_OPENSHIFT_USER]
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        request.addfinalizer(teardown)
+
+
 @pytest.fixture(scope='session', autouse=False)
 def orchestration(request):
     """Provide a orchestration connection.
@@ -48,7 +71,7 @@ def orchestration(request):
     Attempt to clean all previous objects
     """
     conn = common.orchestration.connect(**vars(symbols))
-    conn.namespace = 'kube-system'
+    conn.namespace = utils.controller_namespace()
     conn.apps.delete(ptn="test-bigip-controller")
     conn.namespace = 'default'
 
@@ -83,7 +106,30 @@ def bigip2(request):
     )
 
 
-def _setup_bigip(instance, partition):
+def _setup_bigip_network(instance, partition, orchestration):
+    if "openshift" == symbols.orchestration:
+        # setup the default openshift networking
+        profile_full_path = ('/' + partition + '/' +
+                             utils.DEFAULT_BIGIP_VXLAN_PROFILE)
+        instance.vxlan.create(name=utils.DEFAULT_BIGIP_VXLAN_PROFILE,
+                              partition=partition,
+                              floodingType='multipoint')
+        instance.tunnel.create(name=utils.DEFAULT_BIGIP_VXLAN_TUNNEL,
+                               partition=partition,
+                               key=0,
+                               profile=profile_full_path,
+                               localAddress=symbols.bigip_int_ip)
+        instance.selfip.create(name=utils.DEFAULT_BIGIP_OPENSHIFT_SELFNAME,
+                               partition=partition,
+                               address=utils.DEFAULT_BIGIP_OPENSHIFT_SELFIP,
+                               vlan=utils.DEFAULT_BIGIP_VXLAN_TUNNEL)
+
+        orchestration.hostsubnets.create(symbols.bigip_name,
+                                         symbols.bigip_int_ip,
+                                         utils.DEFAULT_BIGIP_OPENSHIFT_SUBNET)
+
+
+def _setup_bigip(instance, partition, orchestration):
     instance.partition.create(partition, subPath="/")
 
     # FIXME (kevin): remove these partition hacks when issue #32 is fixed
@@ -92,14 +138,34 @@ def _setup_bigip(instance, partition):
     p.trafficGroup = "/Common/traffic-group-local-only"
     p.update()
 
+    _setup_bigip_network(instance, partition, orchestration)
 
-def _teardown_bigip(instance, partition):
+
+def _teardown_bigip_network(instance, partition, orchestration):
+    if "openshift" == symbols.orchestration:
+        fdb = instance.fdb_tunnel.get(name=utils.DEFAULT_BIGIP_VXLAN_TUNNEL,
+                                      partition=partition)
+        if fdb is not None:
+            fdb.records = []
+            fdb.update()
+        instance.selfip.delete(name=utils.DEFAULT_BIGIP_OPENSHIFT_SELFNAME,
+                               partition=partition)
+        instance.tunnels.delete(partition=partition)
+        instance.vxlans.delete(partition=partition)
+
+        if orchestration.hostsubnets.exists(symbols.bigip_name):
+            orchestration.hostsubnets.delete(symbols.bigip_name)
+
+
+def _teardown_bigip(instance, partition, orchestration):
     instance.iapps.delete(partition=partition)
     instance.virtual_servers.delete(partition=partition)
     instance.virtual_addresses.delete(partition=partition)
     instance.pools.delete(partition=partition)
     instance.nodes.delete(partition=partition)
     instance.health_monitors.delete(partition=partition)
+
+    _teardown_bigip_network(instance, partition, orchestration)
     instance.partition.delete(name=partition)
 
 
@@ -119,10 +185,10 @@ def default_test_fx(request, orchestration, bigip):
         orchestration.namespace = "default"
         orchestration.apps.delete(timeout=DELETE_TIMEOUT)
         orchestration.deployments.delete(timeout=DELETE_TIMEOUT)
-        _teardown_bigip(bigip, partition)
+        _teardown_bigip(bigip, partition, orchestration)
 
     teardown()
-    _setup_bigip(bigip, partition)
+    _setup_bigip(bigip, partition, orchestration)
     request.addfinalizer(teardown)
 
 
@@ -139,10 +205,10 @@ def bigip2_addto_test_fx(request, orchestration, bigip2):
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        _teardown_bigip(bigip2, partition)
+        _teardown_bigip(bigip2, partition, orchestration)
 
     teardown()
-    _setup_bigip(bigip2, partition)
+    _setup_bigip(bigip2, partition, orchestration)
     request.addfinalizer(teardown)
 
 
@@ -158,7 +224,7 @@ def bigip_controller(request, orchestration):
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        orchestration.namespace = "kube-system"
+        orchestration.namespace = utils.controller_namespace()
         controller.delete()
 
     request.addfinalizer(teardown)
@@ -178,7 +244,7 @@ def bigip2_controller(request, orchestration, bigip2_addto_test_fx):
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
             return
-        orchestration.namespace = "kube-system"
+        orchestration.namespace = utils.controller_namespace()
         controller.delete()
 
     request.addfinalizer(teardown)

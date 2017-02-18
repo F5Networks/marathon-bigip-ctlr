@@ -44,8 +44,8 @@ all:
 	@printf "  bigip_pool_mode - pool member mode to use for the tests\n"
 	@printf "      Valid values: nodeport cluster.\n"
 
-VALID_ORCHESTRATIONS := marathon k8s
-VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s)
+VALID_ORCHESTRATIONS := marathon k8s openshift
+VALID_ORCHESTRATIONS_MSG := (valid values: marathon, k8s, openshift)
 
 # - handle blank target and "all" separately because they do *not* require
 #   the user to provide an orchestration value
@@ -75,6 +75,11 @@ else ifeq ($(orchestration), k8s)
   testenv_config := k8s.testenv.yaml
   project_dir := velcro.k8s-bigip-ctlr
   bigip_pool_mode ?= nodeport
+else ifeq ($(orchestration), openshift)
+  repo_name := k8s-bigip-ctlr
+  testenv_config := openshift.testenv.yaml
+  project_dir := velcro.k8s-bigip-ctlr
+  bigip_pool_mode ?= cluster
 endif
 
 namespace := velcro
