@@ -182,6 +182,14 @@ Use iApps Application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_OPTION_description": "This is a test iApp"``         |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
+| \F5_{n}_IAPP_TABLE_*                  | JSON      | Optional  | n/a           | Define iApp tables to apply to the Application Service.           |
+|                                       | string    |           |               |                                                                   |
+|                                       |           |           |               | Example:                                                          |
+|                                       |           |           |               |                                                                   |
+|                                       |           |           |               | ``"F5_0_IAPP_TABLE_monitor__Monitors":``                          |
+|                                       |           |           |               |  ``{"columns": ["Index", "Name", "Type", "Options"],``            |
+|                                       |           |           |               |  ``"rows": [[0, "mon1", "tcp", "" ],[1, "mon2", "http", ""]]}"``  |
++---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | \F5_{n}_IAPP_VARIABLE_*               | string    | Optional  | n/a           | Define the variables the iApp needs to create the Service.        |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | Use an existing resource,or tell the service to create a new one  |

@@ -1665,6 +1665,54 @@ class MarathonTest(BigIPTest):
         iapp_def = self.bigip.iapp_build_definition(config)
         self.assertEquals(expected_tables, iapp_def['tables'])
 
+    def test_new_iapp_with_tables(
+            self,
+            cloud_state='tests/marathon_one_iapp_with_tables.json',
+            bigip_state='tests/bigip_test_blank.json',
+            hm_state='tests/bigip_test_blank.json'):
+        """Test: Marathon app with iApp with iApp tables."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, False)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        self.assertEquals(self.bigip.iapp_create.call_count, 1)
+
+        expected_name = 'server-app2_iapp_10000'
+        self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
+                          expected_name)
+
+        # Verify the iapp variables and tables
+        expected_tables = \
+            [{'columnNames': [u'addr', u'port', u'connection_limit'],
+              'rows':
+              [{'row': ['10.141.141.10', '31698', '0']},
+               {'row': ['10.141.141.10', '31269', '0']},
+               {'row': ['10.141.141.10', '31748', '0']},
+               {'row': ['10.141.141.10', '31256', '0']}],
+                'name': u'pool__members'},
+             {'columnNames': [u'Group', u'Operand', u'Negate', u'Condition',
+                              u'Value', u'CaseSensitive', u'Missing'],
+              'rows':
+              [{'row': [0, u'http-uri/request/path', u'no', u'starts-with',
+                        u'/env', u'no', u'no']},
+               {'row': [u'default', u'', u'no', u'', u'', u'no', u'no']}],
+                'name': u'l7policy__rulesMatch'},
+             {'columnNames': [u'Group', u'Target', u'Parameter'],
+              'rows':
+              [{'row': [0, u'forward/request/reset', u'none']},
+               {'row': [u'default', u'forward/request/select/pool',
+                        u'pool:0']}],
+                'name': u"'l7policy__rulesAction"}]
+
+        config = self.bigip.iapp_create.call_args_list[0][0][2]
+        iapp_def = self.bigip.iapp_build_definition(config)
+        self.assertEquals(expected_tables, iapp_def['tables'])
+
     def test_delete_iapp(self, cloud_state='tests/marathon_no_apps.json',
                          bigip_state='tests/bigip_test_blank.json',
                          hm_state='tests/bigip_test_blank.json'):

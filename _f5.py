@@ -313,6 +313,7 @@ class CloudBigIP(BigIP):
                     ['addr', 'port', 'connection_limit'])
                 f5_service['iapp']['poolMemberTableColumnNames'] = \
                     column_names
+                f5_service['iapp']['tables'] = frontend.get('iappTables', {})
             else:
                 f5_service['virtual'] = {}
                 f5_service['pool'] = {}
@@ -435,6 +436,7 @@ class CloudBigIP(BigIP):
                                       'tableName': app.iappTableName,
                                       'poolMemberTableColumnNames':
                                       app.iappPoolMemberTableColumnNames,
+                                      'tables': app.iappTables,
                                       'variables': app.iappVariables,
                                       'options': app.iappOptions}
 
@@ -1414,6 +1416,17 @@ class CloudBigIP(BigIP):
         for node in config['nodes']:
             node = node.split(':')
             tables[0]['rows'].append({'row': [node[0], node[1], '0']})
+
+        # Add other tables
+        for key in config['iapp']['tables']:
+            data = json.loads(config['iapp']['tables'][key])
+            table = {'columnNames': data['columns'],
+                     'name': key,
+                     'rows': []
+                     }
+            for row in data['rows']:
+                table['rows'].append({'row': row})
+            tables.append(table)
 
         return {'variables': variables, 'tables': tables}
 

@@ -105,7 +105,7 @@ def set_iapp(x, k, v):
     x.iapp = v
 
 
-def set_iapp_table(x, k, v):
+def set_iapp_pool_member_table_name(x, k, v):
     """App label callback.
 
     Set the pool-member table name in the iApp from label
@@ -129,6 +129,14 @@ def set_iapp_variable(x, k, v):
     Set an element in the iApp Variables from label F5_n_IAPP_VARIABLE_*
     """
     x.iappVariables[k] = v
+
+
+def set_iapp_table(x, k, v):
+    """App label callback.
+
+    Set an element in the iApp Tables from label F5_n_IAPP_TABLE_*
+    """
+    x.iappTables[k] = v
 
 
 def set_iapp_option(x, k, v):
@@ -155,9 +163,10 @@ label_keys = {
     'F5_{0}_BALANCE': set_balance,
     'F5_{0}_SSL_PROFILE': set_profile,
     'F5_{0}_IAPP_TEMPLATE': set_iapp,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_table,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
     'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
     set_iapp_pool_member_table_column_names,
+    'F5_{0}_IAPP_TABLE_': set_iapp_table,
     'F5_{0}_IAPP_VARIABLE_': set_iapp_variable,
     'F5_{0}_IAPP_OPTION_': set_iapp_option
 }
@@ -208,6 +217,7 @@ class MarathonService(object):
         self.partition = None
         self.iapp = None
         self.iappTableName = None
+        self.iappTables = {}
         self.iappPoolMemberTableColumnNames = \
             ['addr', 'port', 'connection_limit']
         self.iappVariables = {}
