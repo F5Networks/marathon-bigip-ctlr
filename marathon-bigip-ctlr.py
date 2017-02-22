@@ -430,7 +430,7 @@ def get_apps(apps, health_check):
                     if label.startswith(key):
                         func = label_keys[key_unformatted]
                         func(service,
-                             label.strip(key),
+                             label[len(key):],
                              marathon_app.app['labels'][label])
 
             marathon_app.services[servicePort] = service
