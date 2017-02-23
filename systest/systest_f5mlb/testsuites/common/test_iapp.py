@@ -145,7 +145,7 @@ def _get_iapp_config(iapp):
             'F5_0_IAPP_TEMPLATE': iapp.name,
             'F5_0_IAPP_POOL_MEMBER_TABLE_NAME': iapp.table,
         }
-        if getattr(iapp, 'pool_member_table_column_names', None) is not None:
+        if iapp.pool_member_table_column_names:
             cfg['F5_0_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES'] = \
                 iapp.pool_member_table_column_names
         for k, v in iapp.options.iteritems():
@@ -178,6 +178,7 @@ class SampleHttpIApp(object):
         self.name = "/Common/f5.http"
         self.table = "pool__members"
         self.options = {'description': "This is a test iApp"}
+        self.pool_member_table_column_names = {}
         self.tables = {}
 
         CREATE_NEW = "/#create_new#"
