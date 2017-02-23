@@ -207,7 +207,8 @@ def create_managed_northsouth_service(
         health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP,
         num_instances=DEFAULT_SVC_INSTANCES,
         config=DEFAULT_SVC_CONFIG,
-        wait_for_deploy=True):
+        wait_for_deploy=True,
+        service_type="NodePort"):
     """Create a microservice with bigip-controller decorations."""
     if id is None:
         id = unique_id("test-svc")
@@ -247,7 +248,8 @@ def create_managed_northsouth_service(
         health_checks=health_checks,
         num_instances=num_instances,
         wait_for_deploy=wait_for_deploy,
-        service_account=service_account
+        service_account=service_account,
+        service_type=service_type
     )
     # By waiting until the app is deployed before creating the VS Resource,
     # the big-ip won't fail any health checks, and things go faster.
@@ -481,7 +483,8 @@ def wait_for_backend_objects(
     assert get_backend_objects(bigip) == objs_exp
 
 
-def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
+def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
+                             msg=""):
     """Verify round-robin load balancing behavior."""
     # - bigip round robin is not as predictable as we would like (ie. you
     #   can't be sure that two consecutive requests will be sent to two
@@ -499,7 +502,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
     for i in range(num_requests):
         res = ssh.run(symbols.bastion, curl_cmd)
         # - verify response looks good
-        assert re.match(ptn, res)
+        assert re.match(ptn, res), msg
         if res not in act_responses:
             act_responses[res] = 1
         else:
@@ -507,7 +510,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None):
 
     # - verify we got at least 2 responses from each member
     for k, v in act_responses.iteritems():
-        assert v >= min_res_per_member
+        assert v >= min_res_per_member, msg
 
 
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
