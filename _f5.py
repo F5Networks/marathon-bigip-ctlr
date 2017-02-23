@@ -241,7 +241,7 @@ class CloudBigIP(BigIP):
         Args:
             config: Kubernetes BigIP config
         """
-        logger.info("Generating config for BIG-IP from Kubernetes state")
+        logger.debug("Generating config for BIG-IP from Kubernetes state")
         f5 = {'ltm': {}, 'network': {}}
         if 'openshift-sdn' in config:
             f5['network'] = self._create_network_config_kubernetes(config)
