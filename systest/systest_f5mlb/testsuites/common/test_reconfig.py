@@ -53,7 +53,7 @@ def test_reconfig_health_monitor_protocol(orchestration, bigip,
         # Change the protocol in Marathon
         svc.health_checks[0].protocol = 'TCP'
         svc.update()
-    elif symbols.orchestration == "k8s":
+    elif utils.is_kubernetes():
         # Change the protocol in Kubernetes
         configmap = pykube.ConfigMap.objects(svc._api).get_by_name(
             "%s-map" % svc.id)

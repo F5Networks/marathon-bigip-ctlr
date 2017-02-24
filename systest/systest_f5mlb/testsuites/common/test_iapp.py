@@ -154,7 +154,7 @@ def _get_iapp_config(iapp):
             cfg['F5_0_IAPP_VARIABLE_' + k] = v
         for k, v in iapp.tables.iteritems():
             cfg['F5_0_IAPP_TABLE_' + k] = v
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         cfg = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
         cfg['data']['data']['virtualServer'].pop('frontend')
         cfg['data']['data']['virtualServer']['frontend'] = {

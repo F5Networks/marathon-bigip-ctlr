@@ -16,7 +16,6 @@
 
 
 from pytest import meta_suite, meta_test
-from pytest import symbols
 
 from . import utils
 
@@ -396,8 +395,8 @@ def test_restore_after_bigip_controller_delete(
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_uid = svc.uid
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
     # - verify managed service is unchanged
     utils.wait_for_bigip_controller()
@@ -422,11 +421,11 @@ def test_restore_after_bigip_controller_delete_then_svc_delete(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
     # - delete the managed service
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         orchestration.namespace = "default"
     svc.delete()
     utils.wait_for_bigip_controller()
@@ -452,8 +451,8 @@ def test_restore_after_bigip_controller_delete_then_svc_update(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
     # - change the managed service
     utils.unmanage_northsouth_service(orchestration, svc)
@@ -476,8 +475,8 @@ def test_restore_after_bigip_controller_delete_then_backend_delete(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
     # - delete the managed virtual server
     default_partition = utils.DEFAULT_F5MLB_PARTITION
@@ -507,8 +506,8 @@ def test_restore_after_bigip_controller_delete_then_backend_update(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
     # - change the managed virtual server
     default_partition = utils.DEFAULT_F5MLB_PARTITION
@@ -552,16 +551,16 @@ def test_restore_after_bigip_controller_suspend(
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     old_uid = svc.uid
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
     # - verify managed service is unchanged
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume bigip-controller and verify restoration
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
@@ -580,19 +579,19 @@ def test_restore_after_bigip_controller_suspend_then_svc_delete(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
     # - delete the managed service
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         orchestration.namespace = "default"
     svc.delete()
     utils.wait_for_bigip_controller()
     assert not orchestration.app.exists(svc.id)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume bigip-controller and verify restoration
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     assert not orchestration.app.exists(svc.id)
@@ -612,16 +611,16 @@ def test_restore_after_bigip_controller_suspend_then_svc_update(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
     # - change the managed service
     utils.unmanage_northsouth_service(orchestration, svc)
     utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume bigip-controller and verify restoration
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     assert utils.get_backend_objects(bigip) == {}
@@ -639,8 +638,8 @@ def test_restore_after_bigip_controller_suspend_then_backend_delete(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
     # - delete the managed virtual server
     default_partition = utils.DEFAULT_F5MLB_PARTITION
@@ -650,8 +649,8 @@ def test_restore_after_bigip_controller_suspend_then_backend_delete(
     orig_va_list = backend_objs_exp.pop('virtual_addresses')
     assert utils.get_backend_objects(bigip) == backend_objs_exp
     # - resume bigip-controller and verify restoration
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     backend_objs_exp['virtual_servers'] = orig_vs_list
@@ -672,8 +671,8 @@ def test_restore_after_bigip_controller_suspend_then_backend_update(
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     assert utils.get_backend_objects(bigip) == backend_objs_exp
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
     # - change the managed virtual server
     default_partition = utils.DEFAULT_F5MLB_PARTITION
@@ -694,8 +693,8 @@ def test_restore_after_bigip_controller_suspend_then_backend_update(
     assert virtual_server.destination == new_dest
     assert virtual_server.description == new_desc
     # - resume bigip-controller and verify restoration
-    if symbols.orchestration == "k8s":
-        orchestration.namespace = "kube-system"
+    if utils.is_kubernetes():
+        orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     virtual_server.refresh()

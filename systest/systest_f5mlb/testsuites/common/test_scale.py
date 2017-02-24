@@ -190,7 +190,7 @@ def _get_scale_config(kwargs):
             'F5_0_PORT': SVC_START_PORT + kwargs['idx'],
             'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
         }
-    elif symbols.orchestration == "k8s":
+    elif utils.is_kubernetes():
         cfg = {}
     return cfg
 
@@ -201,5 +201,5 @@ def _get_svc_url(svc):
             "http://%s:%s"
             % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
         )
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         pass
