@@ -21,6 +21,7 @@ opt="StrictHostKeyChecking no"
 if [[ ! -e $fl ]] || [[ $(grep "^$opt" $fl | wc -l) == 0 ]]; then
     echo "$opt" >> $fl
 fi
+chmod 600 $fl
 
 #sudo apt-get -y install build-essential
 sudo pip install python-novaclient
