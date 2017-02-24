@@ -23,13 +23,12 @@ if [[ ! -e $fl ]] || [[ $(grep "^$opt" $fl | wc -l) == 0 ]]; then
 fi
 chmod 600 $fl
 
-#sudo apt-get -y install build-essential
-sudo pip install python-novaclient
 
 # - create the systest virtualenv
 rm -rf systest
 virtualenv systest
 source systest/bin/activate
+pip install python-novaclient
 
 # - install system tests
 branch="master"
