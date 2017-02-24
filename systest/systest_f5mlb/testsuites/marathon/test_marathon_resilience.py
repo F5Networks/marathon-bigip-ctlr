@@ -21,7 +21,9 @@ import requests
 
 from .. import utils
 
-pytestmark = pytest.meta_suite(tags=["func", "marathon", "no_k8s"])
+pytestmark = pytest.meta_suite(
+    tags=["func", "marathon", "no_k8s", "no_openshift"]
+)
 
 
 @pytest.meta_test(id='f5mlb-65', tags=[])
