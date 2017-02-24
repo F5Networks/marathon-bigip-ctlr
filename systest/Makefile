@@ -70,16 +70,19 @@ ifeq ($(orchestration), marathon)
   testenv_config := mesos.testenv.yaml
   project_dir := velcro.marathon-bigip-ctlr
   bigip_pool_mode ?= cluster
+  testenv_stack_timeout := 600
 else ifeq ($(orchestration), k8s)
   repo_name := k8s-bigip-ctlr
   testenv_config := k8s.testenv.yaml
   project_dir := velcro.k8s-bigip-ctlr
   bigip_pool_mode ?= nodeport
+  testenv_stack_timeout := 600
 else ifeq ($(orchestration), openshift)
   repo_name := k8s-bigip-ctlr
   testenv_config := openshift.testenv.yaml
-  project_dir := velcro.k8s-bigip-ctlr
+  project_dir := velcro.openshift-bigip-ctlr
   bigip_pool_mode ?= cluster
+  testenv_stack_timeout := 1800
 endif
 
 namespace := velcro
@@ -159,7 +162,8 @@ functest-install scaletest-install hatest-install:
 
 functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
-	testenv create --name $(func_testenv_name) \
+	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
+		testenv -v create --name $(func_testenv_name) \
 		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:1 \
@@ -183,7 +187,8 @@ functest-teardown:
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
-	testenv create --name $(scale_testenv_name) \
+	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
+		testenv -v create --name $(scale_testenv_name) \
 		--config $(testenv_config) \
 		--requires bigip \
 		--params bastion_flavor:m1.large \
@@ -208,7 +213,8 @@ scaletest-teardown:
 
 hatest-setup:
 	@echo "setting up $(orchestration) HA test environment ..."
-	testenv create --name $(ha_testenv_name) \
+	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
+		testenv -v create --name $(ha_testenv_name) \
 		--config $(testenv_config) \
 		--requires bigip1-ha:$(ha_testenv_name)_bigip1 \
 		--requires bigip2-ha:$(ha_testenv_name)_bigip2 \
