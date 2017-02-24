@@ -82,7 +82,7 @@ def _get_https_config(mode, port):
             cfg['F5_0_MODE'] = mode
         if port is not None:
             cfg['F5_0_PORT'] = port
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         cfg = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
         frontend = cfg['data']['data']['virtualServer']['frontend']
         frontend['sslProfile'] = {

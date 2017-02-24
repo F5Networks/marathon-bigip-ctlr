@@ -22,7 +22,8 @@ import time
 from pytest import symbols
 
 
-def _is_kubernetes():
+def is_kubernetes():
+    """Return whether current orchestration provides k8s behavior."""
     if symbols.orchestration == "openshift" or symbols.orchestration == "k8s":
         return True
     return False
@@ -51,7 +52,7 @@ DEFAULT_F5MLB_PORT = 8080
 DEFAULT_F5MLB_LB_ALGORITHM = "round-robin"
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_WAIT = 5
-elif _is_kubernetes():
+elif is_kubernetes():
     DEFAULT_F5MLB_WAIT = 20
 DEFAULT_F5MLB_VERIFY_INTERVAL = 2
 DEFAULT_F5MLB_NAMESPACE = "default"
@@ -119,7 +120,7 @@ if symbols.orchestration == "marathon":
     }
     BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
     BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
-elif _is_kubernetes():
+elif is_kubernetes():
     DEFAULT_F5MLB_CONFIG = {
         'cmd': "/app/bin/k8s-bigip-ctlr",
         'args': [
@@ -222,7 +223,7 @@ def create_managed_northsouth_service(
     _lbls = copy.deepcopy(labels)
     if symbols.orchestration == "marathon":
         _lbls.update(config)
-    if _is_kubernetes():
+    if is_kubernetes():
         orchestration.namespace = "default"
     if symbols.orchestration == "openshift":
         service_account = DEFAULT_OPENSHIFT_USER
@@ -255,7 +256,7 @@ def create_managed_northsouth_service(
     # the big-ip won't fail any health checks, and things go faster.
     #
     # The reverse order is tested in ??????
-    if _is_kubernetes():
+    if is_kubernetes():
         config['name'] = "%s-map" % id
         config['data']['data']['virtualServer']['backend']['serviceName'] = id
         orchestration.app.create_configmap(config)
@@ -267,7 +268,7 @@ def unmanage_northsouth_service(orchestration, svc):
     if symbols.orchestration == "marathon":
         svc.labels = {}
         svc.update()
-    if _is_kubernetes():
+    if is_kubernetes():
         orchestration.namespace = "default"
         orchestration.app.delete_configmap("%s-map" % svc.id)
 
@@ -296,7 +297,7 @@ class BigipController(object):
                 'env': config,
                 'wait_for_deploy': wait_for_deploy,
                 }
-        elif _is_kubernetes():
+        elif is_kubernetes():
             service_account = None
             if symbols.orchestration == "openshift":
                 service_account = "management-admin"
@@ -318,7 +319,7 @@ class BigipController(object):
 
     def create(self):
         """Create and start the controller instance."""
-        if _is_kubernetes():
+        if is_kubernetes():
             save_namespace = self.orchestration.namespace
             self.orchestration.namespace = controller_namespace()
             self.app = self.orchestration.app.create(**self.app_kwargs)
@@ -348,7 +349,7 @@ def create_unmanaged_service(orchestration, id, labels={}):
         service_account = DEFAULT_OPENSHIFT_USER
     else:
         service_account = None
-    if _is_kubernetes():
+    if is_kubernetes():
         orchestration.namespace = "default"
 
     return orchestration.app.create(
@@ -381,7 +382,7 @@ def get_backend_object_name(svc, port_idx=0):
                 str(svc.labels['F5_%d_PORT' % port_idx])
             )
         )
-    if _is_kubernetes():
+    if is_kubernetes():
         return (
             "%s_%s_%s" % (svc.id, svc.vs_bind_addr, svc.vs_port)
         )
@@ -454,7 +455,7 @@ def get_backend_objects_exp(svc, bigip_controller):
         nodes = set([i.host for i in instances])
     if symbols.orchestration == "marathon":
         virtual_addr = svc.labels['F5_0_BIND_ADDR']
-    elif _is_kubernetes():
+    elif is_kubernetes():
         virtual_addr = DEFAULT_F5MLB_BIND_ADDR
     pool_members = get_backend_pool_members_exp(svc, bigip_controller)
     ret = {
@@ -516,7 +517,7 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
     if symbols.orchestration == "marathon":
         return _get_svc_url_marathon(svc, protocol, ipaddr, port)
-    elif _is_kubernetes():
+    elif is_kubernetes():
         return _get_svc_url_k8s(svc, protocol, ipaddr, port)
 
 

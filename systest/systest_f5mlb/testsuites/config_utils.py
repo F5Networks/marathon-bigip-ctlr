@@ -68,7 +68,7 @@ def verify_config_produces_unmanaged_svc(
 def _get_managed_northsouth_service_config(param, input_val):
     if symbols.orchestration == "marathon":
         return _get_svc_config_marathon(param, input_val)
-    elif symbols.orchestration == "k8s":
+    elif utils.is_kubernetes():
         return _get_svc_config_k8s(param, input_val)
 
 
@@ -116,8 +116,8 @@ def verify_bigip_controller_will_deploy(
     except:
         raise
     finally:
-        if symbols.orchestration == "k8s":
-            orchestration.namespace = "kube-system"
+        if utils.is_kubernetes():
+            orchestration.namespace = utils.controller_namespace()
         controller.delete()
 
 
@@ -134,8 +134,8 @@ def verify_bigip_controller_wont_deploy(
     except:
         raise
     finally:
-        if symbols.orchestration == "k8s":
-            orchestration.namespace = "kube-system"
+        if utils.is_kubernetes():
+            orchestration.namespace = utils.controller_namespace()
         controller.delete()
 
 
@@ -143,6 +143,6 @@ def _get_bigip_controller_config(param, input_val):
     config = copy.deepcopy(utils.DEFAULT_F5MLB_CONFIG)
     if symbols.orchestration == "marathon":
         pass
-    if symbols.orchestration == "k8s":
+    if utils.is_kubernetes():
         pass
     return config
