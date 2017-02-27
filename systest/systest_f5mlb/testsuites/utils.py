@@ -18,6 +18,9 @@
 import copy
 import re
 import time
+import subprocess
+import os
+
 
 from pytest import symbols
 
@@ -97,6 +100,11 @@ DEFAULT_BIGIP_OPENSHIFT_SELFNAME = "openshift-selfip"
 DEFAULT_BIGIP_OPENSHIFT_SELFIP = "10.131.255.1/14"
 DEFAULT_BIGIP_OPENSHIFT_SUBNET = "10.131.255.0/31"
 DEFAULT_OPENSHIFT_USER = "run-as-anyid"
+
+NODE_UNIN_YAML = '/home/centos/openshift-ansible/playbooks/adhoc/uninstall.yml'
+NODE_SCALE_YAML = \
+    '/home/centos/openshift-ansible/playbooks/byo/openshift-node/scaleup.yml'
+ANSIBLE_HOSTS_SCRIPT = '/home/centos/openshift/ansible_replace.py'
 
 if symbols.orchestration == "marathon":
     DEFAULT_F5MLB_CONFIG = {
@@ -512,6 +520,62 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
     # - verify we got at least 2 responses from each member
     for k, v in act_responses.iteritems():
         assert v >= min_res_per_member, msg
+
+
+def delete_node(ip_list=None):
+    """Delete a node from an orchestration environment.
+
+    Args:
+        ip_list: List of IP addresses to delete. If not provided defaults
+    to the first IP in symbols file.
+    """
+    if symbols.orchestration == 'openshift':
+        if ip_list is None:
+            delete_node = symbols.worker_default_ips[0]
+            cmd = ['oc', 'delete', 'node', delete_node]
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            cmd2 = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'delete']
+            subprocess.check_output(cmd2, stderr=subprocess.STDOUT)
+        else:
+            cmd = ['oc', 'delete', 'node']
+            cmd.extend(ip_list)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            cmd2 = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'delete', '--ip']
+            cmd2.extend(ip_list)
+            subprocess.check_output(cmd2, stderr=subprocess.STDOUT)
+        my_env = os.environ.copy()
+        my_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
+        cmd3 = ['ansible-playbook', NODE_UNIN_YAML]
+        with open(os.devnull, "w") as f:
+            subprocess.check_call(cmd3, stdout=f, env=my_env)
+    else:
+        raise RuntimeError('delete_node is not implemented for orchestration'
+                           ' environment {}'.format(symbols.orchestration))
+
+
+def add_node(ip_list=None):
+    """Add a node to an orchestration environment.
+
+    Args:
+        ip_list: List of IP addresses to add. If not provided defaults
+    to the first IP in symbols file.
+    """
+    if symbols.orchestration == 'openshift':
+        if ip_list is None:
+            cmd = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'add']
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        else:
+            cmd = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'add', '--ip']
+            cmd.extend(ip_list)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        my_env = os.environ.copy()
+        my_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
+        cmd2 = ['ansible-playbook', NODE_SCALE_YAML]
+        with open(os.devnull, "w") as f:
+            subprocess.check_call(cmd2, stdout=f, env=my_env)
+    else:
+        raise RuntimeError('add_node is not implemented for orchestration'
+                           ' environment {}'.format(symbols.orchestration))
 
 
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):
