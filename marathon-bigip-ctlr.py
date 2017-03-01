@@ -114,22 +114,89 @@ def set_iapp(x, v):
     x.iapp = v
 
 
+loggedIappPoolMemberTableNameDeprecated = False
+
+
 def set_iapp_pool_member_table_name(x, v):
     """App label callback.
 
     Set the pool-member table name in the iApp from label
     F5_n_IAPP_POOL_MEMBER_TABLE_NAME
     """
-    x.iappTableName = v
+    global loggedIappPoolMemberTableNameDeprecated
+    if hasattr(x, 'iappPoolMemberTable'):
+        raise InvalidServiceDefinitionError(
+            ("You can only specify one of IAPP_POOL_MEMBER_TABLE_NAME or "
+             "IAPP_POOL_MEMBER_TABLE, not both")
+        )
+    if not loggedIappPoolMemberTableNameDeprecated:
+        logger.info(
+            ("Using IAPP_POOL_MEMBER_TABLE_NAME is deprecated; see "
+             "IAPP_POOL_MEMBER_TABLE")
+        )
+        loggedIappPoolMemberTableNameDeprecated = True
+    x.iappPoolMemberTableName = v
 
 
-def set_iapp_pool_member_table_column_names(x, v):
+def set_iapp_pool_member_table(x, v):
     """App label callback.
 
-    Set the pool-member table column names in the iApp from label
-    F5_n_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES
+    Take the user's description for how to fill out the iApp's pool member
+    table.  Every iApp may have a different layout for this table.  We need to
+    provide the pool member IPs and ports, so we'll need to know what those
+    columns are named.  If there are other columns, we need to let the user
+    specify what we should fill in.
     """
-    x.iappPoolMemberTableColumnNames = [z.strip() for z in v.split(",")]
+    if hasattr(x, 'iappPoolMemberTableName'):
+        raise InvalidServiceDefinitionError(
+            ("You can only specify one of IAPP_POOL_MEMBER_TABLE_NAME or "
+             "IAPP_POOL_MEMBER_TABLE, not both")
+        )
+    table = None
+    try:
+        table = json.loads(v)
+    except ValueError:
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE is not valid JSON")
+
+    # FIXME(andrew): This should be done by jsonschema.
+    for mandatoryProp in ['name', 'columns']:
+        if mandatoryProp not in table:
+            raise InvalidServiceDefinitionError(
+                "IAPP_POOL_MEMBER_TABLE must have a '%s' field" %
+                mandatoryProp)
+    if not isinstance(table['name'], basestring):
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE's 'name' property must be a string")
+    if not isinstance(table['columns'], list):
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE's 'columns' property must be an array")
+    for i, col in enumerate(table['columns']):
+        # Each column must be either
+        # columnWithKind:  { "name": "foo", "kind": "IPAddress" } or
+        # columnWithValue: { "name": "foo", "value": "42" }
+
+        # Both column styles need "name"
+        if 'name' not in col:
+            raise InvalidServiceDefinitionError(
+                "IAPP_POOL_MEMBER_TABLE column %d must have a 'name' field" %
+                i)
+
+        # Need either 'kind' or 'value'
+        if 'kind' in col:
+            if col['kind'] not in ['IPAddress', 'Port']:
+                raise InvalidServiceDefinitionError(
+                    "IAPP_POOL_MEMBER_TABLE column %d kind '%s' unknown" %
+                    (i, col['kind']))
+        elif 'value' in col:
+            # We pass the value opaquely.
+            pass
+        else:
+            raise InvalidServiceDefinitionError(
+                ("IAPP_POOL_MEMBER_TABLE column %d must specify either 'kind'"
+                 " or 'value'") % i)
+
+    x.iappPoolMemberTable = table
 
 
 # Dictionary of labels and setter functions, where the labels must match the
@@ -142,8 +209,7 @@ exact_label_keys = {
     'F5_{0}_SSL_PROFILE': set_profile,
     'F5_{0}_IAPP_TEMPLATE': set_iapp,
     'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
-    set_iapp_pool_member_table_column_names,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE': set_iapp_pool_member_table,
 }
 
 # Setter function callbacks that correspond to specific labels (k) and their
