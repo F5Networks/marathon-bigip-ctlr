@@ -432,13 +432,22 @@ class CloudBigIP(BigIP):
             f5_service['partition'] = app.partition
 
             if app.iapp:
-                f5_service['iapp'] = {'template': app.iapp,
-                                      'tableName': app.iappTableName,
-                                      'poolMemberTableColumnNames':
-                                      app.iappPoolMemberTableColumnNames,
-                                      'tables': app.iappTables,
-                                      'variables': app.iappVariables,
-                                      'options': app.iappOptions}
+                # Translate from the internal properties we set on app to the
+                # naming expected by the common f5_service['iapp']
+                # Only set properties that are actually present.
+                #
+                # tableName would be better as poolMemberTableName but it is
+                # required to be tableName to match the tableName produced by
+                # the k8s-bigip-ctlr
+                f5_service['iapp'] = {}
+                for k, v in {'template': 'iapp',
+                             'tableName': 'iappPoolMemberTableName',
+                             'poolMemberTable': 'iappPoolMemberTable',
+                             'tables': 'iappTables',
+                             'variables': 'iappVariables',
+                             'options': 'iappOptions'}.iteritems():
+                    if hasattr(app, v):
+                        f5_service['iapp'][k] = getattr(app, v)
 
             logger.info("Configuring app %s, partition %s", app.appId,
                         app.partition)
@@ -1408,14 +1417,59 @@ class CloudBigIP(BigIP):
             var = {'name': key, 'value': config['iapp']['variables'][key]}
             variables.append(var)
 
-        # Build pool-member table
-        tables = [{'columnNames': config['iapp']['poolMemberTableColumnNames'],
-                   'name': config['iapp']['tableName'],
-                   'rows': []
-                   }]
-        for node in config['nodes']:
-            node = node.split(':')
-            tables[0]['rows'].append({'row': [node[0], node[1], '0']})
+        # The schema says only one of poolMemberTable or tableName is
+        # valid, so if the user set both it should have already been rejected.
+        # But if not, prefer the new poolMemberTable over tableName.
+        tables = []
+        if 'poolMemberTable' in config['iapp']:
+            tableConfig = config['iapp']['poolMemberTable']
+
+            # Construct columnNames array from the 'name' prop of each column
+            columnNames = []
+            for col in tableConfig['columns']:
+                columnNames.append(col['name'])
+
+            # Construct rows array - one row for each node, interpret the
+            # 'kind' or 'value' from the column spec.
+            rows = []
+            for node in config['nodes']:
+                row = []
+                (addr, port) = node.split(':')
+                for i, col in enumerate(tableConfig['columns']):
+                    if 'value' in col:
+                        row.append(col['value'])
+                    elif 'kind' in col:
+                        if col['kind'] == 'IPAddress':
+                            row.append(addr)
+                        elif col['kind'] == 'Port':
+                            row.append(port)
+                        else:
+                            raise ValueError('Unknown kind "%s"' % col['kind'])
+                    else:
+                        raise ValueError('Column %d has neither value nor kind'
+                                         % i)
+                rows.append({'row': row})
+
+            # Done - add the generated pool member table to the set of tables
+            # we're going to configure.
+            tables.append({
+                'name': tableConfig['name'],
+                'columnNames': columnNames,
+                'rows': rows
+            })
+        elif 'tableName' in config['iapp']:
+            # Before adding the flexible poolMemberTable mode, we only
+            # supported three fixed columns in order, and connection_limit was
+            # hardcoded to 0 ("no limit")
+            rows = []
+            for node in config['nodes']:
+                (addr, port) = node.split(':')
+                rows.append({'row': [addr, port, '0']})
+            tables.append({
+                'name': config['iapp']['tableName'],
+                'columnNames': ['addr', 'port', 'connection_limit'],
+                'rows': rows
+            })
 
         # Add other tables
         for key in config['iapp']['tables']:

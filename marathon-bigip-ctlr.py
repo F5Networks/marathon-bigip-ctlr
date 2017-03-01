@@ -50,14 +50,23 @@ import threading
 import configargparse
 
 
-# Setter function callbacks that correspond to specific labels (k) and their
-# values (v) to set an attribute on the object (x). These functions are
-# associated with the 'label_keys' dictionary that follows.
-# The 'k' arg is not used for those labels that uniquely corrrespond to an
-# object attribute (e.g. F5_0_PORT), while other labels are a combination of
-# a label prefix and attribute name (e.g. F5_0_IAPP_VARIABLE_net__server_mode).
+class InvalidServiceDefinitionError(ValueError):
+    """Parser or validator encountered error in user's service definition.
 
-def set_bindAddr(x, k, v):
+    Raising this error will cause the service to not be defined on BIG-IP.
+    For example, if while parsing F5_2_MODE the parser decides the mode is
+    invalid, it can raise this error and the 2nd service port (F5_2_*) won't
+    be defined.
+    A helpful error is logged to the user at loglevel warning.
+    """
+
+
+# Setter function callbacks that correspond to specific labels: they will
+# handle validating the value (v) and setting attributes on the object (x).
+# These functions are used for exact matches (resp. prefix matches below).
+
+
+def set_bindAddr(x, v):
     """App label callback.
 
     Setthe Virtual Server address from label F5_n_BIND_ADDR
@@ -65,7 +74,7 @@ def set_bindAddr(x, k, v):
     x.bindAddr = v
 
 
-def set_port(x, k, v):
+def set_port(x, v):
     """App label callback.
 
     Set the service port from label F5_n_PORT
@@ -73,7 +82,7 @@ def set_port(x, k, v):
     x.servicePort = int(v)
 
 
-def set_mode(x, k, v):
+def set_mode(x, v):
     """App label callback.
 
     Set the mode from label F5_n_MODE
@@ -81,7 +90,7 @@ def set_mode(x, k, v):
     x.mode = v
 
 
-def set_balance(x, k, v):
+def set_balance(x, v):
     """App label callback.
 
     Set the load-balancing method from label F5_n_BALANCE
@@ -89,7 +98,7 @@ def set_balance(x, k, v):
     x.balance = v
 
 
-def set_profile(x, k, v):
+def set_profile(x, v):
     """App label callback.
 
     Set the SSL Profile from label F5_n_SSL_PROFILE
@@ -97,7 +106,7 @@ def set_profile(x, k, v):
     x.profile = v
 
 
-def set_iapp(x, k, v):
+def set_iapp(x, v):
     """App label callback.
 
     Set the iApp template from label F5_n_IAPP_TEMPLATE
@@ -105,22 +114,111 @@ def set_iapp(x, k, v):
     x.iapp = v
 
 
-def set_iapp_pool_member_table_name(x, k, v):
+loggedIappPoolMemberTableNameDeprecated = False
+
+
+def set_iapp_pool_member_table_name(x, v):
     """App label callback.
 
     Set the pool-member table name in the iApp from label
     F5_n_IAPP_POOL_MEMBER_TABLE_NAME
     """
-    x.iappTableName = v
+    global loggedIappPoolMemberTableNameDeprecated
+    if hasattr(x, 'iappPoolMemberTable'):
+        raise InvalidServiceDefinitionError(
+            ("You can only specify one of IAPP_POOL_MEMBER_TABLE_NAME or "
+             "IAPP_POOL_MEMBER_TABLE, not both")
+        )
+    if not loggedIappPoolMemberTableNameDeprecated:
+        logger.info(
+            ("Using IAPP_POOL_MEMBER_TABLE_NAME is deprecated; see "
+             "IAPP_POOL_MEMBER_TABLE")
+        )
+        loggedIappPoolMemberTableNameDeprecated = True
+    x.iappPoolMemberTableName = v
 
 
-def set_iapp_pool_member_table_column_names(x, k, v):
+def set_iapp_pool_member_table(x, v):
     """App label callback.
 
-    Set the pool-member table column names in the iApp from label
-    F5_n_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES
+    Take the user's description for how to fill out the iApp's pool member
+    table.  Every iApp may have a different layout for this table.  We need to
+    provide the pool member IPs and ports, so we'll need to know what those
+    columns are named.  If there are other columns, we need to let the user
+    specify what we should fill in.
     """
-    x.iappPoolMemberTableColumnNames = [z.strip() for z in v.split(",")]
+    if hasattr(x, 'iappPoolMemberTableName'):
+        raise InvalidServiceDefinitionError(
+            ("You can only specify one of IAPP_POOL_MEMBER_TABLE_NAME or "
+             "IAPP_POOL_MEMBER_TABLE, not both")
+        )
+    table = None
+    try:
+        table = json.loads(v)
+    except ValueError:
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE is not valid JSON")
+
+    # FIXME(andrew): This should be done by jsonschema.
+    for mandatoryProp in ['name', 'columns']:
+        if mandatoryProp not in table:
+            raise InvalidServiceDefinitionError(
+                "IAPP_POOL_MEMBER_TABLE must have a '%s' field" %
+                mandatoryProp)
+    if not isinstance(table['name'], basestring):
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE's 'name' property must be a string")
+    if not isinstance(table['columns'], list):
+        raise InvalidServiceDefinitionError(
+            "IAPP_POOL_MEMBER_TABLE's 'columns' property must be an array")
+    for i, col in enumerate(table['columns']):
+        # Each column must be either
+        # columnWithKind:  { "name": "foo", "kind": "IPAddress" } or
+        # columnWithValue: { "name": "foo", "value": "42" }
+
+        # Both column styles need "name"
+        if 'name' not in col:
+            raise InvalidServiceDefinitionError(
+                "IAPP_POOL_MEMBER_TABLE column %d must have a 'name' field" %
+                i)
+
+        # Need either 'kind' or 'value'
+        if 'kind' in col:
+            if col['kind'] not in ['IPAddress', 'Port']:
+                raise InvalidServiceDefinitionError(
+                    "IAPP_POOL_MEMBER_TABLE column %d kind '%s' unknown" %
+                    (i, col['kind']))
+        elif 'value' in col:
+            # We pass the value opaquely.
+            pass
+        else:
+            raise InvalidServiceDefinitionError(
+                ("IAPP_POOL_MEMBER_TABLE column %d must specify either 'kind'"
+                 " or 'value'") % i)
+
+    x.iappPoolMemberTable = table
+
+
+# Dictionary of labels and setter functions, where the labels must match the
+# key exactly (after template substitution)
+exact_label_keys = {
+    'F5_{0}_BIND_ADDR': set_bindAddr,
+    'F5_{0}_PORT': set_port,
+    'F5_{0}_MODE': set_mode,
+    'F5_{0}_BALANCE': set_balance,
+    'F5_{0}_SSL_PROFILE': set_profile,
+    'F5_{0}_IAPP_TEMPLATE': set_iapp,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE': set_iapp_pool_member_table,
+}
+
+# Setter function callbacks that correspond to specific labels (k) and their
+# values (v) to set an attribute on the object (x). These functions are
+# associated with the 'label_keys' dictionary that follows.
+# The 'k' arg is the actual label key used, because these functions will handle
+# any label that prefix-matches a string (e.g. k may be
+# F5_0_IAPP_VARIABLE_net__server_mode which prefix-matches
+# F5_0_IAPP_VARIABLE_).
 
 
 def set_iapp_variable(x, k, v):
@@ -147,29 +245,14 @@ def set_iapp_option(x, k, v):
     x.iappOptions[k] = v
 
 
-def set_label(x, k, v):
-    """App label callback.
-
-    Generric method for capturing a label and its value
-    """
-    x.labels[k] = v
-
-
-# Dictionary of labels and setter functions
-label_keys = {
-    'F5_{0}_BIND_ADDR': set_bindAddr,
-    'F5_{0}_PORT': set_port,
-    'F5_{0}_MODE': set_mode,
-    'F5_{0}_BALANCE': set_balance,
-    'F5_{0}_SSL_PROFILE': set_profile,
-    'F5_{0}_IAPP_TEMPLATE': set_iapp,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
-    set_iapp_pool_member_table_column_names,
+# Dictionary of labels and setter functions, where the labels must start with
+# the key (after template substitution)
+prefix_label_keys = {
     'F5_{0}_IAPP_TABLE_': set_iapp_table,
     'F5_{0}_IAPP_VARIABLE_': set_iapp_variable,
-    'F5_{0}_IAPP_OPTION_': set_iapp_option
+    'F5_{0}_IAPP_OPTION_': set_iapp_option,
 }
+
 
 logger = logging.getLogger('controller')
 
@@ -218,8 +301,6 @@ class MarathonService(object):
         self.iapp = None
         self.iappTableName = None
         self.iappTables = {}
-        self.iappPoolMemberTableColumnNames = \
-            ['addr', 'port', 'connection_limit']
         self.iappVariables = {}
         self.iappOptions = {}
         self.mode = 'tcp'
@@ -415,25 +496,37 @@ def get_apps(apps, health_check):
                      marathon_app.app['labels'])
 
         for i in range(len(service_ports)):
-            servicePort = service_ports[i]
-            service = MarathonService(
-                        appId, servicePort, get_health_check(app, i))
-            service.partition = marathon_app.partition
+            try:
+                servicePort = service_ports[i]
+                service = MarathonService(
+                            appId, servicePort, get_health_check(app, i))
+                service.partition = marathon_app.partition
 
-            # Parse the app labels
-            for key_unformatted in label_keys:
-                key = key_unformatted.format(i)
+                # Parse the app labels that must match the template exactly
+                for key_unformatted in exact_label_keys:
+                    key = key_unformatted.format(i)
+                    if key in marathon_app.app['labels']:
+                        func = exact_label_keys[key_unformatted]
+                        func(service, marathon_app.app['labels'][key])
 
-                for label in marathon_app.app['labels']:
-                    # Labels can be a combination of predicate +
-                    # a variable name
-                    if label.startswith(key):
-                        func = label_keys[key_unformatted]
-                        func(service,
-                             label[len(key):],
-                             marathon_app.app['labels'][label])
+                # Parse the app labels that must start with a template entry
+                for key_unformatted in prefix_label_keys:
+                    key = key_unformatted.format(i)
 
-            marathon_app.services[servicePort] = service
+                    for label in marathon_app.app['labels']:
+                        # Labels can be a combination of predicate +
+                        # a variable name
+                        if label.startswith(key):
+                            func = prefix_label_keys[key_unformatted]
+                            func(service,
+                                 label[len(key):],
+                                 marathon_app.app['labels'][label])
+
+                marathon_app.services[servicePort] = service
+            except InvalidServiceDefinitionError as e:
+                logger.warning(
+                    "App %s, service %d has an invalid config, skipping: %s",
+                    appId, i, e)
 
         for task in app['tasks']:
             # Marathon 0.7.6 bug workaround

@@ -200,14 +200,77 @@ Use iApps Application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               | ``"F5_0_IAPP_VARIABLE_pool__addr": "10.128.10.240"``              |
 |                                       |           |           |               | ``"F5_0_IAPP_VARIABLE_pool__pool_to_use": "#create_new#"``        |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME   | string    | Optional  | n/a           | The iApp table entry containing pool member definitions.          |
+| \F5_{n}_IAPP_POOL_MEMBER_TABLE        | string    | Optional  | n/a           | Defines the name and layout of the pool member table in the iApp  |
+|                                       |           |           |               |                                                                   |
 |                                       |           |           |               | This entry can vary from iApp to iApp.                            |
+|                                       |           |           |               |                                                                   |
+|                                       |           |           |               | See F5_{n}_IAPP_POOL_MEMBER_TABLE section below.                  |
++---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
+| \F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME   | string    | Optional  | n/a           | The iApp table entry containing pool member definitions.          |
+|                                       |           |           |               |                                                                   |
+|                                       |           |           |               | This entry can vary from iApp to iApp.                            |
+|                                       |           |           |               |                                                                   |
+|                                       |           |           |               | DEPRECATED: Use F5_{n}_IAPP_POOL_MEMBER_TABLE instead.            |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members"``           |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 
+F5_{n}_IAPP_POOL_MEMBER_TABLE
+```````````````````````````
+You can use the ``F5_{n}_IAPP_POOL_MEMBER_TABLE`` option to describe the layout of the pool member table that the controller should configure.  It is a JSON object with these properties:
+
+- ``name`` (required): A string that specifies the name of the table that contains the pool members.
+- ``columns`` (required): An array that specifies the columns that the controller will configure in the pool member table, in order.
+
+Each entry in ``columns`` is an object that has a ``name`` property and either a ``kind`` or ``value`` property:
+
+- ``name`` (required): A string that specifies the column name.
+- ``kind``: A string that tells the controller what property from the node to substitute.  The controller supports ``"IPAddress"`` and ``"Port"``.
+- ``value``: A string that specifies a value.  The controller will not perform any substitution, it uses the value as specified.
+
+For instance, if you configure an application with two tasks at 1.2.3.4:20123 and 1.2.3.5:20321, and you specify::
+
+    F5_0_IAPP_POOL_MEMBER_TABLE = {
+      "name": "pool__members",
+      "columns": [
+        {"name": "Port", "kind": "Port"},
+        {"name": "IPAddress", "kind": "IPAddress"},
+        {"name": "ConnectionLimit", "value": "0"}
+      ]
+    }
+
+.. note:: This is the F5_0_IAPP_POOL_MEMBER_TABLE value represented as a JSON object.  Since Marathon accepts labels as strings, you must encode it as a string before entering it in the UI.
+
+This would configure the following table on BIG-IP::
+
+    {
+      "name": "pool__members",
+      "columnNames": [
+        "Port",
+        "IPAddress",
+        "ConnectionLimit",
+      ],
+      "rows": [
+        {
+          "row": [
+            "20121",
+            "1.2.3.4",
+            "0",
+          ]
+        },
+        {
+          "row": [
+            "20321",
+            "1.2.3.5",
+            "0",
+          ]
+        },
+      ]
+    }
+
+You will need to adjust this for the particular iApp template that you are using.  One way to discover the format is to configure an iApp manually from a template, and then check its configuration using ``tmsh list sys app service <appname>``.
 
 Example Configuration Files
 ```````````````````````````
