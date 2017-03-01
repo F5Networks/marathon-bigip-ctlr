@@ -3,7 +3,7 @@
 from pytest import meta_suite, meta_test
 from .. import utils
 
-pytestmark = meta_suite(tags=["func", "k8s", "no_marathon"])
+pytestmark = meta_suite(tags=["func", "k8s", "openshift", "no_marathon"])
 
 
 @meta_test(id="k8s-2", tags=[])

@@ -20,7 +20,9 @@ from pytest import symbols, meta_suite, meta_test
 import systest_common.src as common
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "config"])
+pytestmark = meta_suite(
+    tags=["func", "marathon", "no_k8s", "no_openshift", "config"]
+)
 
 
 @pytest.fixture(scope='module', autouse=True)

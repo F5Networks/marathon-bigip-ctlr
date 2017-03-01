@@ -25,7 +25,7 @@ from pytest import fixture
 from . import utils
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "k8s", "https"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "openshift", "https"])
 
 
 @fixture(scope='module')

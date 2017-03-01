@@ -213,6 +213,18 @@ def bigip2_addto_test_fx(request, orchestration, bigip2):
 
 
 @pytest.fixture(scope='function')
+def node_controller(request):
+    """Provide a node-controller service."""
+    node_controller = utils.NodeController()
+
+    def teardown():
+        node_controller.run_teardowns()
+
+    request.addfinalizer(teardown)
+    return node_controller
+
+
+@pytest.fixture(scope='function')
 def bigip_controller(request, orchestration):
     """Provide a default bigip-controller service."""
     mode = request.config._meta.vars.get(
