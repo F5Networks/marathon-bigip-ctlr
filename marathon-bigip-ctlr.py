@@ -49,15 +49,12 @@ import time
 import threading
 import configargparse
 
+# Setter function callbacks that correspond to specific labels: they will
+# handle validating the value (v) and setting attributes on the object (x).
+# These functions are used for exact matches (resp. prefix matches below).
 
-# Setter function callbacks that correspond to specific labels (k) and their
-# values (v) to set an attribute on the object (x). These functions are
-# associated with the 'label_keys' dictionary that follows.
-# The 'k' arg is not used for those labels that uniquely corrrespond to an
-# object attribute (e.g. F5_0_PORT), while other labels are a combination of
-# a label prefix and attribute name (e.g. F5_0_IAPP_VARIABLE_net__server_mode).
 
-def set_bindAddr(x, k, v):
+def set_bindAddr(x, v):
     """App label callback.
 
     Setthe Virtual Server address from label F5_n_BIND_ADDR
@@ -65,7 +62,7 @@ def set_bindAddr(x, k, v):
     x.bindAddr = v
 
 
-def set_port(x, k, v):
+def set_port(x, v):
     """App label callback.
 
     Set the service port from label F5_n_PORT
@@ -73,7 +70,7 @@ def set_port(x, k, v):
     x.servicePort = int(v)
 
 
-def set_mode(x, k, v):
+def set_mode(x, v):
     """App label callback.
 
     Set the mode from label F5_n_MODE
@@ -81,7 +78,7 @@ def set_mode(x, k, v):
     x.mode = v
 
 
-def set_balance(x, k, v):
+def set_balance(x, v):
     """App label callback.
 
     Set the load-balancing method from label F5_n_BALANCE
@@ -89,7 +86,7 @@ def set_balance(x, k, v):
     x.balance = v
 
 
-def set_profile(x, k, v):
+def set_profile(x, v):
     """App label callback.
 
     Set the SSL Profile from label F5_n_SSL_PROFILE
@@ -97,7 +94,7 @@ def set_profile(x, k, v):
     x.profile = v
 
 
-def set_iapp(x, k, v):
+def set_iapp(x, v):
     """App label callback.
 
     Set the iApp template from label F5_n_IAPP_TEMPLATE
@@ -105,7 +102,7 @@ def set_iapp(x, k, v):
     x.iapp = v
 
 
-def set_iapp_pool_member_table_name(x, k, v):
+def set_iapp_pool_member_table_name(x, v):
     """App label callback.
 
     Set the pool-member table name in the iApp from label
@@ -114,13 +111,36 @@ def set_iapp_pool_member_table_name(x, k, v):
     x.iappTableName = v
 
 
-def set_iapp_pool_member_table_column_names(x, k, v):
+def set_iapp_pool_member_table_column_names(x, v):
     """App label callback.
 
     Set the pool-member table column names in the iApp from label
     F5_n_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES
     """
     x.iappPoolMemberTableColumnNames = [z.strip() for z in v.split(",")]
+
+
+# Dictionary of labels and setter functions, where the labels must match the
+# key exactly (after template substitution)
+exact_label_keys = {
+    'F5_{0}_BIND_ADDR': set_bindAddr,
+    'F5_{0}_PORT': set_port,
+    'F5_{0}_MODE': set_mode,
+    'F5_{0}_BALANCE': set_balance,
+    'F5_{0}_SSL_PROFILE': set_profile,
+    'F5_{0}_IAPP_TEMPLATE': set_iapp,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
+    'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
+    set_iapp_pool_member_table_column_names,
+}
+
+# Setter function callbacks that correspond to specific labels (k) and their
+# values (v) to set an attribute on the object (x). These functions are
+# associated with the 'label_keys' dictionary that follows.
+# The 'k' arg is the actual label key used, because these functions will handle
+# any label that prefix-matches a string (e.g. k may be
+# F5_0_IAPP_VARIABLE_net__server_mode which prefix-matches
+# F5_0_IAPP_VARIABLE_).
 
 
 def set_iapp_variable(x, k, v):
@@ -147,29 +167,14 @@ def set_iapp_option(x, k, v):
     x.iappOptions[k] = v
 
 
-def set_label(x, k, v):
-    """App label callback.
-
-    Generric method for capturing a label and its value
-    """
-    x.labels[k] = v
-
-
-# Dictionary of labels and setter functions
-label_keys = {
-    'F5_{0}_BIND_ADDR': set_bindAddr,
-    'F5_{0}_PORT': set_port,
-    'F5_{0}_MODE': set_mode,
-    'F5_{0}_BALANCE': set_balance,
-    'F5_{0}_SSL_PROFILE': set_profile,
-    'F5_{0}_IAPP_TEMPLATE': set_iapp,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
-    'F5_{0}_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES':
-    set_iapp_pool_member_table_column_names,
+# Dictionary of labels and setter functions, where the labels must start with
+# the key (after template substitution)
+prefix_label_keys = {
     'F5_{0}_IAPP_TABLE_': set_iapp_table,
     'F5_{0}_IAPP_VARIABLE_': set_iapp_variable,
-    'F5_{0}_IAPP_OPTION_': set_iapp_option
+    'F5_{0}_IAPP_OPTION_': set_iapp_option,
 }
+
 
 logger = logging.getLogger('controller')
 
@@ -420,15 +425,22 @@ def get_apps(apps, health_check):
                         appId, servicePort, get_health_check(app, i))
             service.partition = marathon_app.partition
 
-            # Parse the app labels
-            for key_unformatted in label_keys:
+            # Parse the app labels that must match the template exactly
+            for key_unformatted in exact_label_keys:
+                key = key_unformatted.format(i)
+                if key in marathon_app.app['labels']:
+                    func = exact_label_keys[key_unformatted]
+                    func(service, marathon_app.app['labels'][key])
+
+            # Parse the app labels that must start with a template entry
+            for key_unformatted in prefix_label_keys:
                 key = key_unformatted.format(i)
 
                 for label in marathon_app.app['labels']:
                     # Labels can be a combination of predicate +
                     # a variable name
                     if label.startswith(key):
-                        func = label_keys[key_unformatted]
+                        func = prefix_label_keys[key_unformatted]
                         func(service,
                              label[len(key):],
                              marathon_app.app['labels'][label])
