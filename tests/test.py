@@ -1693,6 +1693,91 @@ class MarathonTest(BigIPTest):
             pool_member_table_input,
             expected_tables)
 
+    def test_new_iapp_nondefault_column_names_short(self):
+        """Test: Marathon app with iApp, override only IPAddress and Port."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        expected_tables = \
+            [{'columnNames': [u'IPAddress', u'Port'],
+              'rows':
+              [{'row': ['10.141.141.10', '31698']},
+               {'row': ['10.141.141.10', '31269']},
+               {'row': ['10.141.141.10', '31748']},
+               {'row': ['10.141.141.10', '31256']}],
+                'name': u'pool__members'}]
+        self.check_expected_iapp_poolmember_table(
+            pool_member_table_input,
+            expected_tables)
+
+    def test_new_iapp_nondefault_column_names_reorder(self):
+        """Test: Marathon app with iApp, override pool-member column order."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "ConnectionLimit", "value": "0"},
+                {"name": "Port", "kind": "Port"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+            ]
+        }
+        expected_tables = \
+            [{'columnNames': [u'ConnectionLimit', u'Port', u'IPAddress'],
+              'rows':
+              [{'row': ['0', '31698', '10.141.141.10']},
+               {'row': ['0', '31269', '10.141.141.10']},
+               {'row': ['0', '31748', '10.141.141.10']},
+               {'row': ['0', '31256', '10.141.141.10']}],
+                'name': u'pool__members'}]
+        self.check_expected_iapp_poolmember_table(
+            pool_member_table_input,
+            expected_tables)
+
+    def test_new_iapp_nondefault_column_names_appsvcs(self):
+        """Test: Marathon app with iApp, override the AppSvcs iApp fields."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+                {"name": "ConnectionLimit", "value": "1000"},
+                {"name": "Ratio", "value": "1"},
+                {"name": "PriorityGroup", "value": "0"},
+                {"name": "State", "value": "enabled"},
+                {"name": "AdvOptions", "value": ""}
+            ]
+        }
+        expected_tables = [{
+            'columnNames': [
+                u'Index',
+                u'IPAddress',
+                u'Port',
+                u'ConnectionLimit',
+                u'Ratio',
+                u'PriorityGroup',
+                u'State',
+                u'AdvOptions',
+            ],
+            'rows': [
+                {'row': ['0', '10.141.141.10', '31698', '1000', '1', '0',
+                         'enabled', '']},
+                {'row': ['0', '10.141.141.10', '31269', '1000', '1', '0',
+                         'enabled', '']},
+                {'row': ['0', '10.141.141.10', '31748', '1000', '1', '0',
+                         'enabled', '']},
+                {'row': ['0', '10.141.141.10', '31256', '1000', '1', '0',
+                         'enabled', '']},
+            ],
+            'name': u'pool__members'
+        }]
+        self.check_expected_iapp_poolmember_table(
+            pool_member_table_input,
+            expected_tables)
+
     def test_new_iapp_with_tables(
             self,
             cloud_state='tests/marathon_one_iapp_with_tables.json',
