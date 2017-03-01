@@ -49,6 +49,18 @@ import time
 import threading
 import configargparse
 
+
+class InvalidServiceDefinitionError(ValueError):
+    """Parser or validator encountered error in user's service definition.
+
+    Raising this error will cause the service to not be defined on BIG-IP.
+    For example, if while parsing F5_2_MODE the parser decides the mode is
+    invalid, it can raise this error and the 2nd service port (F5_2_*) won't
+    be defined.
+    A helpful error is logged to the user at loglevel warning.
+    """
+
+
 # Setter function callbacks that correspond to specific labels: they will
 # handle validating the value (v) and setting attributes on the object (x).
 # These functions are used for exact matches (resp. prefix matches below).
@@ -420,32 +432,37 @@ def get_apps(apps, health_check):
                      marathon_app.app['labels'])
 
         for i in range(len(service_ports)):
-            servicePort = service_ports[i]
-            service = MarathonService(
-                        appId, servicePort, get_health_check(app, i))
-            service.partition = marathon_app.partition
+            try:
+                servicePort = service_ports[i]
+                service = MarathonService(
+                            appId, servicePort, get_health_check(app, i))
+                service.partition = marathon_app.partition
 
-            # Parse the app labels that must match the template exactly
-            for key_unformatted in exact_label_keys:
-                key = key_unformatted.format(i)
-                if key in marathon_app.app['labels']:
-                    func = exact_label_keys[key_unformatted]
-                    func(service, marathon_app.app['labels'][key])
+                # Parse the app labels that must match the template exactly
+                for key_unformatted in exact_label_keys:
+                    key = key_unformatted.format(i)
+                    if key in marathon_app.app['labels']:
+                        func = exact_label_keys[key_unformatted]
+                        func(service, marathon_app.app['labels'][key])
 
-            # Parse the app labels that must start with a template entry
-            for key_unformatted in prefix_label_keys:
-                key = key_unformatted.format(i)
+                # Parse the app labels that must start with a template entry
+                for key_unformatted in prefix_label_keys:
+                    key = key_unformatted.format(i)
 
-                for label in marathon_app.app['labels']:
-                    # Labels can be a combination of predicate +
-                    # a variable name
-                    if label.startswith(key):
-                        func = prefix_label_keys[key_unformatted]
-                        func(service,
-                             label[len(key):],
-                             marathon_app.app['labels'][label])
+                    for label in marathon_app.app['labels']:
+                        # Labels can be a combination of predicate +
+                        # a variable name
+                        if label.startswith(key):
+                            func = prefix_label_keys[key_unformatted]
+                            func(service,
+                                 label[len(key):],
+                                 marathon_app.app['labels'][label])
 
-            marathon_app.services[servicePort] = service
+                marathon_app.services[servicePort] = service
+            except InvalidServiceDefinitionError as e:
+                logger.warning(
+                    "App %s, service %d has an invalid config, skipping: %s",
+                    appId, i, e)
 
         for task in app['tasks']:
             # Marathon 0.7.6 bug workaround
