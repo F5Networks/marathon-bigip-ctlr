@@ -301,8 +301,6 @@ class MarathonService(object):
         self.iapp = None
         self.iappTableName = None
         self.iappTables = {}
-        self.iappPoolMemberTableColumnNames = \
-            ['addr', 'port', 'connection_limit']
         self.iappVariables = {}
         self.iappOptions = {}
         self.mode = 'tcp'

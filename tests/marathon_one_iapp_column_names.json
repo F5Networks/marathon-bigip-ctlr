@@ -52,8 +52,7 @@
         "labels": {
             "F5_0_IAPP_OPTION_description": "This is a test iApp",
             "F5_0_IAPP_OPTION_trafficGroup": "/Common/traffic-group-local-only",
-            "F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members",
-            "F5_0_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES": "IPAddress, Port, ConnectionLimit", 
+            "F5_0_IAPP_POOL_MEMBER_TABLE": "{ \"name\": \"pool__members\", \"columns\": [ { \"name\":\"IPAddress\", \"kind\":\"IPAddress\"}, { \"name\":\"Port\", \"kind\":\"Port\" }, { \"name\":\"ConnectionLimit\", \"value\": \"0\" }]}",
             "F5_0_IAPP_TEMPLATE": "/Common/f5.http",
             "F5_0_IAPP_VARIABLE_monitor__monitor": "/#create_new#",
             "F5_0_IAPP_VARIABLE_monitor__response": "none",
