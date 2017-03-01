@@ -1778,6 +1778,117 @@ class MarathonTest(BigIPTest):
             pool_member_table_input,
             expected_tables)
 
+    def check_failed_iapp_pool_member_table(self, pool_member_table_input,
+                                            do_json=True):
+        """Check that invalid pool member table formats fail cleanly."""
+        cloud_state = 'tests/marathon_one_iapp_column_names.json'
+        bigip_state = 'tests/bigip_test_blank.json'
+        hm_state = 'tests/bigip_test_blank.json'
+
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Overload the pool member table label - this tells the controller how
+        # to fill in the pool member table.  Properly interpreting this is
+        # what's under test.
+        pool_member_table_string = pool_member_table_input
+        if do_json:
+            pool_member_table_string = json.dumps(pool_member_table_input)
+        self.cloud_data[0]['labels']['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
+            pool_member_table_string
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, False)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        # Should be 0 because parsing the table should have failed.
+        self.assertEquals(self.bigip.iapp_create.call_count, 0)
+
+    def test_iapp_pool_member_table_not_json(self):
+        """The pool member isn't JSON - should get an error."""
+        pool_member_table_input = "{ This isn't JSON }"
+        self.check_failed_iapp_pool_member_table(pool_member_table_input,
+                                                 False)
+
+    def test_iapp_pool_member_table_no_name(self):
+        """The pool member doesn't have a "name" entry."""
+        pool_member_table_input = {
+            # Missing "name" entry here
+            "columns": [
+                {"name": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_pool_member_table_badcolumns(self):
+        """The pool member has a columns array that is non-conformant."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": ["name", "Index", "value", "0"]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_pool_member_table_badkind(self):
+        """The pool member has a bad "kind"."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "ThisIsABadKind"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_pool_member_table_column_neither(self):
+        """The pool member has a column that is neither "kind" nor "value"."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "Index"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_both_table_definitions(self):
+        """Check that specifying both table types fails."""
+        cloud_state = 'tests/marathon_one_iapp_column_names.json'
+        bigip_state = 'tests/bigip_test_blank.json'
+        hm_state = 'tests/bigip_test_blank.json'
+
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Overload the pool member table label - this tells the controller how
+        # to fill in the pool member table.  Properly interpreting this is
+        # what's under test.
+        pool_member_table = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+                {"name": "ConnectionLimit", "value": "0"}
+            ]
+        }
+        self.cloud_data[0]['labels']['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
+            json.dumps(pool_member_table)
+        self.cloud_data[0]['labels']['F5_0_IAPP_POOL_MEMBER_TABLE_NAME'] = \
+            "pool__members"
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, False)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        # Should be 0 because parsing the table should have failed.
+        self.assertEquals(self.bigip.iapp_create.call_count, 0)
+
     def test_new_iapp_with_tables(
             self,
             cloud_state='tests/marathon_one_iapp_with_tables.json',
