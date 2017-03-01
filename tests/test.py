@@ -1631,14 +1631,28 @@ class MarathonTest(BigIPTest):
         self.assertEquals(expected_tables, iapp_def['tables'])
         self.assertEquals(expected_variables, iapp_def['variables'])
 
-    def test_new_iapp_nondefault_column_names(
-            self,
-            cloud_state='tests/marathon_one_iapp_column_names.json',
-            bigip_state='tests/bigip_test_blank.json',
-            hm_state='tests/bigip_test_blank.json'):
-        """Test: Marathon app with iApp, override pool-member column names."""
+    def check_expected_iapp_poolmember_table(self, pool_member_table_input,
+                                             expected_tables):
+        """Check that the controller properly interprets POOL_MEMBER_TABLE.
+
+        pool_member_table_description - Converted to a JSON string and assigned
+            to F5_0_IAPP_POOL_MEMBER_TABLE.
+        expected_tables - These tables must match the iApp definition's
+            "tables" property that the controller would attempt to set on the
+            BIG-IP (compared with assertEquals).
+        """
+        cloud_state = 'tests/marathon_one_iapp_column_names.json'
+        bigip_state = 'tests/bigip_test_blank.json'
+        hm_state = 'tests/bigip_test_blank.json'
+
         # Get the test data
         self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Overload the pool member table label - this tells the controller how
+        # to fill in the pool member table.  Properly interpreting this is
+        # what's under test.
+        self.cloud_data[0]['labels']['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
+            json.dumps(pool_member_table_input)
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
@@ -1653,6 +1667,20 @@ class MarathonTest(BigIPTest):
                           expected_name)
 
         # Verify the iapp variables and tables
+        config = self.bigip.iapp_create.call_args_list[0][0][2]
+        iapp_def = self.bigip.iapp_build_definition(config)
+        self.assertEquals(expected_tables, iapp_def['tables'])
+
+    def test_new_iapp_nondefault_column_names(self):
+        """Test: Marathon app with iApp, override pool-member column names."""
+        pool_member_table_input = {
+            "name": "pool__members",
+            "columns": [
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+                {"name": "ConnectionLimit", "value": "0"}
+            ]
+        }
         expected_tables = \
             [{'columnNames': [u'IPAddress', u'Port', u'ConnectionLimit'],
               'rows':
@@ -1661,9 +1689,9 @@ class MarathonTest(BigIPTest):
                {'row': ['10.141.141.10', '31748', '0']},
                {'row': ['10.141.141.10', '31256', '0']}],
                 'name': u'pool__members'}]
-        config = self.bigip.iapp_create.call_args_list[0][0][2]
-        iapp_def = self.bigip.iapp_build_definition(config)
-        self.assertEquals(expected_tables, iapp_def['tables'])
+        self.check_expected_iapp_poolmember_table(
+            pool_member_table_input,
+            expected_tables)
 
     def test_new_iapp_with_tables(
             self,
