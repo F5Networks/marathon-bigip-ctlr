@@ -15,6 +15,7 @@
 """Test suite to verify scale test scenarios."""
 
 
+import json
 import multiprocessing
 import re
 import time
@@ -35,6 +36,7 @@ SVC_TIMEOUT = 10 * 60
 SVC_START_PORT = 7000
 VS_INTERVAL = 10
 VS_TIMEOUT = 5 * 60
+LOG_TIMEOUT = 5 * 60
 
 
 @meta_test(id="f5mlb-59", tags=[])
@@ -67,17 +69,133 @@ def test_bigip_controller1_svc100_srv100(ssh, orchestration):
     _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=100)
 
 
+@meta_test(id="f5mlb-69", tags=[])
+def test_bigip_controller_application_deployment_sizing(ssh, orchestration):
+    """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
+
+    Test the time it takes to deploy the bigip-controller and for it to
+    configure the bigip.
+    """
+    _run_deployment_sizing_test(ssh, orchestration, num_svcs=10, num_srvs=100)
+
+
+@meta_test(id="f5mlb-70", tags=[])
+def test_bigip_controller_application_scaling_sizing(ssh, orchestration):
+    """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
+
+    Test the time it takes to reconfigure the bigip when tasks are scaled down
+    by a factor of 50%.
+    """
+    _run_scaling_sizing_test(ssh, orchestration, num_svcs=10, num_srvs=100)
+
+
 def _run_scale_test(
-        ssh, orchestration, num_svcs, num_srvs,
-        svc_cpus=SVC_CPUS, svc_mem=SVC_MEM, timeout=SVC_TIMEOUT):
-    svc_inputs = []
-    svcs = []
+        ssh, orchestration, num_svcs, num_srvs):
 
     utils.BigipController(
         orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM
     ).create()
 
     # - first, scale-up the appropriate services and instances
+    svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, True)
+
+    # - set pool_size to number of cores on the bastion
+    pool_size = 4
+    # - then, verify round-robin load balancing for each service
+    for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
+        p = multiprocessing.Pool(processes=len(slice))
+        p.map(_verify_bigip_controller, slice)
+        p.close()
+        p.join()
+
+
+def _run_deployment_sizing_test(
+        ssh, orchestration, num_svcs, num_srvs):
+
+    # - scale initial services and deploy controller
+    (ctlr, svcs, tot_srvs) = _scale_and_deploy_controller(
+                                        num_svcs, num_srvs, ssh, orchestration)
+
+    # - check log for configuration finished
+    start_str = 'SCALE_PERF: Started controller at: '
+    ctlr_instance = ctlr.app.instances.get()[0]
+    start_time = _check_controller_logs(
+                 ctlr_instance, svcs, num_srvs, tot_srvs, start_str,
+                 check_for_log_data=False)
+
+    assert start_time
+
+    start_str = 'SCALE_PERF: Test data:'
+    stop_time = _check_controller_logs(
+                 ctlr_instance, svcs, num_srvs, tot_srvs, start_str)
+
+    assert stop_time
+
+    dur = stop_time - start_time
+    objs = tot_srvs + num_svcs + 1
+    res = objs / dur
+
+    print '\nTime elapsed:        %f' % dur
+    print 'Objects added:        %d' % objs
+    print "Controller deployed and configured %f objs/sec" % res
+
+
+def _run_scaling_sizing_test(
+        ssh, orchestration, num_svcs, num_srvs):
+
+    # - scale initial services and deploy controller
+    (ctlr, svcs, tot_srvs) = _scale_and_deploy_controller(
+                                        num_svcs, num_srvs, ssh, orchestration)
+
+    # - check log for initial configuration finished
+    start_str = 'SCALE_PERF: Test data:'
+    ctlr_instance = ctlr.app.instances.get()[0]
+    start_time = _check_controller_logs(
+                  ctlr_instance, svcs, num_srvs, tot_srvs, start_str)
+
+    assert start_time
+
+    # - scale-down services by 50%
+    srv_inputs = []
+    num_scale = num_srvs / 2
+    for svc_id in orchestration.apps.list():
+        if utils.DEFAULT_F5MLB_NAME not in svc_id:
+            srv_inputs.append({
+                'orchestration': orchestration,
+                'svc_id': svc_id,
+                'num_scale': num_scale
+            })
+    pool_size = 10
+    slices = [
+        srv_inputs[i:i+pool_size] for i in range(0, len(srv_inputs), pool_size)
+    ]
+    for slice in slices:
+        p = multiprocessing.Pool(processes=len(slice))
+        p.map(_scale_running_svcs, slice)
+        p.close()
+        p.join()
+
+    # - check log for final configuration finished
+    tot_srvs = num_svcs * num_scale
+    stop_time = _check_controller_logs(
+               ctlr_instance, svcs, num_scale, tot_srvs, start_str)
+
+    assert stop_time
+
+    dur = stop_time - start_time
+    objs = num_svcs * num_scale
+    res = objs / dur
+
+    print '\nTime elapsed:         %f' % dur
+    print 'Objects removed:      %d' % objs
+    print 'Controller deployed and configured %f objs/sec' % res
+
+
+def _scale_svcs(
+        ssh, orchestration, num_svcs, num_srvs, wait_for_vs,
+        svc_cpus=SVC_CPUS, svc_mem=SVC_MEM, timeout=SVC_TIMEOUT):
+    svc_inputs = []
+    svcs = []
     for i in range(1, num_svcs + 1):
         svc_inputs.append({
             'idx': i,
@@ -86,7 +204,8 @@ def _run_scale_test(
             'num_srvs': num_srvs,
             'svc_cpus': svc_cpus,
             'svc_mem': svc_mem,
-            'timeout': timeout
+            'timeout': timeout,
+            'wait_for_vs': wait_for_vs
         })
     pool_size = 10
     slices = [
@@ -97,15 +216,64 @@ def _run_scale_test(
         svcs += p.map(_create_svc, slice)
         p.close()
         p.join()
+    return svcs
 
-    # - set pool_size to number of cores on the bastion
-    pool_size = 4
-    # - then, verify round-robin load balancing for each service
-    for slice in [svcs[i:i+pool_size] for i in range(0, len(svcs), pool_size)]:
-        p = multiprocessing.Pool(processes=len(slice))
-        p.map(_verify_bigip_controller, slice)
-        p.close()
-        p.join()
+
+def _scale_and_deploy_controller(num_svcs, num_srvs, ssh, orchestration):
+    tot_srvs = num_svcs * num_srvs
+    ctlr_config = utils.DEFAULT_F5MLB_CONFIG
+    ctlr_config['SCALE_PERF_ENABLE'] = True
+
+    svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
+
+    ctlr = utils.BigipController(
+        orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM, config=ctlr_config
+    ).create()
+
+    return (ctlr, svcs, tot_srvs)
+
+
+def _scale_running_svcs(kwargs):
+    orchestration = kwargs['orchestration']
+    svc_id = kwargs['svc_id']
+    num_scale = kwargs['num_scale']
+    orchestration.app.scale(svc_id, num_scale)
+
+
+def _check_controller_logs(
+                ctlr, svcs, backend_per_svc, tot_backends, start_str,
+                stop_str='\n', check_for_log_data=True):
+    search_index = 0
+    log_time = time.time()
+
+    while time.time() - log_time < LOG_TIMEOUT:
+        log_mgr = ctlr.get_stdout()
+        log_output = log_mgr.raw
+        start_index = log_output.find(start_str, search_index)
+
+        if start_index != -1:
+            stop_index = log_output.find(stop_str, start_index)
+            search_index = stop_index + 1
+            check_output = log_output[start_index:stop_index]
+
+            if start_index < stop_index and stop_index != -1:
+                if check_for_log_data:
+                    log_data = json.loads(check_output[len(start_str) + 1:])
+
+                    if (len(svcs) == log_data.get('Total_Services') and
+                            log_data.get('Total_Backends') == tot_backends):
+                        valid_backends = True
+                        for svc in svcs:
+                            if (backend_per_svc !=
+                                    log_data.get(svc.get('svc_name'))):
+                                valid_backends = False
+                        if valid_backends:
+                            log_time = log_data.get('Time')
+                            return log_time
+                else:
+                    log_time = float(check_output[len(start_str):])
+                    return log_time
+    return False
 
 
 def _create_svc(kwargs):
@@ -121,7 +289,8 @@ def _create_svc(kwargs):
         num_instances=kwargs['num_srvs'],
         config=config
     )
-    _wait_for_virtual_server(svc, kwargs['ssh'])
+    if kwargs['wait_for_vs'] is True:
+        _wait_for_virtual_server(svc, kwargs['ssh'])
     return {
         'svc_name': svc_name,
         'ssh': kwargs['ssh'],

@@ -830,6 +830,9 @@ if __name__ == '__main__':
     # Setup logging
     setup_logging(logger, args.log_format, args.log_level)
 
+    if os.environ.get('SCALE_PERF_ENABLE'):
+        logger.info('SCALE_PERF: Started controller at: %f', time.time())
+
     # Marathon API connector
     marathon = Marathon(args.marathon,
                         args.health_check,

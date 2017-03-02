@@ -34,6 +34,8 @@ import logging
 import json
 import requests
 import f5
+import os
+import time
 import urllib
 from operator import attrgetter
 from common import resolve_ip, list_diff, list_diff_exclusive, list_intersect,\
@@ -233,6 +235,22 @@ class CloudBigIP(BigIP):
         except Exception as e:
             raise
 
+        if os.environ.get('SCALE_PERF_ENABLE'):
+            if self._cloud == 'marathon':
+                test_data = {}
+                app_count = 0
+                backend_count = 0
+                for app in cloud_state:
+                    if app.partition == 'test':
+                        app_count += 1
+                        backends = len(app.backends)
+                        test_data[app.appId[1:]] = backends
+                        backend_count += backends
+                test_data['Total_Services'] = app_count
+                test_data['Total_Backends'] = backend_count
+                test_data['Time'] = time.time()
+                json_data = json.dumps(test_data)
+                logger.info('SCALE_PERF: Test data: %s', json_data)
         return False
 
     def _create_config_kubernetes(self, config):
