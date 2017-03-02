@@ -20,7 +20,8 @@ from pytest import meta_suite, meta_test
 from . import config_utils
 
 
-pytestmark = meta_suite(tags=["func", "config", "marathon", "k8s"])
+pytestmark = meta_suite(tags=["func", "config", "marathon", "k8s",
+                              "openshift"])
 
 
 @meta_test(id="f5mlb-48", tags=[""])

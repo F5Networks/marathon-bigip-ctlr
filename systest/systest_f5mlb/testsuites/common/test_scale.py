@@ -26,7 +26,7 @@ from pytest import symbols
 from . import utils
 
 
-pytestmark = meta_suite(tags=["scale", "marathon", "k8s"])
+pytestmark = meta_suite(tags=["scale", "marathon", "k8s", "openshift"])
 
 F5MLB_CPUS = 0.5
 F5MLB_MEM = 128

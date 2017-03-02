@@ -19,7 +19,6 @@ import copy
 import re
 import time
 import subprocess
-import os
 
 
 from pytest import symbols
@@ -183,9 +182,14 @@ if symbols.orchestration == "openshift":
                   DEFAULT_BIGIP_VXLAN_TUNNEL)
     DEFAULT_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
     DEFAULT_F5MLB_CONFIG['args'].append(vxlan_name)
+    DEFAULT_F5MLB_CONFIG['args'].append('--node-poll-interval')
+    DEFAULT_F5MLB_CONFIG['args'].append('1')
 
     BIGIP2_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
     BIGIP2_F5MLB_CONFIG['args'].append(vxlan_name)
+    DEFAULT_F5MLB_CONFIG['args'].append('--node-poll-interval')
+    DEFAULT_F5MLB_CONFIG['args'].append('1')
+
 
 _next_id = 1
 
@@ -441,6 +445,21 @@ def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
     return ret
 
 
+def get_backend_fdb_endpoints(bigip,
+                              vxlan_tunnel=DEFAULT_BIGIP_VXLAN_TUNNEL,
+                              partition=DEFAULT_F5MLB_PARTITION):
+    """Get FDB endpoints for named VxLAN Tunnel."""
+    ret = []
+
+    fdb_tunnel = bigip.fdb_tunnel.get(name=vxlan_tunnel, partition=partition)
+
+    if hasattr(fdb_tunnel, 'records'):
+        for item in fdb_tunnel.records:
+            ret.append(item['endpoint'])
+
+    return ret
+
+
 def get_backend_pool_members_exp(svc, bigip_controller, port_idx=0):
     """Return a list of pool member addr:port."""
     if bigip_controller.pool_mode == POOL_MODE_NODEPORT:
@@ -522,60 +541,80 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
         assert v >= min_res_per_member, msg
 
 
-def delete_node(ip_list=None):
-    """Delete a node from an orchestration environment.
+class NodeController(object):
+    """Execute operations on cluster nodes."""
 
-    Args:
-        ip_list: List of IP addresses to delete. If not provided defaults
-    to the first IP in symbols file.
-    """
-    if symbols.orchestration == 'openshift':
-        if ip_list is None:
-            delete_node = symbols.worker_default_ips[0]
-            cmd = ['oc', 'delete', 'node', delete_node]
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-            cmd2 = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'delete']
-            subprocess.check_output(cmd2, stderr=subprocess.STDOUT)
+    def __init__(self):
+        """The NodeController ctor."""
+        if symbols.orchestration == 'openshift':
+            pass
         else:
-            cmd = ['oc', 'delete', 'node']
-            cmd.extend(ip_list)
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-            cmd2 = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'delete', '--ip']
-            cmd2.extend(ip_list)
-            subprocess.check_output(cmd2, stderr=subprocess.STDOUT)
-        my_env = os.environ.copy()
-        my_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
-        cmd3 = ['ansible-playbook', NODE_UNIN_YAML]
-        with open(os.devnull, "w") as f:
-            subprocess.check_call(cmd3, stdout=f, env=my_env)
-    else:
-        raise RuntimeError('delete_node is not implemented for orchestration'
-                           ' environment {}'.format(symbols.orchestration))
+            assert False, "Unsupported orchestration " + symbols.orchestration
 
+        self._teardowns = []
 
-def add_node(ip_list=None):
-    """Add a node to an orchestration environment.
+    def push_teardown(self, func, args):
+        """Push a teardown onto the stack."""
+        def closure():
+            func(args)
 
-    Args:
-        ip_list: List of IP addresses to add. If not provided defaults
-    to the first IP in symbols file.
-    """
-    if symbols.orchestration == 'openshift':
-        if ip_list is None:
-            cmd = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'add']
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        else:
-            cmd = ['sudo', 'python', ANSIBLE_HOSTS_SCRIPT, 'add', '--ip']
-            cmd.extend(ip_list)
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        my_env = os.environ.copy()
-        my_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
-        cmd2 = ['ansible-playbook', NODE_SCALE_YAML]
-        with open(os.devnull, "w") as f:
-            subprocess.check_call(cmd2, stdout=f, env=my_env)
-    else:
-        raise RuntimeError('add_node is not implemented for orchestration'
-                           ' environment {}'.format(symbols.orchestration))
+        self._teardowns.insert(0, closure)
+
+    def run_teardowns(self):
+        """Run through teardown stack."""
+        for teardown in self._teardowns:
+            teardown()
+
+    def clear_teardowns(self):
+        """Clear all registered teardowns."""
+        self._teardowns = []
+
+    def mark_schedulability(self, schedulable, node):
+        """Mark node unschedulable to prepare for evacuation."""
+        cmd = ['oc', 'adm', 'manage-node']
+        cmd.append(node)
+        cmd.append('--schedulable={}'.format(schedulable))
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+    def evacuate(self, mark_unschedulable, node):
+        """Evacuate nodes from an orchestration environment."""
+        if mark_unschedulable is True:
+            self.mark_schedulability(False, node)
+
+        cmd = ['oc', 'adm', 'manage-node']
+        cmd.append(node)
+        cmd.extend(['--evacuate', '--force'])
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+    def get_node(self, node):
+        """Get node config from an orchestration environment."""
+        cmd = ['oc', 'get', '-o', 'yaml', 'nodes']
+        cmd.append(node)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        out, _ = p.communicate()
+
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(returncode=p.returncode,
+                                                cmd=cmd, output=out)
+        return out
+
+    def delete_node(self, node):
+        """Delete a node from an orchestration environment."""
+        cmd = ['oc', 'delete', 'nodes']
+        cmd.append(node)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+    def add_node(self, config):
+        """Add a node to an orchestration environment."""
+        cmd = ['oc', 'create', '-f', '-']
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             stdin=subprocess.PIPE)
+        out, _ = p.communicate(input=config)
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(returncode=p.returncode,
+                                                cmd=cmd, output=out)
 
 
 def _get_svc_url(svc, protocol=None, ipaddr=None, port=None):

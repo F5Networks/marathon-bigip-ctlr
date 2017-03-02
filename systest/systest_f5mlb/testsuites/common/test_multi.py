@@ -18,7 +18,7 @@
 from pytest import meta_suite, meta_test
 
 
-pytestmark = meta_suite(tags=["func", "marathon", "k8s", "multi"])
+pytestmark = meta_suite(tags=["func", "marathon", "k8s", "openshift", "multi"])
 
 
 @meta_test(id="f5mlb-55", tags=["incomplete"])

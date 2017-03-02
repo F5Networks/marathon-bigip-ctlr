@@ -24,7 +24,7 @@ from pytest import symbols
 from .. import utils
 
 
-pytestmark = meta_suite(tags=["ha", "marathon", "k8s"])
+pytestmark = meta_suite(tags=["ha", "marathon", "k8s", "openshift"])
 
 
 @meta_test(id="f5mlb-66", tags=[])
