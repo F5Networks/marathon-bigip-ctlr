@@ -323,14 +323,10 @@ class CloudBigIP(BigIP):
 
             if 'iapp' in frontend:
                 f5_service['iapp'] = {'template': frontend['iapp'],
-                                      'tableName': frontend['iappTableName'],
+                                      'poolMemberTable':
+                                      frontend['iappPoolMemberTable'],
                                       'variables': frontend['iappVariables'],
                                       'options': frontend['iappOptions']}
-                column_names = frontend.get(
-                    'iappPoolMemberTableColumnNames',
-                    ['addr', 'port', 'connection_limit'])
-                f5_service['iapp']['poolMemberTableColumnNames'] = \
-                    column_names
                 f5_service['iapp']['tables'] = frontend.get('iappTables', {})
             else:
                 f5_service['virtual'] = {}
@@ -466,6 +462,11 @@ class CloudBigIP(BigIP):
                              'options': 'iappOptions'}.iteritems():
                     if hasattr(app, v):
                         f5_service['iapp'][k] = getattr(app, v)
+
+                # Decode the tables
+                for key in app.iappTables:
+                    f5_service['iapp']['tables'][key] = \
+                        json.loads(app.iappTables[key])
 
             logger.info("Configuring app %s, partition %s", app.appId,
                         app.partition)
@@ -1491,7 +1492,7 @@ class CloudBigIP(BigIP):
 
         # Add other tables
         for key in config['iapp']['tables']:
-            data = json.loads(config['iapp']['tables'][key])
+            data = config['iapp']['tables'][key]
             table = {'columnNames': data['columns'],
                      'name': key,
                      'rows': []
