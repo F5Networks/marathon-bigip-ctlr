@@ -19,6 +19,7 @@ import json
 import multiprocessing
 import re
 import time
+from copy import deepcopy
 
 from pytest import meta_suite, meta_test
 from pytest import symbols
@@ -35,12 +36,12 @@ SVC_MEM = 32
 SVC_TIMEOUT = 10 * 60
 SVC_START_PORT = 7000
 VS_INTERVAL = 10
-VS_TIMEOUT = 5 * 60
+VS_TIMEOUT = 10 * 60
 LOG_TIMEOUT = 5 * 60
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_bigip_controller1_svc10_srv100(ssh, orchestration):
+def test_bigip_controller1_svc10_srv100(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Each managed service has 100 backend servers.
@@ -50,7 +51,7 @@ def test_bigip_controller1_svc10_srv100(ssh, orchestration):
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv10(ssh, orchestration):
+def test_bigip_controller1_svc100_srv10(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 10 backends each).
 
     Each managed service has 10 backend servers.
@@ -60,7 +61,7 @@ def test_bigip_controller1_svc100_srv10(ssh, orchestration):
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv100(ssh, orchestration):
+def test_bigip_controller1_svc100_srv100(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 100 backends each).
 
     Each managed service has and 100 backend servers.
@@ -70,31 +71,31 @@ def test_bigip_controller1_svc100_srv100(ssh, orchestration):
 
 
 @meta_test(id="f5mlb-69", tags=[])
-def test_bigip_controller_application_deployment_sizing(ssh, orchestration):
+def test_bigip_controller_application_deployment_sizing(
+        ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Test the time it takes to deploy the bigip-controller and for it to
     configure the bigip.
     """
-    _run_deployment_sizing_test(ssh, orchestration, num_svcs=10, num_srvs=100)
+    _run_deployment_sizing_test(
+        ssh, orchestration, scale_controller, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-70", tags=[])
-def test_bigip_controller_application_scaling_sizing(ssh, orchestration):
+def test_bigip_controller_application_scaling_sizing(
+        ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Test the time it takes to reconfigure the bigip when tasks are scaled down
     by a factor of 50%.
     """
-    _run_scaling_sizing_test(ssh, orchestration, num_svcs=10, num_srvs=100)
+    _run_scaling_sizing_test(
+        ssh, orchestration, scale_controller, num_svcs=10, num_srvs=100)
 
 
 def _run_scale_test(
         ssh, orchestration, num_svcs, num_srvs):
-
-    utils.BigipController(
-        orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM
-    ).create()
 
     # - first, scale-up the appropriate services and instances
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, True)
@@ -110,15 +111,13 @@ def _run_scale_test(
 
 
 def _run_deployment_sizing_test(
-        ssh, orchestration, num_svcs, num_srvs):
-
-    # - scale initial services and deploy controller
-    (ctlr, svcs, tot_srvs) = _scale_and_deploy_controller(
-                                        num_svcs, num_srvs, ssh, orchestration)
+        ssh, orchestration, scale_controller, num_svcs, num_srvs):
+    tot_srvs = num_svcs * num_srvs
+    svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
 
     # - check log for configuration finished
     start_str = 'SCALE_PERF: Started controller at: '
-    ctlr_instance = ctlr.app.instances.get()[0]
+    ctlr_instance = scale_controller.app.instances.get()[0]
     start_time = _check_controller_logs(
                  ctlr_instance, svcs, num_srvs, tot_srvs, start_str,
                  check_for_log_data=False)
@@ -141,15 +140,13 @@ def _run_deployment_sizing_test(
 
 
 def _run_scaling_sizing_test(
-        ssh, orchestration, num_svcs, num_srvs):
-
-    # - scale initial services and deploy controller
-    (ctlr, svcs, tot_srvs) = _scale_and_deploy_controller(
-                                        num_svcs, num_srvs, ssh, orchestration)
+        ssh, orchestration, scale_controller, num_svcs, num_srvs):
+    tot_srvs = num_svcs * num_srvs
+    svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
 
     # - check log for initial configuration finished
     start_str = 'SCALE_PERF: Test data:'
-    ctlr_instance = ctlr.app.instances.get()[0]
+    ctlr_instance = scale_controller.app.instances.get()[0]
     start_time = _check_controller_logs(
                   ctlr_instance, svcs, num_srvs, tot_srvs, start_str)
 
@@ -217,20 +214,6 @@ def _scale_svcs(
         p.close()
         p.join()
     return svcs
-
-
-def _scale_and_deploy_controller(num_svcs, num_srvs, ssh, orchestration):
-    tot_srvs = num_svcs * num_srvs
-    ctlr_config = utils.DEFAULT_F5MLB_CONFIG
-    ctlr_config['SCALE_PERF_ENABLE'] = True
-
-    svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
-
-    ctlr = utils.BigipController(
-        orchestration, cpus=F5MLB_CPUS, mem=F5MLB_MEM, config=ctlr_config
-    ).create()
-
-    return (ctlr, svcs, tot_srvs)
 
 
 def _scale_running_svcs(kwargs):
@@ -360,7 +343,9 @@ def _get_scale_config(kwargs):
             'F5_0_MODE': utils.DEFAULT_F5MLB_MODE,
         }
     elif utils.is_kubernetes():
-        cfg = {}
+        cfg = deepcopy(utils.DEFAULT_SVC_CONFIG)
+        vs = cfg['data']['data']['virtualServer']
+        vs['frontend']['virtualAddress']['port'] += kwargs['idx']
     return cfg
 
 
@@ -371,4 +356,8 @@ def _get_svc_url(svc):
             % (svc.labels['F5_0_BIND_ADDR'], svc.labels['F5_0_PORT'])
         )
     if utils.is_kubernetes():
-        pass
+        vs_addr = svc.vs_config.get('frontend', {}).get('virtualAddress', {})
+        return (
+            "http://%s:%s"
+            % (vs_addr['bindAddr'], vs_addr['port'])
+        )
