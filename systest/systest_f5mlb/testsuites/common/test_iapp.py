@@ -16,6 +16,7 @@
 
 
 import copy
+import json
 import os
 
 from pytest import meta_suite, meta_test
@@ -143,11 +144,13 @@ def _get_iapp_config(iapp):
         cfg = {
             'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
             'F5_0_IAPP_TEMPLATE': iapp.name,
-            'F5_0_IAPP_POOL_MEMBER_TABLE_NAME': iapp.table,
         }
-        if iapp.pool_member_table_column_names:
-            cfg['F5_0_IAPP_POOL_MEMBER_TABLE_COLUMN_NAMES'] = \
-                iapp.pool_member_table_column_names
+        if hasattr(iapp, 'pool_member_table_name'):
+            cfg['F5_0_IAPP_POOL_MEMBER_TABLE_NAME'] = \
+                iapp.pool_member_table_name
+        if hasattr(iapp, 'pool_member_table'):
+            cfg['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
+                json.dumps(iapp.pool_member_table)
         for k, v in iapp.options.iteritems():
             cfg['F5_0_IAPP_OPTION_' + k] = v
         for k, v in iapp.vars.iteritems():
@@ -160,9 +163,8 @@ def _get_iapp_config(iapp):
         cfg['data']['data']['virtualServer']['frontend'] = {
             'partition': utils.DEFAULT_F5MLB_PARTITION,
             'iapp': iapp.name,
-            'iappTableName': iapp.table,
-            'iappPoolMemberTableColumnNames':
-            iapp.pool_member_table_column_names,
+            'iappTableName': iapp.pool_member_table_name,
+            'iappPoolMemberTable': iapp.pool_member_table,
             'iappTables': iapp.tables,
             'iappOptions': iapp.options,
             'iappVariables': iapp.vars
@@ -176,7 +178,7 @@ class SampleHttpIApp(object):
     def __init__(self):
         """Initialize members."""
         self.name = "/Common/f5.http"
-        self.table = "pool__members"
+        self.pool_member_table_name = "pool__members"
         self.options = {'description': "This is a test iApp"}
         self.pool_member_table_column_names = {}
         self.tables = {}
@@ -216,9 +218,30 @@ class SampleAppSvcsIApp(object):
         """Initialize members."""
         self.svc_name = 'appsvc'
         self.name = "/Common/appsvcs_integration_v2.0.002"
-        self.table = "pool__Members"
-        self.pool_member_table_column_names = \
-            "IPAddress, Port, ConnectionLimit"
+        self.pool_member_table = {
+            'name': 'pool__Members',
+            'columns': [
+                {"name": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+                {"name": "ConnectionLimit", "value": "1000"},
+                {"name": "Ratio", "value": "1"},
+                {"name": "PriorityGroup", "value": "0"},
+                {"name": "State", "value": "enabled"},
+                # The iApp presents this final field to users in the UI.  We
+                # want it to be empty.  If we specify it like:
+                # {"name": "AdvOptions", "value": ""}
+                # we get an error from BIG-IP:
+                #  Invalid table, the number of row elements does not match
+                #  the number of column headers in table ::pool__Members in
+                #  application /test/appsvc_iapp_10001.app/appsvc_iapp_10001
+                # even though there are 8 columns, and 8 entries in each row.
+                # Omitting it entirely means there are 7 rows, and the iApp
+                # works, and the iApp UI still works (the AdvOptions field
+                # shows as empty).  This may be a behavioral attribute of the
+                # iApp.
+            ]
+        }
         self.options = {'description': "This is a test iApp"}
         self.tables = {
             'l7policy__rulesMatch':
