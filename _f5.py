@@ -310,12 +310,7 @@ class CloudBigIP(BigIP):
                     'iapp' not in frontend):
                 continue
 
-            virt_addr = ('iapp' if 'iapp' in frontend else
-                         frontend['virtualAddress']['bindAddr'])
-            port = (backend['servicePort'] if 'virtualAddress' not in frontend
-                    else frontend['virtualAddress']['port'])
-            frontend_name = "{0}_{1}_{2}".format(
-                backend['serviceName'].strip('/'), virt_addr, port)
+            frontend_name = frontend['virtualServerName']
 
             f5_service['name'] = frontend_name
 

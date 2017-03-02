@@ -396,7 +396,7 @@ def get_backend_object_name(svc, port_idx=0):
         )
     if is_kubernetes():
         return (
-            "%s_%s_%s" % (svc.id, svc.vs_bind_addr, svc.vs_port)
+            "%s_%s-map" % (DEFAULT_F5MLB_NAMESPACE, svc.id)
         )
 
 

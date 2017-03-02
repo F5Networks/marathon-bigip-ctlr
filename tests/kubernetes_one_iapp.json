@@ -11,6 +11,7 @@
           "servicePort": 10000
         },
         "frontend": {
+          "virtualServerName": "default_configmap",
           "partition": "k8s",
           "iapp": "/Common/f5.http",
           "iappPoolMemberTable": {
