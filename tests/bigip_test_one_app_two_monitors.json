@@ -1,0 +1,6 @@
+{
+  "server-app_10.128.10.240_443":
+    {"type": "https"},
+  "server-app_10.128.10.240_80":
+    {"type": "http"}
+}

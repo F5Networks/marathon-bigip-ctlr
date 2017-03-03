@@ -2184,6 +2184,33 @@ class MarathonTest(BigIPTest):
         self.assertEqual(ep._backoff_timer, 0.1)
         self.assertEqual(cb.call_count, 3)
 
+    def test_app_with_two_healthchecks(
+            self,
+            cloud_state='tests/marathon_one_app_two_health_checks.json',
+            bigip_state='tests/bigip_test_app_two_monitors.json',
+            hm_state='tests/bigip_test_one_app_two_monitors.json'):
+        """Test: Marathon app with one app and two health monitors."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertEqual(self.bigip.healthcheck_update.call_count, 2)
+        self.assertEqual(self.bigip.pool_update.call_count, 2)
+        health_checks = self.bigip.healthcheck_update.call_args_list
+        pool_list = self.bigip.get_pool_list("mesos")
+        for i in range(0, 1):
+            hc = health_checks[i][0][2]
+            name = hc['name']
+            self.assertTrue(name in self.hm_data)
+            self.assertTrue(name in pool_list)
+            self.assertEqual(hc['protocol'], self.hm_data[name]['type'])
+
 
 class KubernetesTest(BigIPTest):
     """Kubernetes/Big-IP configuration tests.
