@@ -309,8 +309,9 @@ class MarathonService(object):
         self.healthCheck = healthCheck
         self.labels = {}
         if healthCheck:
-            if healthCheck['protocol'] == 'HTTP':
-                self.mode = 'http'
+            for hc in healthCheck:
+                if hc['protocol'] == 'HTTP':
+                    self.mode = 'http'
 
     def add_backend(self, host, port, draining):
         """Add a backend to the service."""
@@ -462,13 +463,12 @@ class Marathon(object):
 
 def get_health_check(app, portIndex):
     """Get the healthcheck for the app."""
+    checks = []
     for check in app['healthChecks']:
-        # FIXME: There may be more than one health check for a given port or
-        # portIndex, but we currently only take the first.
-        if check.get('port'):
-            return check
-        if check.get('portIndex') == portIndex:
-            return check
+        if check.get('port') or check.get('portIndex') == portIndex:
+            checks.append(check)
+    if len(checks) > 0:
+        return checks
     return None
 
 

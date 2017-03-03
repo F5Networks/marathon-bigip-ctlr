@@ -488,23 +488,19 @@ class CloudBigIP(BigIP):
                              app.servicePort, backend)
 
             if app.healthCheck:
-                logger.debug("Healthcheck for app '%s': %s", app.appId,
-                             app.healthCheck)
-                app.healthCheck['name'] = frontend_name
+                for hc in app.healthCheck:
+                    logger.debug("Healthcheck for app '%s': %s", app.appId, hc)
+                    hc['name'] = frontend_name
 
-                # normalize healtcheck protocol name to lowercase
-                if 'protocol' in app.healthCheck:
-                    app.healthCheck['protocol'] = \
-                        (app.healthCheck['protocol']).lower()
-                app.healthCheck.update({
-                    'interval': app.healthCheck['intervalSeconds']
-                    if app.healthCheck else None,
-                    'timeout': healthcheck_timeout_calculate(app.healthCheck)
-                    if app.healthCheck else None,
-                    'send': self.healthcheck_sendstring(app.healthCheck)
-                    if app.healthCheck else None
-                })
-                f5_service['health'].append(app.healthCheck)
+                    # normalize healtcheck protocol name to lowercase
+                    if 'protocol' in hc:
+                        hc['protocol'] = (hc['protocol']).lower()
+                    hc.update({
+                        'interval': hc['intervalSeconds'],
+                        'timeout': healthcheck_timeout_calculate(hc),
+                        'send': self.healthcheck_sendstring(hc),
+                        })
+                    f5_service['health'].append(hc)
 
             # Parse the SSL profile into partition and name
             profiles = []
