@@ -156,14 +156,13 @@ def _get_iapp_config(iapp):
         for k, v in iapp.vars.iteritems():
             cfg['F5_0_IAPP_VARIABLE_' + k] = v
         for k, v in iapp.tables.iteritems():
-            cfg['F5_0_IAPP_TABLE_' + k] = v
+            cfg['F5_0_IAPP_TABLE_' + k] = json.dumps(v)
     if utils.is_kubernetes():
         cfg = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
         cfg['data']['data']['virtualServer'].pop('frontend')
         cfg['data']['data']['virtualServer']['frontend'] = {
             'partition': utils.DEFAULT_F5MLB_PARTITION,
             'iapp': iapp.name,
-            'iappTableName': iapp.pool_member_table_name,
             'iappPoolMemberTable': iapp.pool_member_table,
             'iappTables': iapp.tables,
             'iappOptions': iapp.options,
@@ -178,9 +177,13 @@ class SampleHttpIApp(object):
     def __init__(self):
         """Initialize members."""
         self.name = "/Common/f5.http"
-        self.pool_member_table_name = "pool__members"
         self.options = {'description': "This is a test iApp"}
-        self.pool_member_table_column_names = {}
+        self.pool_member_table = {
+            "name": "pool__members",
+            "columns": [{"name": "addr", "kind": "IPAddress"},
+                        {"name": "port", "kind": "Port"},
+                        {"name": "connection_limit", "value": "0"}]
+        }
         self.tables = {}
 
         CREATE_NEW = "/#create_new#"
@@ -244,27 +247,27 @@ class SampleAppSvcsIApp(object):
         }
         self.options = {'description': "This is a test iApp"}
         self.tables = {
-            'l7policy__rulesMatch':
-            """{"columns": ["Group", "Operand", "Negate",
-                "Condition", "Value", "CaseSensitive", "Missing"],
-                "rows": [[0, "http-uri/request/path", "no", "starts-with",
-                         "/env", "no", "no"],
-                        ["default", "", "no", "", "", "no", "no"]]
-            }""",
-            'l7policy__rulesAction':
-            """{"columns": ["Group", "Target", "Parameter"],
-                "rows": [[0, "forward/request/reset", "none" ],
+            'l7policy__rulesMatch': {
+                "columns": ["Group", "Operand", "Negate", "Condition", "Value",
+                            "CaseSensitive", "Missing"],
+                "rows": [["0", "http-uri/request/path", "no", "starts-with",
+                          "/env", "no", "no"],
+                         ["default", "", "no", "", "", "no", "no"]]
+            },
+            'l7policy__rulesAction': {
+                "columns": ["Group", "Target", "Parameter"],
+                "rows": [["0", "forward/request/reset", "none"],
                          ["default", "forward/request/select/pool", "pool:0"]]
-            }""",
-            'pool__Pools':
-            """{"columns": ["Index", "Name", "Description", "LbMethod",
-                "Monitor", "AdvOptions"],
+            },
+            'pool__Pools': {
+                "columns": ["Index", "Name", "Description", "LbMethod",
+                            "Monitor", "AdvOptions"],
                 "rows": [["0", "", "", "round-robin", "0", "none"]]
-            }""",
-            'monitor__Monitors':
-            """{"columns": ["Index", "Name", "Type", "Options"],
+            },
+            'monitor__Monitors': {
+                "columns": ["Index", "Name", "Type", "Options"],
                 "rows": [["0", "/Common/tcp", "none", "none"]]
-            }"""
+            }
         }
         self.vars = {
             'pool__addr': utils.DEFAULT_F5MLB_BIND_ADDR,
