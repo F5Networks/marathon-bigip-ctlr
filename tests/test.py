@@ -2254,11 +2254,11 @@ class KubernetesTest(BigIPTest):
         self.assertTrue(self.bigip.member_create.called)
         self.assertEqual(self.bigip.member_create.call_count, 2)
         self.assertEqual(self.bigip.healthcheck_create.call_count, 2)
-        expected_name = 'foo_10.128.10.240_5051'
+        expected_name = 'default_configmap'
         self.assertEquals(self.bigip.healthcheck_create.
                           call_args_list[0][0][1]['name'],
                           expected_name)
-        expected_name = 'foo_10.128.10.240_5051_1'
+        expected_name = 'default_configmap_1'
         self.assertEquals(self.bigip.healthcheck_create.
                           call_args_list[1][0][1]['name'],
                           expected_name)
@@ -2358,7 +2358,7 @@ class KubernetesTest(BigIPTest):
 
         self.assertEquals(self.bigip.iapp_create.call_count, 1)
 
-        expected_name = 'server-app2_iapp_10000'
+        expected_name = 'default_configmap'
         self.assertEquals(self.bigip.iapp_create.call_args_list[0][0][1],
                           expected_name)
 
@@ -2449,10 +2449,10 @@ class KubernetesTest(BigIPTest):
             side_effect=self.mock_get_virtual_address)
 
         # Create a mock Pool
-        pool_data_unchanged = {'monitor': '/k8s/foo_10.128.10.240_5051 and '
-                                          '/k8s/foo_10.128.10.240_5051_1',
+        pool_data_unchanged = {'monitor': '/k8s/default_configmap and '
+                                          '/k8s/default_configmap_1',
                                'balance': 'round-robin'}
-        pool = self.create_mock_pool('foo_10.128.10.240_5051',
+        pool = self.create_mock_pool('default_configmap',
                                      **pool_data_unchanged)
 
         # Create a mock Virtual
@@ -2460,14 +2460,14 @@ class KubernetesTest(BigIPTest):
                                   'disabled': False,
                                   'ipProtocol': 'tcp',
                                   'destination': '/k8s/10.128.10.240:5051',
-                                  'pool': '/k8s/foo_10.128.10.240_5051',
+                                  'pool': '/k8s/default_configmap',
                                   'sourceAddressTranslation':
                                   {'type': 'automap'},
                                   'profiles': [{'partition': 'Common',
                                                 'name': 'clientssl'},
                                                {'partition': 'Common',
                                                 'name': 'http'}]}
-        virtual = self.create_mock_virtual('foo_10.128.10.240_5051',
+        virtual = self.create_mock_virtual('default_configmap',
                                            **virtual_data_unchanged)
 
         # Create mock Pool Members
@@ -2492,7 +2492,7 @@ class KubernetesTest(BigIPTest):
             data = pool_data_unchanged.copy()
             # Change one thing
             data[key] = pool_data_changed[key]
-            pool = self.create_mock_pool('foo_10.128.10.240_5051', **data)
+            pool = self.create_mock_pool('default_configmap', **data)
             self.bigip.regenerate_config_f5(self.cloud_data)
             self.assertTrue(pool.modify.called)
 
@@ -2502,7 +2502,7 @@ class KubernetesTest(BigIPTest):
             'disabled': True,
             'ipProtocol': 'udp',
             'destination': '/Common/10.128.10.240:5051',
-            'pool': '/Common/foo_10.128.10.240_5051',
+            'pool': '/Common/default_configmap',
             'sourceAddressTranslation': {'type': 'snat'},
             'profiles': [{'partition': 'Common', 'name': 'clientssl'},
                          {'partition': 'Common', 'name': 'tcp'}]
@@ -2511,7 +2511,7 @@ class KubernetesTest(BigIPTest):
             data = virtual_data_unchanged.copy()
             # Change one thing
             data[key] = virtual_data_changed[key]
-            virtual = self.create_mock_virtual('foo_10.128.10.240_5051',
+            virtual = self.create_mock_virtual('default_configmap',
                                                **data)
             self.bigip.regenerate_config_f5(self.cloud_data)
             self.assertTrue(virtual.modify.called)

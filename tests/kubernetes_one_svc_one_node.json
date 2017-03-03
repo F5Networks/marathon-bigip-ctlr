@@ -11,6 +11,7 @@
           "servicePort": 80
         },
         "frontend": {
+          "virtualServerName": "default_configmap",
           "balance": "round-robin",
           "mode": "http",
           "partition": "k8s",
