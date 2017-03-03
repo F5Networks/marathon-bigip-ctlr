@@ -166,7 +166,7 @@ functest-setup:
 		testenv -v create --name $(func_testenv_name) \
 		--config $(testenv_config) \
 		--requires bigip \
-		--params num_masters:1 --params num_workers:1 \
+		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)"
 
 functest-run:
