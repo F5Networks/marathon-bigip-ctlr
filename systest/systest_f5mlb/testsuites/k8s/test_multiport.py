@@ -160,7 +160,9 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     _configure_pod_port(pod1_cfg, 1, 'bar', '8081')
 
     pod1_obj = _create_pod(api, pod1_cfg)
+    pod_ips = []
     pod_ip = _get_pod_ip(pod1_obj)
+    pod_ips.append(pod_ip)
     named_ports['foo'].append(pod_ip + ":8080")
     named_ports['bar'].append(pod_ip + ":8081")
 
@@ -171,6 +173,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
 
     pod2_obj = _create_pod(api, pod2_cfg)
     pod_ip = _get_pod_ip(pod2_obj)
+    pod_ips.append(pod_ip)
     named_ports['bar'].append(pod_ip + ":8081")
     named_ports['foo'].append(pod_ip + ":8080")
 
@@ -181,6 +184,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
 
     pod3_obj = _create_pod(api, pod3_cfg)
     pod_ip = _get_pod_ip(pod3_obj)
+    pod_ips.append(pod_ip)
     named_ports['foo'].append(pod_ip + ":80")
     named_ports['baz'].append(pod_ip + ":8080")
 
@@ -214,6 +218,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
 
     pod4_obj = _create_pod(api, pod4_cfg)
     pod_ip = _get_pod_ip(pod4_obj)
+    pod_ips.append(pod_ip)
     named_ports['foo'].append(pod_ip + ":9090")
 
     _verify_virtual_server_objects(bigip, 1, vs_name_cfg, named_ports['foo'])
@@ -227,18 +232,23 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
 
     pod5_obj = _create_pod(api, pod5_cfg)
     pod_ip = _get_pod_ip(pod5_obj)
+    pod_ips.append(pod_ip)
     named_ports['bar'].append(pod_ip + ":9090")
 
     _verify_virtual_server_objects(bigip, 1, vs_name_cfg, named_ports['foo'])
 
     #
-    # 4. Switch service to only port 80 (there is only one)
+    # 4. Switch service to only port 80. There is only one, but due to
+    #    how kuberetes generates endpoints, the list will contain the
+    #    IP address of all pods.  See
+    #    https://github.com/kubernetes/client-go/blob/master/pkg/api/types.go
+    #    (line 2461) for more details.
     #
     svc_cfg['spec']['ports'][0]['targetPort'] = 80
     _update_service(api, svc_cfg)
 
-    port_80 = _get_pod_ip(pod3_obj) + ":80"
-    _verify_virtual_server_objects(bigip, 1, vs_name_cfg, [port_80])
+    port_80_ips = ['{}:80'.format(_ip) for _ip in pod_ips]
+    _verify_virtual_server_objects(bigip, 1, vs_name_cfg, port_80_ips)
 
     #
     # 5. Switch service to use ports marked with 'bar' (there are three)
