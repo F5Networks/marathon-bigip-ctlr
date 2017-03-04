@@ -59,7 +59,7 @@ py.test \
     --symbols ~/testenv_symbols/testenv_symbols.json \
     --vars controller-pool-mode:$pool_mode \
     --include $include_tags \
-    --exclude incomplete no_regression no_$orchestration \
+    --exclude incomplete no_regression no_$orchestration no_pool_mode_$pool_mode \
     --autolog-outputdir $results_dir \
     --autolog-session $session \
     -- testsuites \
