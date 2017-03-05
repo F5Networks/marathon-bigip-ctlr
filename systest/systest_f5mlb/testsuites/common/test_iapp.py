@@ -73,7 +73,10 @@ def test_iapp_f5_http(ssh, orchestration, bigip, bigip_controller):
 
     # - verify iApp objects exist
     partition = utils.DEFAULT_F5MLB_PARTITION
-    prefix = "%s_iapp_" % svc.id.replace("/", "")
+    if utils.is_kubernetes():
+        prefix = utils.get_backend_object_name(svc)
+    else:
+        prefix = "%s_iapp_" % svc.id.replace("/", "")
     iapps = bigip.iapps.list(prefix, partition)
     iapp_name = iapps[0]
     vs_name = iapp_name + "_vs"
@@ -115,7 +118,10 @@ def test_iapp_appsvcs(ssh, orchestration, bigip, bigip_controller,
 
     # - verify iApp objects exist
     partition = utils.DEFAULT_F5MLB_PARTITION
-    prefix = "%s_iapp_" % svc.id.replace("/", "")
+    if utils.is_kubernetes():
+        prefix = utils.get_backend_object_name(svc)
+    else:
+        prefix = "%s_iapp_" % svc.id.replace("/", "")
     iapps = bigip.iapps.list(prefix, partition)
     iapp_name = iapps[0]
     vs_name = iapp.vars['vs__Name']
