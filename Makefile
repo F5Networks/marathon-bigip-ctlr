@@ -17,9 +17,8 @@ test-docs:
 devel-image:
 	rm -rf _build_docker
 	mkdir _build_docker
-	cp requirements.txt\
-	   requirements.docs.txt \
-	   _build_docker/
+	cp requirements.txt _build_docker/
+	cp docs/requirements.txt _build_docker/requirements.docs.txt
 	cp ./scripts/devel-image/Dockerfile _build_docker/
 	(cd _build_docker && docker build -t f5mlb-devel .)
 	rm -rf _build_docker
