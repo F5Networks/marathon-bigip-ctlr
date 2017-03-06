@@ -37,65 +37,67 @@ SVC_TIMEOUT = 10 * 60
 SVC_START_PORT = 7000
 VS_INTERVAL = 10
 VS_TIMEOUT = 10 * 60
-LOG_TIMEOUT = 5 * 60
+DEFAULT_SCALE_PERF_ENV_VARS = {'SCALE_PERF_ENABLE': True}
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_bigip_controller1_svc10_srv100(ssh, orchestration, scale_controller):
+def test_bigip_controller1_svc10_srv100(ssh, orchestration, request):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Each managed service has 100 backend servers.
     So this test creates 1,011 application instances.
     """
-    _run_scale_test(ssh, orchestration, num_svcs=10, num_srvs=100)
+    _run_scale_test(ssh, orchestration, request, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv10(ssh, orchestration, scale_controller):
+def test_bigip_controller1_svc100_srv10(ssh, orchestration, request):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 10 backends each).
 
     Each managed service has 10 backend servers.
     So this test creates 1,101 application instances.
     """
-    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=10)
+    _run_scale_test(ssh, orchestration, request, num_svcs=100, num_srvs=10)
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv100(ssh, orchestration, scale_controller):
+def test_bigip_controller1_svc100_srv100(ssh, orchestration, request):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 100 backends each).
 
     Each managed service has and 100 backend servers.
     So this test creates 10,101 application instances.
     """
-    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=100)
+    _run_scale_test(ssh, orchestration, request, num_svcs=100, num_srvs=100)
 
 
 @meta_test(id="f5mlb-69", tags=[])
 def test_bigip_controller_application_deployment_sizing(
-        ssh, orchestration, scale_controller):
+        ssh, orchestration, request):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Test the time it takes to deploy the bigip-controller and for it to
     configure the bigip.
     """
     _run_deployment_sizing_test(
-        ssh, orchestration, scale_controller, num_svcs=10, num_srvs=100)
+        ssh, orchestration, request, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-70", tags=[])
 def test_bigip_controller_application_scaling_sizing(
-        ssh, orchestration, scale_controller):
+        ssh, orchestration, request):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Test the time it takes to reconfigure the bigip when tasks are scaled down
     by a factor of 50%.
     """
     _run_scaling_sizing_test(
-        ssh, orchestration, scale_controller, num_svcs=10, num_srvs=100)
+        ssh, orchestration, request, num_svcs=10, num_srvs=100)
 
 
 def _run_scale_test(
-        ssh, orchestration, num_svcs, num_srvs):
+        ssh, orchestration, request, num_svcs, num_srvs):
+
+    utils.deploy_controller(request, orchestration)
 
     # - first, scale-up the appropriate services and instances
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, True)
@@ -111,24 +113,24 @@ def _run_scale_test(
 
 
 def _run_deployment_sizing_test(
-        ssh, orchestration, scale_controller, num_svcs, num_srvs):
+        ssh, orchestration, request, num_svcs, num_srvs):
     tot_srvs = num_svcs * num_srvs
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
 
     # - check log for configuration finished
+    ctlr = utils.deploy_controller(request, orchestration,
+                                   env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
+                                   mode=utils.POOL_MODE_CLUSTER)
+    ctlr_instance = _get_app_instance(ctlr)
     start_str = 'SCALE_PERF: Started controller at: '
-    ctlr_instance = scale_controller.app.instances.get()[0]
-    start_time = _check_controller_logs(
-                 ctlr_instance, svcs, num_srvs, tot_srvs, start_str,
-                 check_for_log_data=False)
+    for ctlr_log in utils.check_logs(ctlr_instance, start_str):
+        start_time = float(ctlr_log)
+        if start_time is not None:
+            break
 
-    assert start_time
-
-    start_str = 'SCALE_PERF: Test data:'
-    stop_time = _check_controller_logs(
-                 ctlr_instance, svcs, num_srvs, tot_srvs, start_str)
-
-    assert stop_time
+    start_str = 'SCALE_PERF: Test data: '
+    stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
+                                            num_srvs, tot_srvs)
 
     dur = stop_time - start_time
     objs = tot_srvs + num_svcs + 1
@@ -140,47 +142,32 @@ def _run_deployment_sizing_test(
 
 
 def _run_scaling_sizing_test(
-        ssh, orchestration, scale_controller, num_svcs, num_srvs):
+        ssh, orchestration, request, num_svcs, num_srvs):
     tot_srvs = num_svcs * num_srvs
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
 
     # - check log for initial configuration finished
-    start_str = 'SCALE_PERF: Test data:'
-    ctlr_instance = scale_controller.app.instances.get()[0]
-    start_time = _check_controller_logs(
-                  ctlr_instance, svcs, num_srvs, tot_srvs, start_str)
-
-    assert start_time
+    ctlr = utils.deploy_controller(request, orchestration,
+                                   env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
+                                   mode=utils.POOL_MODE_CLUSTER)
+    ctlr_instance = _get_app_instance(ctlr)
+    start_str = 'SCALE_PERF: Test data: '
+    start_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
+                                             num_srvs, tot_srvs)
 
     # - scale-down services by 50%
-    srv_inputs = []
+    svc_name = svcs[0]['svc_name']
     num_scale = num_srvs / 2
-    for svc_id in orchestration.apps.list():
-        if utils.DEFAULT_F5MLB_NAME not in svc_id:
-            srv_inputs.append({
-                'orchestration': orchestration,
-                'svc_id': svc_id,
-                'num_scale': num_scale
-            })
-    pool_size = 10
-    slices = [
-        srv_inputs[i:i+pool_size] for i in range(0, len(srv_inputs), pool_size)
-    ]
-    for slice in slices:
-        p = multiprocessing.Pool(processes=len(slice))
-        p.map(_scale_running_svcs, slice)
-        p.close()
-        p.join()
+    orchestration.app.scale(svc_name, num_scale)
 
     # - check log for final configuration finished
-    tot_srvs = num_svcs * num_scale
-    stop_time = _check_controller_logs(
-               ctlr_instance, svcs, num_scale, tot_srvs, start_str)
-
-    assert stop_time
+    tot_srvs -= num_scale
+    stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
+                                            num_srvs, tot_srvs,
+                                            scaled_svc=(svc_name, num_scale))
 
     dur = stop_time - start_time
-    objs = num_svcs * num_scale
+    objs = num_scale
     res = objs / dur
 
     print '\nTime elapsed:         %f' % dur
@@ -216,47 +203,40 @@ def _scale_svcs(
     return svcs
 
 
-def _scale_running_svcs(kwargs):
-    orchestration = kwargs['orchestration']
-    svc_id = kwargs['svc_id']
-    num_scale = kwargs['num_scale']
-    orchestration.app.scale(svc_id, num_scale)
+def _get_app_instance(app, marathon_instance_number=0,
+                      k8s_namespace='kube-system'):
+    if symbols.orchestration == 'marathon':
+        return app.instances.get()[marathon_instance_number]
+    elif symbols.orchestration == 'k8s':
+        pod_name = app.app_kwargs['id']
+        result = utils.get_k8s_pod_name_and_namespace(pod_name)
+        assert result, 'Could not find pod %s' % pod_name
+        for pod in result:
+            (name, namespace) = pod
+            if namespace == k8s_namespace:
+                return (name, namespace)
+        return (None, None)
 
 
-def _check_controller_logs(
-                ctlr, svcs, backend_per_svc, tot_backends, start_str,
-                stop_str='\n', check_for_log_data=True):
-    search_index = 0
-    log_time = time.time()
-
-    while time.time() - log_time < LOG_TIMEOUT:
-        log_mgr = ctlr.get_stdout()
-        log_output = log_mgr.raw
-        start_index = log_output.find(start_str, search_index)
-
-        if start_index != -1:
-            stop_index = log_output.find(stop_str, start_index)
-            search_index = stop_index + 1
-            check_output = log_output[start_index:stop_index]
-
-            if start_index < stop_index and stop_index != -1:
-                if check_for_log_data:
-                    log_data = json.loads(check_output[len(start_str) + 1:])
-
-                    if (len(svcs) == log_data.get('Total_Services') and
-                            log_data.get('Total_Backends') == tot_backends):
-                        valid_backends = True
-                        for svc in svcs:
-                            if (backend_per_svc !=
-                                    log_data.get(svc.get('svc_name'))):
-                                valid_backends = False
-                        if valid_backends:
-                            log_time = log_data.get('Time')
-                            return log_time
-                else:
-                    log_time = float(check_output[len(start_str):])
-                    return log_time
-    return False
+def _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
+                                backend_per_svc, tot_backends,
+                                scaled_svc=None):
+    for log in utils.check_logs(ctlr_instance, start_str):
+        data = json.loads(log)
+        if (len(svcs) == data.get('Total_Services') and
+                data.get('Total_Backends') == tot_backends):
+            valid_backends = True
+            for svc in svcs:
+                if backend_per_svc != data[svc['svc_name']]:
+                    if scaled_svc is not None:
+                        (svc_name, scale_factor) = scaled_svc
+                        if data[svc_name] != scale_factor:
+                            valid_backends = False
+                    else:
+                        valid_backends = False
+            if valid_backends:
+                data_time = data.get('Time')
+                return data_time
 
 
 def _create_svc(kwargs):
