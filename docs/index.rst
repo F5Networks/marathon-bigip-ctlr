@@ -12,32 +12,16 @@ Features
 
 - Dynamically create, manage, and destroy BIG-IP objects.
 - Authenticate to `Enterprise DC/OS`_ via the `Identity and Access Management API`_.
-- Authenticate to BIG-IP objects with existing BIG-IP SSL profiles.
 - Deploy F5 `iApps <https://devcentral.f5.com/iapps>`_ on the BIG-IP.
 
 
 Guides
 ------
 
-The F5 Marathon BIG-IP Controller user documentation is available at `add link <#tbd>`_.
+See the `F5 Marathon Container Connector user documentation </containers/v1/marathon/>`_.
 
-Getting Started
-```````````````
-- links
-- to
-- guides
 
-Deployment
-``````````
-- links
-- to
-- guides
-
-Troubleshooting
-```````````````
-- links coming soon
-
-Architecture
+Overview
 ------------
 
 The F5 Marathon BIG-IP Controller is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
@@ -49,8 +33,6 @@ The F5 Marathon BIG-IP Controller is a Docker container that runs as a `Marathon
 
 Configuration Parameters
 ------------------------
-
-The F5 Marathon BIG-IP Controller configurations must be valid JSON.
 
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | Parameter                         | Type      | Required  | Default       | Description                   | Allowed Values    |
@@ -103,8 +85,8 @@ Application Labels
 
 F5 application labels are key-value pairs that correspond to BIG-IP configuration options.
 
-To configure virtual servers on the BIG-IP for specific ports, define a port index in the configuration parameter.
-In the table below, ``{n}`` refers to an index into the port mapping array, starting at 0.
+To configure virtual servers on the BIG-IP for specific application service ports, define a port index in the configuration parameter.
+In the table below, ``{n}`` refers to an index into the service-port mapping array, starting at 0.
 
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 | Parameter             | Type      | Required  | Default       | Description                               | Allowed Values                    |
@@ -151,7 +133,7 @@ In the table below, ``{n}`` refers to an index into the port mapping array, star
 |                       |           |           |               |                                           | - ratio-least-connections-member  |
 |                       |           |           |               |                                           | - ratio-session                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to use to access an    |                                   |
+| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to apply to an         |                                   |
 |                       |           |           |               | HTTPS virtual server                      |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
@@ -218,7 +200,7 @@ Use iApps Application labels to deploy iApp templates on the BIG-IP.
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 
 F5_{n}_IAPP_POOL_MEMBER_TABLE
-```````````````````````````
+`````````````````````````````
 You can use the ``F5_{n}_IAPP_POOL_MEMBER_TABLE`` option to describe the layout of the pool member table that the controller should configure.  It is a JSON object with these properties:
 
 - ``name`` (required): A string that specifies the name of the table that contains the pool members.
@@ -275,17 +257,36 @@ You will need to adjust this for the particular iApp template that you are using
 Example Configuration Files
 ```````````````````````````
 - `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_
-- `sample-iApp-marathon-application.json <./_static/config_examples/sample-iApp-marathon-application.json>`_
+- `sample-iapp-marathon-application.json <./_static/config_examples/sample-iapp-marathon-application.json>`_
 
 Usage Example
 -------------
 
-The F5 Marathon BIG-IP Controller configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- running the command below on the Mesos master creates objects  in the ``/mesos`` partition on the BIG-IP.
+The F5 Marathon BIG-IP Controller configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- starting the F5 Marathon BIG-IP Controller with the following JSON in Marathon creates objects in the ``/mesos`` partition on the BIG-IP.
 
 ::
 
-   $ ./marathon-bigip-ctlr.py --hostname 1.2.3.4 --username admin --password admin --partition mesos
-
+    {
+      "id": "marathon-bigip-ctlr",
+      "cpus": 0.5,
+      "mem": 128.0,
+      "instances": 1,
+      "container": {
+        "type": "DOCKER",
+        "forcePullImage": true,
+        "docker": {
+          "image": "<path to Docker image>",
+          "network": "BRIDGE"
+        }
+      },
+      "env": {
+        "MARATHON_URL": "<URL for Marathon API Service>",
+        "F5_CC_PARTITIONS": "mesos",
+        "F5_CC_BIGIP_HOSTNAME": "1.2.3.4",
+        "F5_CC_BIGIP_USERNAME": "admin",
+        "F5_CC_BIGIP_PASSWORD": "admin"
+      }
+    }
 
 Run the command below on the BIG-IP to view the newly-created objects.
 
@@ -293,11 +294,6 @@ Run the command below on the BIG-IP to view the newly-created objects.
 
     user@(my-bigip)(Active)(/mesos)(tmos)# show ltm
 
-
-API Endpoints
--------------
-
-coming soon!
 
 .. _Enterprise DC/OS: https://mesosphere.com/product/
 .. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/iam-api/
