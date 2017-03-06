@@ -28,7 +28,7 @@ pytestmark = meta_suite(
 )
 
 
-def _verify_endpoints(actual, expected):
+def _check_endpoints(actual, expected):
     act = collections.Counter(actual)
 
     for i in act.values():
@@ -38,6 +38,12 @@ def _verify_endpoints(actual, expected):
     return act == exp
 
 
+def _verify_endpoints(actual, expected):
+    act = collections.Counter(actual)
+    exp = collections.Counter(expected)
+    assert act == exp
+
+
 def _poll_fdb_endpoints(bigip, expected):
     max_wait = 30
     waited = 0
@@ -45,15 +51,14 @@ def _poll_fdb_endpoints(bigip, expected):
 
     while not passed:
         actual = utils.get_backend_fdb_endpoints(bigip)
-        if _verify_endpoints(actual, expected):
+        if _check_endpoints(actual, expected):
             passed = True
         else:
             if waited == max_wait:
+                _verify_endpoints(actual, expected)
                 break
             time.sleep(1)
             waited += 1
-
-    return passed
 
 
 def _set_schedulable(args):
@@ -91,8 +96,7 @@ def test_clusterscale(ssh, orchestration, bigip, bigip_controller,
     msg = "Cluster scale tests must have more than 1 worker"
     assert len(symbols.worker_default_ips) > 1, msg
     expected = symbols.master_default_ips + symbols.worker_default_ips
-    verified = _poll_fdb_endpoints(bigip, expected)
-    assert verified is True
+    _poll_fdb_endpoints(bigip, expected)
 
     svc = utils.create_managed_northsouth_service(orchestration, "svc-1")
     utils.wait_for_bigip_controller()
@@ -113,12 +117,10 @@ def test_clusterscale(ssh, orchestration, bigip, bigip_controller,
         node_controller.push_teardown(_set_schedulable,
                                       {"node": node,
                                        "node_controller": node_controller})
-        verified = _poll_fdb_endpoints(bigip, expected)
-        assert verified is True
+        _poll_fdb_endpoints(bigip, expected)
 
         node_controller.evacuate(False, node)
-        verified = _poll_fdb_endpoints(bigip, expected)
-        assert verified is True
+        _poll_fdb_endpoints(bigip, expected)
 
     # remove some nodes
     node_configs = []
@@ -134,8 +136,8 @@ def test_clusterscale(ssh, orchestration, bigip, bigip_controller,
         expected = (symbols.master_default_ips +
                     [symbols.worker_default_ips[0]] +
                     remove[idx+1:])
-        verified = _poll_fdb_endpoints(bigip, expected)
-        assert verified is True
+        _verify_endpoints(node_controller.get_node_ips(), expected)
+        _poll_fdb_endpoints(bigip, expected)
 
     for idx, _ in enumerate(remove):
         config = node_configs[idx]
@@ -144,7 +146,10 @@ def test_clusterscale(ssh, orchestration, bigip, bigip_controller,
         expected = (symbols.master_default_ips +
                     [symbols.worker_default_ips[0]] +
                     remove[:idx+1])
-        verified = _poll_fdb_endpoints(bigip, expected)
-        assert verified is True
+        _verify_endpoints(node_controller.get_node_ips(), expected)
+        _poll_fdb_endpoints(bigip, expected)
+
+        node_controller.mark_schedulability(True, node)
+        _poll_fdb_endpoints(bigip, expected)
 
     node_controller.clear_teardowns()

@@ -599,6 +599,21 @@ class NodeController(object):
                                                 cmd=cmd, output=out)
         return out
 
+    def get_node_ips(self):
+        """Get current node ips."""
+        jp = '{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
+        arg = 'jsonpath={}'.format(jp)
+        cmd = ['oc', 'get', 'nodes', '-o', arg]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        out, _ = p.communicate()
+
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(returncode=p.returncode,
+                                                cmd=cmd, output=out)
+
+        return out.split()
+
     def delete_node(self, node):
         """Delete a node from an orchestration environment."""
         cmd = ['oc', 'delete', 'nodes']
