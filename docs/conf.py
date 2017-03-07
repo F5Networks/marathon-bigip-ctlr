@@ -91,7 +91,7 @@ author = u'F5 Networks'
 # The short X.Y version.
 version = u'1.0'
 # The full version, including alpha/beta/rc tags.
-release = u'1.0.0-dev'
+release = u'1.0.0'
 
 # Substitutions to use across project docs
 # rst_epilog = """"""
