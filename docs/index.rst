@@ -88,19 +88,26 @@ F5 application labels are key-value pairs that correspond to BIG-IP configuratio
 To configure virtual servers on the BIG-IP for specific application service ports, define a port index in the configuration parameter.
 In the table below, ``{n}`` refers to an index into the service-port mapping array, starting at 0.
 
+F5 Marathon BIG-IP Controller supports two BIG-IP configuration modes (normal and iApp), with a different set of application labels for each mode. Normal mode directly configures the virtual servers via the application labels, whereas iApp mode configures virtual servers via an iApp template.
+
+
+Application Labels for Normal Mode
+``````````````````````````````````
+Use the following application labels to deploy virtual servers on the BIG-IP.
+
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 | Parameter             | Type      | Required  | Default       | Description                               | Allowed Values                    |
 +=======================+===========+===========+===============+===========================================+===================================+
 | F5_PARTITION          | string    | Required  | n/a           | BIG-IP partition in which to create       |                                   |
 |                       |           |           |               | objects; cannot be "Common"               |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service             |                                   |
+| \F5_{n}_BIND_ADDR     | string    | Required  | n/a           | IP address of the App service             |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | ``"F5_0_BIND_ADDR": "10.0.0.42"``         |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_PORT          | string    | Optional  | n/a           | Service port to use for communications    |                                   |
+| \F5_{n}_PORT          | string    | Required  | n/a           | Service port to use for communications    |                                   |
 |                       |           |           |               | with the BIG-IP                           |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Overrides the ``servicePort``             |                                   |
@@ -142,39 +149,43 @@ In the table below, ``{n}`` refers to an index into the service-port mapping arr
 |                       |           |           |               |                                           |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 
-iApps Application Labels
-````````````````````````
 
-Use iApps Application labels to deploy iApp templates on the BIG-IP.
+Application Labels for iApp Mode
+````````````````````````````````
+
+Use iApp application labels to deploy iApp templates on the BIG-IP.
 
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | Parameter                             | Type      | Required  | Default       | Description                                                       |
 +=======================================+===========+===========+===============+===================================================================+
-| \F5_{n}_IAPP_TEMPLATE                 | string    | Optional  | n/a           | The iApp template you want to use to create the Application       |
+| F5_PARTITION                          | string    | Required  | n/a           | BIG-IP partition in which to create                               |
+|                                       |           |           |               | objects; cannot be "Common"                                       |
++---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
+| \F5_{n}_IAPP_TEMPLATE                 | string    | Required  | n/a           | The iApp template you want to use to create the Application       |
 |                                       |           |           |               | Service; must already exist on the BIG-IP.                        |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_TEMPLATE": "/Common/f5.http"``                       |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_OPTION_*                 | string    | Optional  | n/a           | Define iApp configuration options to apply to the Application     |
-|                                       |           |           |               | Service.                                                          |
-|                                       |           |           |               |                                                                   |
+| \F5_{n}_IAPP_OPTION_*                 | string    | iApp      | n/a           | Define iApp configuration options to apply to the Application     |
+|                                       |           | template  |               | Service.                                                          |
+|                                       |           | specific  |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_OPTION_description": "This is a test iApp"``         |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_TABLE_*                  | JSON      | Optional  | n/a           | Define iApp tables to apply to the Application Service.           |
-|                                       | string    |           |               |                                                                   |
-|                                       |           |           |               | Example:                                                          |
+| \F5_{n}_IAPP_TABLE_*                  | JSON      | iApp      | n/a           | Define iApp tables to apply to the Application Service.           |
+|                                       | string    | template  |               |                                                                   |
+|                                       |           | specific  |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_TABLE_monitor__Monitors":``                          |
 |                                       |           |           |               |  ``{"columns": ["Index", "Name", "Type", "Options"],``            |
 |                                       |           |           |               |  ``"rows": [[0, "mon1", "tcp", "" ],[1, "mon2", "http", ""]]}"``  |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_VARIABLE_*               | string    | Optional  | n/a           | Define the variables the iApp needs to create the Service.        |
-|                                       |           |           |               |                                                                   |
-|                                       |           |           |               | Use an existing resource,or tell the service to create a new one  |
+| \F5_{n}_IAPP_VARIABLE_*               | string    | iApp      | n/a           | Define the variables the iApp needs to create the Service.        |
+|                                       |           | template  |               |                                                                   |
+|                                       |           | specific  |               | Use an existing resource,or tell the service to create a new one  |
 |                                       |           |           |               | using ``#create_new#``.                                           |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | Examples:                                                         |
@@ -182,18 +193,18 @@ Use iApps Application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               | ``"F5_0_IAPP_VARIABLE_pool__addr": "10.128.10.240"``              |
 |                                       |           |           |               | ``"F5_0_IAPP_VARIABLE_pool__pool_to_use": "#create_new#"``        |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_POOL_MEMBER_TABLE        | string    | Optional  | n/a           | Defines the name and layout of the pool member table in the iApp  |
+| \F5_{n}_IAPP_POOL_MEMBER_TABLE        | string    | Required  | n/a           | Defines the name and layout of the pool member table in the iApp  |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | This entry can vary from iApp to iApp.                            |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | See F5_{n}_IAPP_POOL_MEMBER_TABLE section below.                  |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
-| \F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME   | string    | Optional  | n/a           | The iApp table entry containing pool member definitions.          |
-|                                       |           |           |               |                                                                   |
-|                                       |           |           |               | This entry can vary from iApp to iApp.                            |
-|                                       |           |           |               |                                                                   |
-|                                       |           |           |               | DEPRECATED: Use F5_{n}_IAPP_POOL_MEMBER_TABLE instead.            |
-|                                       |           |           |               |                                                                   |
+| \F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME   | string    | Required  | n/a           | The iApp table entry containing pool member definitions.          |
+|                                       |           | if F5_{n} |               |                                                                   |
+|                                       |           | _IAPP_POOL|               | This entry can vary from iApp to iApp.                            |
+|                                       |           | _MEMBER_  |               |                                                                   |
+|                                       |           | TABLE is  |               | DEPRECATED: Use F5_{n}_IAPP_POOL_MEMBER_TABLE instead.            |
+|                                       |           | not set   |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members"``           |
