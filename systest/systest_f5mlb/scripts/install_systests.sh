@@ -31,8 +31,6 @@ source systest/bin/activate
 pip install python-novaclient
 
 # - install system tests
-branch="master"
-subdir="systest"
 pip install ~/$systest_pkg
 
 # - wait for the pytest rootdir file to exist
