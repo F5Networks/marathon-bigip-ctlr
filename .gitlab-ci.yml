@@ -25,13 +25,16 @@ unit_test:
       - htmlcov/*
   stage: test
 
-docs_tests:
-  image: docker-registry.pdbld.f5net.com/tools/containthedocs-light
+build docs:
+  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
   script:
     - ./scripts/test-docs.sh
   tags:
     - docker
   stage: test
+  artifacts:
+    paths:
+      - docs/_build/html
 
 
 # Create the docker container and upload it to the internal docker registry with the tags
@@ -94,3 +97,17 @@ attributions generator:
       - golang_attributions.json
       - pip_attributions.json
       - ATTRIBUTIONS.md
+
+Publish docs to internet:
+  # Publish ONLY 1.0-stable to the internet.
+  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
+  stage: deploy
+  tags:
+   - docker
+  only:
+   - 1.0-stable@velcro/marathon-bigip-controller
+  dependencies:
+    - build docs
+  script:
+    - publish-product-docs-to-prod connectors/marathon-bigip-ctlr v1.0
+

@@ -6,9 +6,8 @@ all:
 
 doc-preview:
 	rm -rf docs/_build
-	./scripts/docker-docs.sh make -C docs html
-	@echo "To view docs:"
-	@echo "open docs/_build/html/README.html"
+	DOCKER_RUN_ARGS="-p 127.0.0.1:8000:8000" \
+	  ./scripts/docker-docs.sh make -C docs preview
 
 test-docs:
 	rm -rf docs/_build
