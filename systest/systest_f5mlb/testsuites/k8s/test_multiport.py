@@ -703,6 +703,9 @@ def _verify_virtual_server_objects(bigip, expected_vs_count,
     interval = 2
     duration = 0
     verified = False
+
+    exp = set(expected_pool_members)
+
     while not verified and duration <= timeout:
         try:
             actual_vs_count = len(bigip.virtual_servers.list(
@@ -713,9 +716,8 @@ def _verify_virtual_server_objects(bigip, expected_vs_count,
 
             actual_pool_members = bigip.pool_members.list(
                 partition=utils.DEFAULT_F5MLB_PARTITION, pool=vs_name)
-            actual_pool_members.sort()
-            expected_pool_members.sort()
-            if actual_pool_members != expected_pool_members:
+            act = set(actual_pool_members)
+            if act != exp:
                 continue
             verified = True
         except icontrol.exceptions.iControlUnexpectedHTTPError:
@@ -727,7 +729,7 @@ def _verify_virtual_server_objects(bigip, expected_vs_count,
 
     if not verified:
         assert actual_vs_count == expected_vs_count
-        assert actual_pool_members == expected_pool_members,\
+        assert act == exp,\
             "BigIP pool members should match the service endpoints"
 
 
