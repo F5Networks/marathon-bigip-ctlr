@@ -49,8 +49,10 @@ dockerize:
     - docker build --no-cache -t $BUILD_TAG .
     - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
     - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
     - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
     - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
+    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
     - if [ -v CI_BUILD_TAG ]; then
     -   if [ "$CI_BUILD_REF_NAME" != "$CI_BUILD_TAG" ]; then
     -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
@@ -77,6 +79,7 @@ dockerize:
     - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
     - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
     - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF
+    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
   stage: deploy
   tags:
     - docker-build

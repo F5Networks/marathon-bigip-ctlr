@@ -1,7 +1,8 @@
-.PHONY: all systest functest scaletest hatest \
+.PHONY: all systest functest scaletest hatest smoketest \
 	functest-setup functest-install functest-run functest-teardown \
 	scaletest-setup scaletest-install scaletest-run scaletest-teardown \
-	hatest-setup hatest-install hatest-run hatest-teardown
+	hatest-setup hatest-install hatest-run hatest-teardown \
+	smoketest-setup smoketest-install smoketest-run smoketest-teardown
 
 all:
 	@printf "Available targets:\n"
@@ -14,8 +15,7 @@ all:
 	@printf "  functest-run - run the system tests on the bastion host in\n"
 	@printf "      the functional test environment.\n"
 	@printf "  functest-teardown - tear down the functional test\n"
-	@printf "      environment.\n"
-	@printf "  \n"
+	@printf "      environment.\n\n"
 	@printf "  scaletest - setup the scale test environment, install and\n"
 	@printf "      run the scale tests, then tear down the scale test\n"
 	@printf "      environment.\n"
@@ -24,7 +24,7 @@ all:
 	@printf "      host in the scale test environment.\n"
 	@printf "  scaletest-run - run the system tests on the bastion host in\n"
 	@printf "      the scale test environment.\n"
-	@printf "  scaletest-teardown - tear down the scale test environment.\n"
+	@printf "  scaletest-teardown - tear down the scale test environment.\n\n"
 	@printf "  hatest - setup the BigIP HA test environment, install and\n"
 	@printf "      run the BigIP HA tests, then tear down the scale test\n"
 	@printf "      environment.\n"
@@ -33,7 +33,17 @@ all:
 	@printf "      host in the BigIP HA test environment.\n"
 	@printf "  hatest-run - run the BigIP HA tests on the bastion host in\n"
 	@printf "      the BigIP HA test environment.\n"
-	@printf "  hatest-teardown - tear down the BigIP HA test environment.\n"
+	@printf "  hatest-teardown - tear down the BigIP HA test environment.\n\n"
+	@printf "  smoketest - setup the smoke test environment, install\n"
+	@printf "      and run the smoke tests, then tear down the\n"
+	@printf "      smoke test environment.\n"
+	@printf "  smoketest-setup - setup the smoke test environment.\n"
+	@printf "  smoketest-install - install the system tests on the bastion\n"
+	@printf "      host in the smoke test environment.\n"
+	@printf "  smoketest-run - run the system tests on the bastion host in\n"
+	@printf "      the smoke test environment.\n"
+	@printf "  smoketest-teardown - tear down the smoke test\n"
+	@printf "      environment.\n"
 	@printf "  \n\nRequired arguments:\n"
 	@printf "  orchestration - all targets require an 'orchestration'\n"
 	@printf "      value (eg. make functest-setup orchestration=k8s).\n"
@@ -108,6 +118,9 @@ scale_session := $(scale_testenv_name)_$(version)
 ha_testenv_name := f5mlb_ha_$(orchestration)
 ha_session := $(ha_testenv_name)_$(version)
 
+smoke_testenv_name := f5mlb_smoke_$(orchestration)
+smoke_session := $(smoke_testenv_name)_$(version)
+
 bigip_testenv_name := $(func_testenv_name)_bigip
 
 # - set bigip_img for older versions, default is specified in bigip.params.yaml
@@ -150,8 +163,14 @@ hatest:
 	@$(MAKE) hatest-install || ($(MAKE) hatest-teardown && false)
 	@$(MAKE) hatest-run || ($(MAKE) hatest-teardown && false)
 	@$(MAKE) hatest-teardown
+	
+smoketest:
+	@$(MAKE) smoketest-setup || ($(MAKE) smoketest-teardown && false)
+	@$(MAKE) smoketest-install || ($(MAKE) smoketest-teardown && false)
+	@$(MAKE) smoketest-run || ($(MAKE) smoketest-teardown && false)
+	@$(MAKE) smoketest-teardown
 
-functest-install scaletest-install hatest-install:
+functest-install scaletest-install hatest-install smoketest-install:
 	@echo "installing $(orchestration) system tests ..."
 	scp -F $(ssh_conf) \
 		$(systest_pkg)/scripts/install_systests.sh bastion:~/
@@ -243,3 +262,28 @@ hatest-teardown:
 	testenv delete --name $(ha_testenv_name) --config $(testenv_config)
 	testenv delete --name $(ha_testenv_name)_bigip1 --config bigip1-ha
 	testenv delete --name $(ha_testenv_name)_bigip2 --config bigip2-ha
+
+smoketest-setup:
+	@echo "setting up $(orchestration) smoke test environment ..."
+	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
+		testenv -v create --name $(smoke_testenv_name) \
+		--config $(testenv_config) \
+		--requires bigip \
+		--params num_masters:1 --params num_workers:2 \
+		--vars bigip_controller_img:"$(bigip_controller_img)"
+
+smoketest-run:
+	@echo "running $(orchestration) smoke tests ..."
+	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
+	ssh -tF $(ssh_conf) bastion \
+		"~/run_systests.sh \
+		$(systest_pkg) $(smoke_session) $(orchestration) smoke $(bigip_pool_mode)"
+
+smoketest-teardown:
+	@echo "downloading $(orchestration) smoke test results ..."
+	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
+	-scp -rp -F $(ssh_conf) \
+		bastion:~/test_results/$(smoke_session)/* $(results_dir)/
+
+	@echo "tearing down $(orchestration) smoke test environment ..."
+	testenv delete --name $(smoke_testenv_name) --config $(testenv_config)
