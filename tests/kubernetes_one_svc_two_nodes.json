@@ -3,10 +3,9 @@
     {
       "virtualServer": {
         "backend": {
-          "poolMemberPort": 30008,
           "poolMemberAddrs": [
-            "172.16.0.5",
-            "172.16.0.6"
+            "172.16.0.5:30008",
+            "172.16.0.6:30008"
           ],
           "serviceName": "foo",
           "servicePort": 80,
