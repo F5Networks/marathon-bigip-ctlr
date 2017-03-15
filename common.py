@@ -169,11 +169,6 @@ def set_logging_args(parser):
     return parser
 
 
-def unique(l):
-    """Return the unique elements of a list."""
-    return list(set(l))
-
-
 def list_diff(list1, list2):
     """Return items found only in list1."""
     return list(set(list1) - set(list2))
