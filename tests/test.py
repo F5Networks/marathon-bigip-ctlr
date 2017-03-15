@@ -26,9 +26,13 @@ import f5
 import icontrol
 import requests
 import os
-from mock import Mock
+import copy
+import time
+from sseclient import Event
+from mock import Mock, mock_open
 from mock import patch
-from common import DCOSAuth, ipv4_to_mac
+from common import DCOSAuth, ipv4_to_mac, get_marathon_auth_params, \
+    setup_logging
 from f5.bigip import BigIP
 from _f5 import CloudBigIP
 from StringIO import StringIO
@@ -69,6 +73,7 @@ class ArgTest(unittest.TestCase):
         """Test suite set up."""
         self.out = StringIO()
         sys.stderr = self.out
+        sys.stdout = self.out
 
     def tearDown(self):
         """Test suite tear down."""
@@ -131,8 +136,55 @@ class ArgTest(unittest.TestCase):
         self.assertEqual(args.username, 'admin')
         self.assertEqual(args.password, 'default')
 
+    def test_long_help(self):
+        """Test: Long help."""
+        args = ['--longhelp']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, ctlr.parse_args)
+
+        expected = "marathon-bigip-ctlr.\n\nmarathon-bigip-ctlr is a service" \
+            " discovery and load balancing tool\nfor Marathon to configure" \
+            " an F5 BIG-IP. It reads the Marathon task information\nand" \
+            " dynamically generates BIG-IP configuration details.\n\nTo" \
+            " gather the task information, marathon-bigip-ctlr needs to know" \
+            " where\nto find Marathon. The service configuration details are" \
+            " stored in labels.\n\nEvery service port in Marathon can be" \
+            " configured independently.\n\n### Configuration\nService" \
+            " configuration lives in Marathon via labels.\nmarathon-bigip-" \
+            "ctlr just needs to know where to find Marathon.\n\n"
+        output = self.out.getvalue()
+        self.assertEqual(output, expected)
+
+    def test_no_username(self):
+        """Test: No username arg."""
+        # Invalid scheme
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--hostname', 'scheme://10.10.1.145',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, ctlr.parse_args)
+
+    def test_no_password(self):
+        """Test: No password arg."""
+        # Invalid scheme
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--username', 'admin',
+                '--hostname', 'scheme://10.10.1.145']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, ctlr.parse_args)
+
     def test_hostname_arg(self):
         """Test: Hostname arg."""
+        # No hostname
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--partition', '*',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, ctlr.parse_args)
+
         # Invalid scheme
         args = ['--marathon', 'http://10.0.0.10:8080',
                 '--partition', '*',
@@ -194,6 +246,14 @@ class ArgTest(unittest.TestCase):
         sys.argv[0:] = self._args_app_name + args
         args = ctlr.parse_args()
         self.assertEqual(args.partition, ['*'])
+
+        # No partition specified
+        args = ['--marathon', 'http://10.0.0.10:8080',
+                '--hostname', '10.10.1.145',
+                '--username', 'admin',
+                '--password', 'default']
+        sys.argv[0:] = self._args_app_name + args
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
         # test via env var
         partitions_env = '*'
@@ -311,8 +371,29 @@ class ArgTest(unittest.TestCase):
         args = ctlr.parse_args()
         self.assertEqual(args.marathon_auth_credential_file, env_auth_file)
 
+        # Test auth file
+        # Correct user:password
+        with patch('__builtin__.open',
+                   mock_open(read_data="samiam:greeneggs")):
+            self.assertEqual(get_marathon_auth_params(args),
+                             ('samiam', 'greeneggs'))
+
+        # No password
+        with patch('__builtin__.open', mock_open(read_data="samiam")):
+            self.assertRaises(SystemExit, get_marathon_auth_params, args)
+
+        # Empty file
+        with patch('__builtin__.open', mock_open(read_data='\r\n')):
+            self.assertEqual(get_marathon_auth_params(args), None)
+
     def test_timeout_arg(self):
         """Test: 'SSE timeout' arg."""
+        # Invalid timeout
+        timeout = 0
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--sse-timeout', str(timeout)]
+        self.assertRaises(SystemExit, ctlr.parse_args)
+
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--sse-timeout', str(timeout)]
@@ -346,6 +427,12 @@ class ArgTest(unittest.TestCase):
         os.environ['F5_CC_VERIFY_INTERVAL'] = str(timeout)
         args = ctlr.parse_args()
         self.assertEqual(args.verify_interval, timeout)
+
+        # Invalid interval
+        timeout = 0
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--verify-interval', str(timeout)]
+        self.assertRaises(SystemExit, ctlr.parse_args)
 
     def test_marathon_ca_cert_arg(self):
         """Test: 'Marathon CA Cert' arg."""
@@ -400,11 +487,16 @@ class ArgTest(unittest.TestCase):
 
         url = 'http://dcos.com/acs/api/v1/auth/login'
         dummy_token = 'abcdefghijklmo'
+        cert = "/this/is/a/path/to/a/cert.crt"
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
-            ['--dcos-auth-credentials', creds]
+            ['--dcos-auth-credentials', creds] + ['--marathon-ca-cert', cert]
         args = ctlr.parse_args()
         self.assertEqual(args.dcos_auth_credentials, creds)
+
+        auth = get_marathon_auth_params(args)
+        self.assertEqual(auth.login_endpoint,
+                         'http://35.161.197.99/acs/api/v1/auth/login')
 
         # Mock 'requests.post()' and verify that the auth_request gets the
         # expected auth token
@@ -464,7 +556,78 @@ class ArgTest(unittest.TestCase):
         """Mock a response and set a cookie."""
         r = requests.Response()
         r.cookies['dcos-acs-auth-cookie'] = token
+        r.status_code = 200
         return r
+
+    def request_response_failed(self):
+        """Mock a failed response."""
+        r = requests.Response()
+        r.status_code = 404
+        r.reason = 'not found'
+        return r
+
+    def request_response_ok(self):
+        """Mock an OK response."""
+        r = requests.Response()
+        r.status_code = 200
+        return r
+
+    def test_marathon_client(self):
+        """Test the Marathon client."""
+        args = ['--marathon', 'http://10.0.0.10:8080', 'http://10.0.0.10:8081',
+                '--partition', 'mesos',
+                '--hostname', '10.10.1.145',
+                '--username', 'admin',
+                '--password', 'default',
+                '--marathon-ca-cert', '/this/is/a/path/to/a/cert.crt']
+        sys.argv[0:] = self._args_app_name + args
+        args = ctlr.parse_args()
+
+        marathon = ctlr.Marathon(args.marathon,
+                                 args.health_check,
+                                 get_marathon_auth_params(args),
+                                 args.marathon_ca_cert)
+
+        # Cycle through multiple marathon hosts
+        self.assertEqual(marathon.host, 'http://10.0.0.10:8080')
+        self.assertEqual(marathon.host, 'http://10.0.0.10:8081')
+        self.assertEqual(marathon.host, 'http://10.0.0.10:8080')
+        self.assertEqual(marathon.host, 'http://10.0.0.10:8081')
+
+        requests.Response.json = \
+            Mock(return_value={"apps": [], "message": "this will go wrong"})
+        self.assertFalse(marathon.health_check())
+
+        # HTTPError raise
+        requests.request = Mock(return_value=self.request_response_failed())
+        self.assertRaises(requests.HTTPError, marathon.list)
+
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = ctlr.parse_args()
+        marathon = ctlr.Marathon(args.marathon,
+                                 args.health_check,
+                                 get_marathon_auth_params(args),
+                                 args.marathon_ca_cert)
+        requests.Response.json = Mock(return_value={"apps": ['app1', 'app2'],
+                                      "message": "this is ok"})
+        # Valid response and data
+        requests.request = Mock(return_value=self.request_response_ok())
+        self.assertTrue(marathon.list() == ['app1', 'app2'])
+
+        # 'apps' key error
+        requests.Response.json = \
+            Mock(return_value={"no apps": ['app1', 'app2']})
+        requests.request = Mock(return_value=self.request_response_ok())
+        self.assertRaises(KeyError, marathon.list)
+
+    def test_setup_logging(self):
+        """Test logging set up."""
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--log-level', 'DEBUG']
+        args = ctlr.parse_args()
+        logger = logging.getLogger('tests')
+        setup_logging(logger, args.log_format, args.log_level)
+        self.assertEqual(args.log_level, getattr(logging, 'DEBUG'))
 
 
 class Pool():
@@ -821,6 +984,10 @@ class MarathonTest(BigIPTest):
         """Test suite set up."""
         super(MarathonTest, self).setUp('marathon', 'mesos')
 
+    def raiseSystemExit(self):
+        """Raise a SystemExit exception."""
+        raise SystemExit
+
     def check_labels(self, apps, services):
         """Validate label parsing."""
         for app, service in zip(apps, services):
@@ -874,6 +1041,29 @@ class MarathonTest(BigIPTest):
         # Other exception types are raised
         self.bigip._apply_config = Mock(side_effect=self.raiseTypeError)
         self.assertRaises(TypeError, self.bigip.regenerate_config_f5, apps)
+
+    def test_marathon_objects(
+            self,
+            cloud_state='tests/marathon_one_app_in_subdir.json',
+            bigip_state='tests/bigip_test_blank.json',
+            hm_state='tests/bigip_test_blank.json'):
+        """Test: Verify magic methods of app, service and backend objects."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        app_data = self.cloud_data
+        for app in app_data:
+            marathon_app = ctlr.MarathonApp(app['id'], app)
+            marathon_app_copy = copy.deepcopy(marathon_app)
+            marathon_app_copy.appId = 'copy_id'
+            self.assertFalse(marathon_app == marathon_app_copy)
+            self.assertNotEqual(hash(marathon_app), hash(marathon_app_copy))
+
+        apps = ctlr.get_apps(self.cloud_data, True)
+        expectedService = ctlr.MarathonService("app1", 80, [])
+        self.assertEquals(expectedService, apps[1])
+        self.assertEquals(repr(apps[1].backends.pop()),
+                          "MarathonBackend(u'10.141.141.10', 31982)")
 
     def test_app_frontend_name(
             self,
@@ -1199,6 +1389,43 @@ class MarathonTest(BigIPTest):
         self.assertEquals(self.bigip.pool_create.call_count, 2)
         self.assertEquals(self.bigip.member_create.call_count, 6)
         self.assertEquals(self.bigip.healthcheck_create.call_count, 2)
+
+    def test_missing_task_data(
+            self,
+            cloud_state='tests/marathon_one_app_missing_data.json',
+            bigip_state='tests/bigip_test_blank.json',
+            hm_state='tests/bigip_test_blank.json'):
+        """Test: Tasks missing health-check results, hosts, and not 'alive'."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        self.check_labels(self.cloud_data, apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertFalse(self.bigip.virtual_delete.called)
+        self.assertFalse(self.bigip.pool_delete.called)
+        self.assertFalse(self.bigip.healthcheck_delete.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+
+        self.assertTrue(self.bigip.virtual_create.called)
+        self.assertTrue(self.bigip.pool_create.called)
+        self.assertTrue(self.bigip.member_create.called)
+        self.assertTrue(self.bigip.healthcheck_create.called)
+        self.assertEquals(self.bigip.virtual_create.call_count, 1)
+        self.assertEquals(self.bigip.pool_create.call_count, 1)
+        self.assertEquals(self.bigip.member_create.call_count, 1)
 
     def test_no_port_override(
             self,
@@ -1824,6 +2051,39 @@ class MarathonTest(BigIPTest):
         }
         self.check_failed_iapp_pool_member_table(pool_member_table_input)
 
+    def test_iapp_pool_member_table_name_not_string(self):
+        """The pool member table name is not a string."""
+        pool_member_table_input = {
+            "name": 2,
+            "columns": [
+                {"name": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_pool_member_table_name_not_in_column(self):
+        """The pool member table name is not a string."""
+        pool_member_table_input = {
+            "name": "pool_Members",
+            "columns": [
+                {"nombre": "Index", "value": "0"},
+                {"name": "IPAddress", "kind": "IPAddress"},
+                {"name": "Port", "kind": "Port"},
+            ]
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
+    def test_iapp_pool_member_table_column_not_list(self):
+        """The pool member table name is not a string."""
+        pool_member_table_input = {
+            "name": "pool_Members",
+            "columns":
+                {"name": "Index", "value": "0"}
+        }
+        self.check_failed_iapp_pool_member_table(pool_member_table_input)
+
     def test_iapp_pool_member_table_badcolumns(self):
         """The pool member has a columns array that is non-conformant."""
         pool_member_table_input = {
@@ -2162,6 +2422,66 @@ class MarathonTest(BigIPTest):
         self.assertFalse(self.bigip.healthcheck_create.called)
         self.assertFalse(self.bigip.member_create.called)
         self.assertFalse(self.bigip.member_delete.called)
+
+    def test_event_processor(self):
+        """Test Marathon event processing."""
+        args_app_name = ['marathon-bigip-ctlr.py']
+        args_mandatory = ['--marathon', 'http://10.0.0.10:8080',
+                          '--partition', 'mesos',
+                          '--hostname', '10.10.1.145',
+                          '--username', 'admin',
+                          '--password', 'default']
+        sys.argv[0:] = args_app_name + args_mandatory
+        args = ctlr.parse_args()
+        marathon = ctlr.Marathon(args.marathon,
+                                 args.health_check,
+                                 get_marathon_auth_params(args))
+
+        ctlr.Marathon.list = Mock(return_value=[])
+        ctlr.Marathon.health_check = Mock(return_value=True)
+        ctlr.MarathonEventProcessor.start_checkpoint_timer = Mock()
+        ctlr.MarathonEventProcessor.retry_backoff = Mock()
+        ep = ctlr.MarathonEventProcessor(marathon, 100, self.bigip)
+
+        event_empty = Event(data='')
+        event_app = Event(data='{"eventType": "app_terminated_event"}')
+        event_unknown = Event(data='{"eventType": "unknown_event"}')
+        event_detached = Event(data='{"eventType": "event_stream_detached"}')
+        event_invalid = Event(data='{"eventType": }')
+        events = [event_empty, event_app, event_unknown, event_detached]
+
+        with patch.object(self.bigip, 'regenerate_config_f5',
+                          return_value=False):
+            ctlr.process_sse_events(ep, events, self.bigip)
+            self.assertRaises(ValueError, ctlr.process_sse_events, ep,
+                              [event_invalid], self.bigip)
+            time.sleep(1)
+
+        with patch.object(self.bigip, 'regenerate_config_f5',
+                          side_effect=requests.exceptions.ConnectionError):
+            ctlr.process_sse_events(ep, events, self.bigip)
+            self.assertRaises(ValueError, ctlr.process_sse_events, ep,
+                              [event_invalid], self.bigip)
+            time.sleep(1)
+
+        with patch.object(self.bigip, 'regenerate_config_f5',
+                          side_effect=TypeError):
+            ctlr.process_sse_events(ep, events, self.bigip)
+            self.assertRaises(ValueError, ctlr.process_sse_events, ep,
+                              [event_invalid], self.bigip)
+            time.sleep(1)
+
+        with patch.object(self.bigip, 'regenerate_config_f5',
+                          return_value=True):
+            ctlr.process_sse_events(ep, events, self.bigip)
+            self.assertRaises(ValueError, ctlr.process_sse_events, ep,
+                              [event_invalid], self.bigip)
+
+            time.sleep(1)
+            self.assertGreaterEqual(
+                ctlr.MarathonEventProcessor.start_checkpoint_timer.call_count,
+                1)
+            self.assertGreaterEqual(ep.retry_backoff.call_count, 1)
 
     def test_backoff_timer(self):
         """Test tight loop backoff."""

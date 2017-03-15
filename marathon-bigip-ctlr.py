@@ -51,8 +51,9 @@ import configargparse
 
 
 class InvalidServiceDefinitionError(ValueError):
-    """Parser or validator encountered error in user's service definition.
+    """Parser or validator encountered error in user's service definition."""
 
+    """
     Raising this error will cause the service to not be defined on BIG-IP.
     For example, if while parsing F5_2_MODE the parser decides the mode is
     invalid, it can raise this error and the 2nd service port (F5_2_*) won't
@@ -408,15 +409,6 @@ class Marathon(object):
         return self.api_req_raw(method, path, self.__auth,
                                 verify=self.__verify, **kwargs).json()
 
-    def create(self, app_json):
-        """Create a Marathon app."""
-        return self.api_req('POST', ['apps'], app_json)
-
-    def get_app(self, appid):
-        """Get the info for a Marathon app."""
-        logger.info('fetching app %s', appid)
-        return self.api_req('GET', ['apps', appid])["app"]
-
     # Lists all running apps.
     def list(self):
         """Get the app list from Marathon."""
@@ -427,25 +419,6 @@ class Marathon(object):
     def health_check(self):
         """Get health check."""
         return self.__health_check
-
-    def tasks(self):
-        """Get Marathon tasks."""
-        logger.info('fetching tasks')
-        return self.api_req('GET', ['tasks'])["tasks"]
-
-    def add_subscriber(self, callbackUrl):
-        """Add a subscriber for use with HTTP callbacks."""
-        return self.api_req(
-                'POST',
-                ['eventSubscriptions'],
-                params={'callbackUrl': callbackUrl})
-
-    def remove_subscriber(self, callbackUrl):
-        """Remove a callback used for a subscriber."""
-        return self.api_req(
-                'DELETE',
-                ['eventSubscriptions'],
-                params={'callbackUrl': callbackUrl})
 
     def get_event_stream(self, timeout):
         """Get the Server Side Event (SSE) event stream."""
@@ -624,7 +597,7 @@ class MarathonEventProcessor(object):
                         self.__timer = None
 
                     self.__apps = get_apps(self.__marathon.list(),
-                                           marathon.health_check())
+                                           self.__marathon.health_check())
                     if self.__bigip.regenerate_config_f5(self.__apps):
                         # Timeout (or some other retryable error occurred),
                         # do a reset so that we try again
