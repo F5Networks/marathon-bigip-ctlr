@@ -4,6 +4,7 @@ variables:
 
 stages:
   - test
+  - build
   - deploy
 
 unit_test:
@@ -28,13 +29,16 @@ unit_test:
 build docs:
   image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
   script:
+    - cp ATTRIBUTIONS.md docs/
     - ./scripts/test-docs.sh
   tags:
     - docker
-  stage: test
+  stage: build
   artifacts:
     paths:
       - docs/_build/html
+  dependencies:
+    - attributions generator
 
 
 # Create the docker container and upload it to the internal docker registry with the tags
@@ -87,7 +91,7 @@ dockerize:
 
 attributions generator:
   image: docker-registry.pdbld.f5net.com/velcro/attributions-generator:master
-  stage: deploy
+  stage: test
   script:
     - /usr/local/bin/run-backends.sh $PWD
     - node /frontEnd/frontEnd.js $PWD
