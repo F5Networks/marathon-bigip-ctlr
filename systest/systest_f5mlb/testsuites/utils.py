@@ -21,6 +21,7 @@ import time
 import subprocess
 
 
+from copy import deepcopy
 from pytest import symbols
 
 
@@ -137,7 +138,8 @@ elif is_kubernetes():
             "--bigip-password", DEFAULT_BIGIP_PASSWORD,
             "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL),
             "--namespace", DEFAULT_F5MLB_NAMESPACE
-        ]
+        ],
+        'env': {}
     }
     BIGIP2_F5MLB_CONFIG = copy.deepcopy(DEFAULT_F5MLB_CONFIG)
     BIGIP2_F5MLB_CONFIG['args'][3] = DEFAULT_BIGIP2_MGMT_IP
@@ -192,6 +194,7 @@ if symbols.orchestration == "openshift":
 
 
 _next_id = 1
+LOG_TIMEOUT = 10 * 60
 
 
 def controller_namespace():
@@ -323,6 +326,7 @@ class BigipController(object):
                 'container_force_pull_image': True,
                 'cmd': config['cmd'],
                 'args': config['args'] + ['--pool-member-type', pool_mode],
+                'env': config['env'],
                 'wait_for_deploy': wait_for_deploy,
                 'service_account': service_account,
                 }
@@ -539,6 +543,71 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
     # - verify we got at least 2 responses from each member
     for k, v in act_responses.iteritems():
         assert v >= min_res_per_member, msg
+
+
+def deploy_controller(request, orchestration, env_vars={}, mode=None):
+    """Configure and deploy marathon or k8s BIGIP controller."""
+    if mode is None:
+        mode = request.config._meta.vars.get(
+            'controller-pool-mode', POOL_MODE_CLUSTER)
+    assert mode in POOL_MODES, "controller-pool-mode var is invalid"
+    ctlr_config = deepcopy(DEFAULT_F5MLB_CONFIG)
+    for key in env_vars:
+        val = env_vars[key]
+        if symbols.orchestration == 'marathon':
+            ctlr_config[key] = val
+        elif symbols.orchestration == 'k8s':
+            ctlr_config['env'].update({key: str(val)})
+    controller = BigipController(orchestration, cpus=0.5,
+                                 mem=128, config=ctlr_config,
+                                 pool_mode=mode).create()
+    return controller
+
+
+def get_k8s_pod_name_and_namespace(pod_name):
+    """Get full pod name and namespace of matching k8s pod(s)."""
+    matches = []
+    pod_cmd = ['kubectl', 'get', 'pods', '--all-namespaces']
+    output = subprocess.check_output(pod_cmd)
+    output_lines = output.split('\n')
+    for line in output_lines:
+        if pod_name in line:
+            splits = line.split()
+            namespace = splits[0]
+            name = splits[1]
+            matches.append((name, namespace))
+    return matches
+
+
+def get_k8s_pod_logs(pod_name, namespace):
+    """Get logs of pod specified by name and namespace."""
+    log_cmd = ['kubectl', 'logs', '--namespace', namespace, pod_name]
+    log = subprocess.check_output(log_cmd)
+    if log is not None:
+        return log
+    else:
+        return ''
+
+
+def check_logs(app, start_str, stop_str='\n'):
+    """Search the log of an app for a matching string."""
+    search_index = 0
+    log_time = time.time()
+
+    while time.time() - log_time < LOG_TIMEOUT:
+        if symbols.orchestration == 'marathon':
+            log_mgr = app.get_stdout()
+            log_output = log_mgr.raw
+        elif symbols.orchestration == 'k8s':
+            (name, namespace) = app
+            log_output = get_k8s_pod_logs(name, namespace)
+        start_index = log_output.find(start_str, search_index)
+
+        if start_index != -1:
+            stop_index = log_output.find(stop_str, start_index)
+            search_index = stop_index + 1 if stop_index != -1 else search_index
+            yield log_output[start_index + len(start_str):None
+                             if stop_index == -1 else stop_index]
 
 
 class NodeController(object):

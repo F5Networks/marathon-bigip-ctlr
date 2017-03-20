@@ -17,7 +17,6 @@
 
 import functools
 import subprocess
-from copy import deepcopy
 
 import pytest
 from pytest import symbols
@@ -253,31 +252,6 @@ def bigip2_controller(request, orchestration, bigip2_addto_test_fx):
     controller = utils.BigipController(
         orchestration, pool_mode=mode, id=utils.BIGIP2_F5MLB_NAME,
         config=utils.BIGIP2_F5MLB_CONFIG).create()
-
-    def teardown():
-        if request.config._meta.vars.get('skip_teardown', None):
-            return
-        orchestration.namespace = utils.controller_namespace()
-        controller.delete()
-
-    request.addfinalizer(teardown)
-    return controller
-
-
-@pytest.fixture(scope='function')
-def scale_controller(request, orchestration):
-    """Provide a default bigip-controller service."""
-    mode = request.config._meta.vars.get(
-        'controller-pool-mode', utils.POOL_MODE_CLUSTER)
-    assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
-    ctlr_config = deepcopy(utils.DEFAULT_F5MLB_CONFIG)
-    if symbols.orchestration == 'marathon':
-        ctlr_config['SCALE_PERF_ENABLE'] = True
-    if utils.is_kubernetes():
-        ctlr_config['env'] = {'name': 'SCALE_PERF_ENABLE', 'value': 'True'}
-    controller = utils.BigipController(orchestration, cpus=0.5,
-                                       mem=128, config=ctlr_config,
-                                       pool_mode=mode).create()
 
     def teardown():
         if request.config._meta.vars.get('skip_teardown', None):
