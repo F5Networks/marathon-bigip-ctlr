@@ -206,7 +206,7 @@ def _scale_svcs(
 def _get_app_instance(app, marathon_instance_number=0,
                       k8s_namespace='kube-system'):
     if symbols.orchestration == 'marathon':
-        return app.instances.get()[marathon_instance_number]
+        return app.app.instances.get()[marathon_instance_number]
     elif symbols.orchestration == 'k8s':
         pod_name = app.app_kwargs['id']
         result = utils.get_k8s_pod_name_and_namespace(pod_name)
