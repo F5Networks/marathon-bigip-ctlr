@@ -608,7 +608,7 @@ def check_logs(app, start_str, stop_str='\n'):
             search_index = stop_index + 1 if stop_index != -1 else search_index
             yield log_output[start_index + len(start_str):None
                              if stop_index == -1 else stop_index]
-        raise Exception('LOG TIMEOUT ERROR')
+    raise Exception('LOG TIMEOUT ERROR')
 
 
 class NodeController(object):

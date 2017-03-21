@@ -261,3 +261,18 @@ def bigip2_controller(request, orchestration, bigip2_addto_test_fx):
 
     request.addfinalizer(teardown)
     return controller
+
+
+@pytest.fixture(scope='function')
+def scale_controller(request, orchestration):
+    """Provide a scaling BigIP controller service."""
+    controller = utils.deploy_controller(request, orchestration)
+
+    def teardown():
+        if request.config._meta.vars.get('skip_teardown', None):
+            return
+        orchestration.namespace = utils.controller_namespace()
+        controller.delete()
+
+    request.addfinalizer(teardown)
+    return controller

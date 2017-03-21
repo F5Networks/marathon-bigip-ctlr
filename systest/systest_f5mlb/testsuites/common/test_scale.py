@@ -41,33 +41,33 @@ DEFAULT_SCALE_PERF_ENV_VARS = {'SCALE_PERF_ENABLE': True}
 
 
 @meta_test(id="f5mlb-59", tags=[])
-def test_bigip_controller1_svc10_srv100(ssh, orchestration, request):
+def test_bigip_controller1_svc10_srv100(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 10 managed svcs (w/ 100 backends each).
 
     Each managed service has 100 backend servers.
     So this test creates 1,011 application instances.
     """
-    _run_scale_test(ssh, orchestration, request, num_svcs=10, num_srvs=100)
+    _run_scale_test(ssh, orchestration, num_svcs=10, num_srvs=100)
 
 
 @meta_test(id="f5mlb-60", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv10(ssh, orchestration, request):
+def test_bigip_controller1_svc100_srv10(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 10 backends each).
 
     Each managed service has 10 backend servers.
     So this test creates 1,101 application instances.
     """
-    _run_scale_test(ssh, orchestration, request, num_svcs=100, num_srvs=10)
+    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=10)
 
 
 @meta_test(id="f5mlb-61", tags=["no_regression"])
-def test_bigip_controller1_svc100_srv100(ssh, orchestration, request):
+def test_bigip_controller1_svc100_srv100(ssh, orchestration, scale_controller):
     """Scale: 1 bigip-controller, 100 managed svcs (w/ 100 backends each).
 
     Each managed service has and 100 backend servers.
     So this test creates 10,101 application instances.
     """
-    _run_scale_test(ssh, orchestration, request, num_svcs=100, num_srvs=100)
+    _run_scale_test(ssh, orchestration, num_svcs=100, num_srvs=100)
 
 
 @meta_test(id="f5mlb-69", tags=[])
@@ -95,9 +95,7 @@ def test_bigip_controller_application_scaling_sizing(
 
 
 def _run_scale_test(
-        ssh, orchestration, request, num_svcs, num_srvs):
-
-    utils.deploy_controller(request, orchestration)
+        ssh, orchestration, num_svcs, num_srvs):
 
     # - first, scale-up the appropriate services and instances
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, True)
@@ -132,6 +130,9 @@ def _run_deployment_sizing_test(
     stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                             num_srvs, tot_srvs)
 
+    orchestration.namespace = utils.controller_namespace()
+    ctlr.delete()
+
     dur = stop_time - start_time
     objs = tot_srvs + num_svcs + 1
     res = objs / dur
@@ -165,6 +166,9 @@ def _run_scaling_sizing_test(
     stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                             num_srvs, tot_srvs,
                                             scaled_svc=(svc_name, num_scale))
+
+    orchestration.namespace = utils.controller_namespace()
+    ctlr.delete()
 
     dur = stop_time - start_time
     objs = num_scale
