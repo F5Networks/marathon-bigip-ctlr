@@ -29,7 +29,7 @@ MAX_WAIT_DEPLOY = 10
 def verify_config_produces_managed_svc(
         orchestration, bigip, bigip_controller, param="", input_val=""):
     """Verify managed north-south service will deploy with given input."""
-    config = _get_managed_northsouth_service_config(param, input_val)
+    config = get_managed_northsouth_service_config(param, input_val)
     svc = utils.create_managed_northsouth_service(
         orchestration, config=config, wait_for_deploy=True
     )
@@ -49,7 +49,7 @@ def verify_config_produces_managed_svc(
 def verify_config_produces_unmanaged_svc(
         orchestration, bigip, param="", input_val=""):
     """Verify managed north-south service will not deploy with given input."""
-    config = _get_managed_northsouth_service_config(param, input_val)
+    config = get_managed_northsouth_service_config(param, input_val)
     svc = utils.create_managed_northsouth_service(
         orchestration, config=config, wait_for_deploy=True
     )
@@ -65,7 +65,8 @@ def verify_config_produces_unmanaged_svc(
         svc.delete()
 
 
-def _get_managed_northsouth_service_config(param, input_val):
+def get_managed_northsouth_service_config(param, input_val):
+    """Get config for the managed service."""
     if symbols.orchestration == "marathon":
         return _get_svc_config_marathon(param, input_val)
     elif utils.is_kubernetes():
