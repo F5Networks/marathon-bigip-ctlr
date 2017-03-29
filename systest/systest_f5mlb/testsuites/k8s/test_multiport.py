@@ -102,7 +102,7 @@ CONFIGMAP_TEMPLATE = json.loads("""{
   },
   "data": {
     "data": "xxxxxxxx",
-    "schema": "f5schemadb://bigip-virtual-server_v0.1.2.json"
+    "schema": "f5schemadb://bigip-virtual-server_v0.1.3.json"
   }
 }""")
 

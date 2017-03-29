@@ -155,6 +155,9 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                       |           |           |               |                                           |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 
+You can set the ``F5_{n}_BIND_ADDR`` label via an IPAM system. You can configure your IPAM system to set this label with a chosen IP address, and the controller
+will configure the BIG-IP virtual server when it sees a valid ``F5_{n}_BIND_ADDR``. Virtual server deployment requires the ``F5_{n}_BIND_ADDR`` label, but it is not 
+necessary to set it in your initial config, if you are relying on an IPAM system to set the field for you.
 
 Application Labels for iApp Mode
 ````````````````````````````````

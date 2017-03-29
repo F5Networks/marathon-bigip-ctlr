@@ -119,7 +119,7 @@ def _run_deployment_sizing_test(
     ctlr = utils.deploy_controller(request, orchestration,
                                    env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
                                    mode=utils.POOL_MODE_CLUSTER)
-    ctlr_instance = _get_app_instance(ctlr)
+    ctlr_instance = utils.get_app_instance(ctlr)
     start_str = 'SCALE_PERF: Started controller at: '
     for ctlr_log in utils.check_logs(ctlr_instance, start_str):
         start_time = float(ctlr_log)
@@ -151,7 +151,7 @@ def _run_scaling_sizing_test(
     ctlr = utils.deploy_controller(request, orchestration,
                                    env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
                                    mode=utils.POOL_MODE_CLUSTER)
-    ctlr_instance = _get_app_instance(ctlr)
+    ctlr_instance = utils.get_app_instance(ctlr)
     start_str = 'SCALE_PERF: Test data: '
     start_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                              num_srvs, tot_srvs)
@@ -205,21 +205,6 @@ def _scale_svcs(
         p.close()
         p.join()
     return svcs
-
-
-def _get_app_instance(app, marathon_instance_number=0,
-                      k8s_namespace='kube-system'):
-    if symbols.orchestration == 'marathon':
-        return app.app.instances.get()[marathon_instance_number]
-    elif symbols.orchestration == 'k8s':
-        pod_name = app.app_kwargs['id']
-        result = utils.get_k8s_pod_name_and_namespace(pod_name)
-        assert result, 'Could not find pod %s' % pod_name
-        for pod in result:
-            (name, namespace) = pod
-            if namespace == k8s_namespace:
-                return (name, namespace)
-        return (None, None)
 
 
 def _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,

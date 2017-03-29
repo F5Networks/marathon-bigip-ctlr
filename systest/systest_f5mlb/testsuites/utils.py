@@ -172,7 +172,7 @@ elif is_kubernetes():
                     }
                 }
             },
-            'schema': 'f5schemadb://bigip-virtual-server_v0.1.2.json'
+            'schema': 'f5schemadb://bigip-virtual-server_v0.1.3.json'
         }
     }
     BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
@@ -562,6 +562,22 @@ def deploy_controller(request, orchestration, env_vars={}, mode=None):
                                  mem=128, config=ctlr_config,
                                  pool_mode=mode).create()
     return controller
+
+
+def get_app_instance(app, marathon_instance_number=0,
+                     k8s_namespace='kube-system'):
+    """Return app instance."""
+    if symbols.orchestration == 'marathon':
+        return app.app.instances.get()[marathon_instance_number]
+    elif symbols.orchestration == 'k8s':
+        pod_name = app.app_kwargs['id']
+        result = get_k8s_pod_name_and_namespace(pod_name)
+        assert result, 'Could not find pod %s' % pod_name
+        for pod in result:
+            (name, namespace) = pod
+            if namespace == k8s_namespace:
+                return (name, namespace)
+        return (None, None)
 
 
 def get_k8s_pod_name_and_namespace(pod_name):

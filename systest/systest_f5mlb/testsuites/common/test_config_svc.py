@@ -14,10 +14,12 @@
 
 """Test suite to verify managed north-south service config parameters."""
 
+import subprocess
+import copy
 
-from pytest import meta_suite, meta_test
+from pytest import meta_suite, meta_test, symbols
 
-from . import config_utils
+from . import config_utils, utils
 
 
 pytestmark = meta_suite(tags=["func", "config", "marathon", "k8s",
@@ -97,3 +99,44 @@ def test_svc_config_invalid_balance(
         config_utils.verify_config_produces_unmanaged_svc(
             orchestration, bigip, param="lb_algorithm", input_val=invalid_val
         )
+
+
+@meta_test(id="f5mlb-55", tags=[""])
+def test_svc_config_bind_addr_added(ssh, orchestration,
+                                    bigip, bigip_controller):
+    """Verify response when the 'bind_addr' value is not initially configured.
+
+    and then is added.
+    """
+    config = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
+    if symbols.orchestration == "marathon":
+        del config['F5_0_BIND_ADDR']
+    elif utils.is_kubernetes():
+        frontend = config['data']['data']['virtualServer']['frontend']
+        del frontend['virtualAddress']['bindAddr']
+    svc = utils.create_managed_northsouth_service(orchestration, config=config)
+    # - verify service is deployed
+    assert svc.instances.count() > 0
+    # - verify no bigip objects created for unmanaged service
+    utils.wait_for_bigip_controller()
+    assert utils.get_backend_objects(bigip) == {}
+
+    if symbols.orchestration == "marathon":
+        config = config_utils.get_managed_northsouth_service_config(
+            "bind_addr", utils.DEFAULT_F5MLB_BIND_ADDR)
+        orchestration.app.update(
+            id=svc.id, labels=config,
+            health_checks=utils.DEFAULT_SVC_HEALTH_CHECKS_HTTP)
+    elif utils.is_kubernetes():
+        annotate = ['kubectl', 'annotate', 'configmap',
+                    '{}-map'.format(svc.id),
+                    'virtual-server.f5.com/ip={}'
+                    .format(utils.DEFAULT_F5MLB_BIND_ADDR)]
+        subprocess.call(annotate, stdout=subprocess.PIPE)
+
+    # - verify service is deployed
+    assert svc.instances.count() > 0
+    # - verify bigip objects created for managed service
+    utils.wait_for_bigip_controller()
+    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
+    assert utils.get_backend_objects(bigip) == backend_objs_exp
