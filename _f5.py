@@ -29,22 +29,23 @@ CloudBigIP manages the following BIG-IP resources:
     * Application Services
 """
 
-import ipaddress
 import logging
 import json
-import requests
-import f5
+from operator import attrgetter
 import os
 import time
 import urllib
-from operator import attrgetter
+
+import ipaddress
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from common import resolve_ip, list_diff, list_diff_exclusive, list_intersect,\
                    ipv4_to_mac, extract_partition_and_name,\
                    PartitionNameError, IPV4FormatError
 
+import f5
 from f5.bigip import BigIP
 import icontrol.session
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 logger = logging.getLogger('controller')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -76,8 +77,8 @@ def healthcheck_timeout_calculate(data):
     # (( maxConsecutiveFailures - 1) * intervalSeconds )
     # + timeoutSeconds + 1
     timeout = (
-         ((data['maxConsecutiveFailures'] - 1) * data['intervalSeconds']) +
-         data['timeoutSeconds'] + 1
+        ((data['maxConsecutiveFailures'] - 1) * data['intervalSeconds']) +
+        data['timeoutSeconds'] + 1
     )
     return timeout
 
@@ -535,7 +536,7 @@ class CloudBigIP(BigIP):
             f5_service['pool'].update({
                 'monitor': "/%s/%s" %
                            (app.partition, f5_service['health'][0]['name'])
-                if app.healthCheck else None,
+                           if app.healthCheck else None,
                 'loadBalancingMode': app.balance
             })
 
@@ -584,7 +585,7 @@ class CloudBigIP(BigIP):
         unique_partitions = self.get_partitions(self._partitions)
 
         for partition in unique_partitions:
-            logger.debug("Doing config for partition '%s'" % partition)
+            logger.debug("Doing config for partition '%s'", partition)
 
             cloud_virtual_list = \
                 [x for x in config.keys()
@@ -813,7 +814,7 @@ class CloudBigIP(BigIP):
         for pool in pool_list:
             member_list = self.get_pool_member_list(partition, pool)
             for member in member_list:
-                name, port = member.split(':')
+                name = member[:member.find(':')]
                 if name in node_list:
                     # Still in-use
                     node_list.remove(name)
@@ -924,6 +925,7 @@ class CloudBigIP(BigIP):
         pool = self.get_pool(partition, pool)
 
         def genChange(p, d):
+            """Update pool members config data."""
             for key, val in p.__dict__.iteritems():
                 if key in d:
                     if None is not val:
@@ -1272,8 +1274,7 @@ class CloudBigIP(BigIP):
                          'timeout',
                          'transparent',
                          'upInterval',
-                         'username',
-                         )
+                         'username',)
         elif data['protocol'] == "tcp":
             send_keys = ('adaptive',
                          'adaptiveDivergenceType',
@@ -1296,8 +1297,7 @@ class CloudBigIP(BigIP):
                          'timeUntilUp',
                          'timeout',
                          'transparent',
-                         'upInterval',
-                         )
+                         'upInterval',)
         else:
             raise Exception(
                 'Protocol {} is not supported.'.format(data['protocol']))
@@ -1410,7 +1410,7 @@ class CloudBigIP(BigIP):
             partitions: The list of partition names we're configured to manage
                         (Could be wildcard: '*')
         """
-        if ('*' in partitions):
+        if '*' in partitions:
             # Wildcard means all partitions, so we need to query BIG-IP for the
             # actual partition names
             partition_list = []
@@ -1495,8 +1495,7 @@ class CloudBigIP(BigIP):
             data = config['iapp']['tables'][key]
             table = {'columnNames': data['columns'],
                      'name': key,
-                     'rows': []
-                     }
+                     'rows': []}
             for row in data['rows']:
                 table['rows'].append({'row': row})
             tables.append(table)
@@ -1566,9 +1565,9 @@ class CloudBigIP(BigIP):
             name: Application Service name
         """
         a = self.sys.application.services.service.load(
-                name=urllib.quote(name),
-                partition=partition
-                )
+            name=urllib.quote(name),
+            partition=partition
+            )
         return a
 
     def get_iapp_list(self, partition):

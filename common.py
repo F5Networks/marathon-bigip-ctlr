@@ -19,10 +19,11 @@
 import sys
 import time
 import json
-import jwt
 import logging
 import socket
 import argparse
+
+import jwt
 import requests
 
 from requests.auth import AuthBase
@@ -37,7 +38,7 @@ def parse_log_level(log_level_arg):
     LOG_LEVELS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
     if log_level_arg not in LOG_LEVELS:
         msg = 'Invalid option: {0} (Valid choices are {1})'.format(
-              log_level_arg, LOG_LEVELS)
+            log_level_arg, LOG_LEVELS)
         raise argparse.ArgumentTypeError(msg)
 
     log_level = getattr(logging, log_level_arg, logging.INFO)
@@ -62,8 +63,7 @@ def set_marathon_auth_args(parser):
     parser.add_argument("--marathon-auth-credential-file",
                         env_var='F5_CC_MARATHON_AUTH',
                         help="Path to file containing a user/pass for "
-                        "the Marathon HTTP API in the format of 'user:pass'."
-                        )
+                        "the Marathon HTTP API in the format of 'user:pass'.")
     parser.add_argument("--dcos-auth-credentials",
                         env_var='F5_CC_DCOS_AUTH_CREDENTIALS',
                         help="DC/OS service account credentials")
@@ -144,7 +144,7 @@ def get_marathon_auth_params(args):
 
     if marathon_auth and len(marathon_auth) != 2:
         print(
-           "Please provide marathon credentials in user:pass format"
+            "Please provide marathon credentials in user:pass format"
         )
         sys.exit(1)
 
@@ -157,15 +157,13 @@ def set_logging_args(parser):
                         env_var='F5_CC_LOG_FORMAT',
                         help="Set log message format",
                         default="%(asctime)s %(name)s: %(levelname)"
-                        " -8s: %(message)s"
-                        )
+                        " -8s: %(message)s")
     parser.add_argument("--log-level",
                         env_var='F5_CC_LOG_LEVEL',
                         type=parse_log_level,
                         help="Set logging level. Valid log levels are: "
                         "DEBUG, INFO, WARNING, ERROR, and CRITICAL",
-                        default='INFO'
-                        )
+                        default='INFO')
     return parser
 
 
@@ -243,4 +241,4 @@ def ipv4_to_mac(ip_str):
                               'FDB record: {}'.format(ip_str))
 
     return "0a:0a:%02x:%02x:%02x:%02x" % (
-           int(ip[0]), int(ip[1]), int(ip[2]), int(ip[3]))
+        int(ip[0]), int(ip[1]), int(ip[2]), int(ip[3]))

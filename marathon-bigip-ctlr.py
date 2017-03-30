@@ -30,30 +30,32 @@ Service configuration lives in Marathon via labels.
 marathon-bigip-ctlr just needs to know where to find Marathon.
 """
 
-from sseclient import SSEClient
-from itertools import cycle
-from urlparse import urlparse
-from requests.exceptions import ConnectionError
-from common import (set_logging_args, set_marathon_auth_args, setup_logging,
-                    get_marathon_auth_params)
-from _f5 import CloudBigIP
+from __future__ import print_function
 
 import json
 import logging
 import os
 import os.path
 import re
-import requests
 import sys
 import time
 import threading
+from itertools import cycle
+from urlparse import urlparse
+
 import configargparse
+import requests
+from requests.exceptions import ConnectionError
+from sseclient import SSEClient
+
+from common import (set_logging_args, set_marathon_auth_args, setup_logging,
+                    get_marathon_auth_params)
+from _f5 import CloudBigIP
 
 
 class InvalidServiceDefinitionError(ValueError):
-    """Parser or validator encountered error in user's service definition."""
+    """Parser or validator encountered error in user's service definition.
 
-    """
     Raising this error will cause the service to not be defined on BIG-IP.
     For example, if while parsing F5_2_MODE the parser decides the mode is
     invalid, it can raise this error and the 2nd service port (F5_2_*) won't
@@ -374,7 +376,7 @@ class Marathon(object):
         if ca_cert:
             self.__verify = ca_cert
 
-    def api_req_raw(self, method, path, auth, body=None, **kwargs):
+    def api_req_raw(self, method, path, auth, **kwargs):
         """Send an API request to Marathon and return the response."""
         for host in self.__hosts:
             path_str = os.path.join(host, 'v2')
@@ -464,15 +466,14 @@ def get_apps(apps, health_check):
         marathon_apps.append(marathon_app)
 
         service_ports = app['ports']
-        logger.debug("Application service ports = %s" % (repr(service_ports)))
+        logger.debug("Application service ports = %s", (repr(service_ports)))
         logger.debug("Labels for app %s: %s", app['id'],
                      marathon_app.app['labels'])
 
-        for i in range(len(service_ports)):
+        for i, servicePort in enumerate(service_ports):
             try:
-                servicePort = service_ports[i]
                 service = MarathonService(
-                            appId, servicePort, get_health_check(app, i))
+                    appId, servicePort, get_health_check(app, i))
                 service.partition = marathon_app.partition
 
                 # Parse the app labels that must match the template exactly
@@ -613,7 +614,7 @@ class MarathonEventProcessor(object):
                 except ConnectionError:
                     logger.error("Could not connect to Marathon")
                     self.start_checkpoint_timer()
-                except:
+                except Exception:
                     logger.exception("Unexpected error!")
                     self.start_checkpoint_timer()
 
@@ -661,26 +662,21 @@ def get_arg_parser():
     parser = configargparse.getArgumentParser()
     parser.add_argument("--longhelp",
                         help="Print out configuration details",
-                        action="store_true"
-                        )
+                        action="store_true")
     parser.add_argument("--marathon", "-m",
                         nargs="+",
                         env_var='MARATHON_URL',
                         help="[required] Marathon endpoint, eg. -m " +
-                             "http://marathon1:8080 http://marathon2:8080"
-                        )
+                        "http://marathon1:8080 http://marathon2:8080")
     parser.add_argument("--hostname",
                         env_var='F5_CC_BIGIP_HOSTNAME',
-                        help="F5 BIG-IP hostname"
-                        )
+                        help="F5 BIG-IP hostname")
     parser.add_argument("--username",
                         env_var='F5_CC_BIGIP_USERNAME',
-                        help="F5 BIG-IP username"
-                        )
+                        help="F5 BIG-IP username")
     parser.add_argument("--password",
                         env_var='F5_CC_BIGIP_PASSWORD',
-                        help="F5 BIG-IP password"
-                        )
+                        help="F5 BIG-IP password")
     parser.add_argument("--partition",
                         env_var='F5_CC_PARTITIONS',
                         help="[required] Only generate config for apps which"
@@ -717,7 +713,7 @@ def process_sse_events(processor, events, bigip):
         try:
             # logger.info("Received event: {0}".format(event))
             # marathon might also send empty messages as keepalive...
-            if (event.data.strip() != ''):
+            if event.data.strip() != '':
                 # marathon sometimes sends more than one json per event
                 # e.g. {}\r\n{}\r\n\r\n
                 for real_event_data in re.split(r'\r\n', event.data):
@@ -731,7 +727,7 @@ def process_sse_events(processor, events, bigip):
                     processor.handle_event(data)
             else:
                 logger.info("skipping empty message")
-        except:
+        except Exception:
             logger.error("Event data: %s", event.data)
             logger.exception("Unexpected error!")
 
@@ -818,7 +814,7 @@ if __name__ == '__main__':
         try:
             events = marathon.get_event_stream(args.sse_timeout)
             process_sse_events(processor, events, bigip)
-        except:
+        except Exception:
             logger.exception("Marathon event exception:")
             logger.error("Reconnecting to Marathon event stream...")
         time.sleep(1)
