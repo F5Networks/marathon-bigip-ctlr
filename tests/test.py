@@ -648,9 +648,11 @@ class Pool():
 
     def create(self, partition=None, name=None, **kwargs):
         """Create the pool object."""
+        pass
 
     def delete(self):
         """Delet the pool object."""
+        pass
 
 
 class Member():
@@ -721,12 +723,15 @@ class Virtual():
 
     def create(self, name=None, partition=None, **kwargs):
         """Create the virtual object."""
+        pass
 
     def delete(self):
         """Delete the virtual object."""
+        pass
 
     def load(self, name=None, partition=None):
         """Load the virtual object."""
+        pass
 
 
 class HealthCheck():
@@ -746,6 +751,7 @@ class HealthCheck():
 
     def delete(self):
         """Delete the healthcheck object."""
+        pass
 
 
 class VxLANTunnel():
@@ -769,13 +775,16 @@ class MockService():
 
     def __init__(self):
         """Initialize the object."""
+        pass
 
     def load(self, name, partition):
         """Load a mock iapp."""
+        pass
 
     def create(self, name=None, template=None, partition=None, variables=None,
                tables=None, trafficGroup=None, description=None):
         """Create a mock iapp."""
+        pass
 
 
 class MockServices():
@@ -806,6 +815,7 @@ class MockFolders():
 
     def get_collection():
         """Get collection of partitions."""
+        pass
 
 
 class MockSys():
@@ -834,6 +844,12 @@ class MockIapp():
 
     def delete(self):
         """Mock delete method."""
+        pass
+
+    def update(self, executeAction=None, name=None, partition=None,
+               variables=None, tables=None, **kwargs):
+        """Mock update method."""
+        pass
 
 
 class MockFolder():
@@ -852,9 +868,11 @@ class MockHttp():
 
     def create(self, partition=None, **kwargs):
         """Create a http healthcheck object."""
+        pass
 
     def load(self, name=None, partition=None):
         """Load a http healthcheck object."""
+        pass
 
 
 class MockHttps():
@@ -866,6 +884,7 @@ class MockHttps():
 
     def get_collection(self):
         """Get collection of http healthchecks."""
+        pass
 
 
 class MockTcp():
@@ -873,12 +892,15 @@ class MockTcp():
 
     def __init__(self):
         """Initialize the object."""
+        pass
 
     def create(self, partition=None, **kwargs):
         """Create a tcp healthcheck object."""
+        pass
 
     def load(self, name=None, partition=None):
         """Load a tcp healthcheck object."""
+        pass
 
 
 class MockTcps():
@@ -890,6 +912,7 @@ class MockTcps():
 
     def get_collection(self):
         """Get collection of tcp healthchecks."""
+        pass
 
 
 class MockMonitor():
@@ -918,6 +941,7 @@ class MockPools():
 
     def get_collection(self):
         """Get collection of pools."""
+        pass
 
 
 class MockLtm():
@@ -998,6 +1022,13 @@ class BigIPTest(unittest.TestCase):
         """Mock: Get a mocked collection of iapps."""
         self.test_iapp_list = \
             [MockIapp(name='server-app2_iapp_10000_vs',
+                      partition=self.test_partition)]
+        return self.test_iapp_list
+
+    def mock_iapp_update_services_get_collection(self):
+        """Mock: Get a mocked collection of iapps for iapp update."""
+        self.test_iapp_list = \
+            [MockIapp(name='default_configmap',
                       partition=self.test_partition)]
         return self.test_iapp_list
 
@@ -1212,6 +1243,7 @@ class BigIPTest(unittest.TestCase):
         self.bigip.iapp_delete_orig = self.bigip.iapp_delete
         self.bigip.iapp_create_orig = self.bigip.iapp_create
         self.bigip.pool_delete_orig = self.bigip.pool_delete
+        self.bigip.iapp_update_orig = self.bigip.iapp_update
 
         self.bigip.get_node = Mock()
         self.bigip.pool_update = Mock()
@@ -1393,6 +1425,52 @@ class MarathonTest(BigIPTest):
         self.assertEquals(self.test_partition, self.test_pool[0]['partition'])
         self.assertEquals(self.bigip.member_create.call_args[0][1],
                           expected_name)
+
+    def test_invalid_app(self,
+                         cloud_state='tests/marathon_invalid_apps.json',
+                         bigip_state='tests/bigip_test_blank.json',
+                         hm_state='tests/bigip_test_blank.json'):
+        """Test: Invalid marathon applications are not configured."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        apps = ctlr.get_apps(self.cloud_data, True)
+        self.bigip.regenerate_config_f5(apps)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertTrue(self.bigip.ltm.monitor.https.http.create.called)
+        self.assertTrue(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+
+        self.assertFalse(self.bigip.ltm.virtuals.virtual.load.called)
+        self.assertFalse(self.bigip.ltm.pools.get_collection.called)
+        self.assertFalse(self.bigip.ltm.monitor.https.http.load.called)
+        self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.load.called)
+        self.assertEqual(self.bigip.member_create.call_count, 3)
+
+        self.assertEquals(1, len(self.test_virtual))
+        self.assertEquals(1, len(self.test_pool))
+        self.assertEquals(1, len(self.test_monitor))
+
+        expected_name = 'server-app_10.128.10.240_80'
+
+        self.assertEquals(expected_name, self.test_virtual[0]['name'])
+        self.assertEquals(expected_name, self.test_pool[0]['name'])
+        self.assertEquals(expected_name, self.test_monitor[0]['name'])
+        self.assertEquals(self.test_partition,
+                          self.test_virtual[0]['partition'])
+        self.assertEquals(self.test_partition, self.test_pool[0]['partition'])
+        self.assertEquals(self.test_partition,
+                          self.test_monitor[0]['partition'])
 
     def test_no_change(self, cloud_state='tests/marathon_two_apps.json',
                        bigip_state='tests/bigip_test_no_change.json',
@@ -2880,6 +2958,53 @@ class KubernetesTest(BigIPTest):
         self.assertEquals(self.test_partition,
                           self.test_monitor[1]['partition'])
 
+    def test_invalid_svcs(self,
+                          cloud_state='tests/kubernetes_invalid_svcs.json',
+                          bigip_state='tests/bigip_test_blank.json',
+                          hm_state='tests/bigip_test_blank.json'):
+        """Test: Kubernetes invalid services are not created."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+        self.assertFalse(self.bigip.iapp_update.called)
+
+        self.assertTrue(self.bigip.ltm.virtuals.virtual.create.called)
+        self.assertFalse(self.bigip.ltm.virtuals.virtual.load.called)
+        self.assertTrue(self.bigip.ltm.pools.pool.create.called)
+        self.assertFalse(self.bigip.ltm.pools.get_collection.called)
+        self.assertFalse(self.bigip.ltm.monitor.https.http.load.called)
+        self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.load.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_create.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+
+        self.assertTrue(self.bigip.member_create.called)
+        self.assertEqual(self.bigip.member_create.call_count, 2)
+
+        self.assertEquals(2, len(self.test_virtual))
+        self.assertEquals(2, len(self.test_pool))
+
+        expected_name0 = 'invalid_sslProfile0_configmap'
+        expected_name1 = 'invalid_sslProfile1_configmap'
+        self.assertEquals(expected_name0, self.test_virtual[1]['name'])
+        self.assertEquals(expected_name0, self.test_pool[1]['name'])
+        self.assertEquals(self.test_partition,
+                          self.test_virtual[1]['partition'])
+        self.assertEquals(self.test_partition, self.test_pool[1]['partition'])
+        self.assertEquals(expected_name1, self.test_virtual[0]['name'])
+        self.assertEquals(expected_name1, self.test_pool[0]['name'])
+        self.assertEquals(self.test_partition,
+                          self.test_virtual[0]['partition'])
+        self.assertEquals(self.test_partition, self.test_pool[0]['partition'])
+
     def test_svc_scaled_down(
             self,
             cloud_state='tests/kubernetes_one_svc_one_node.json',
@@ -3002,6 +3127,45 @@ class KubernetesTest(BigIPTest):
         self.assertEquals(expected_name, self.test_iapp.name)
         self.assertEquals(expected_tables, self.test_iapp.tables)
         self.assertEquals(expected_variables, self.test_iapp.variables)
+
+    def test_update_iapp(self, cloud_state='tests/kubernetes_one_iapp.json',
+                         bigip_state='tests/kubernetes_one_iapp.json',
+                         hm_state='tests/bigip_test_blank.json'):
+        """Test: Update Kubernetes app with iApp."""
+        # Get the test data
+        self.read_test_vectors(cloud_state, bigip_state, hm_state)
+
+        self.bigip.sys.application.services.get_collection = \
+            Mock(side_effect=self.mock_iapp_update_services_get_collection)
+        self.bigip.sys.application.services.service.load = \
+            Mock(side_effect=self.mock_iapp_service_load)
+        self.bigip.iapp_update = self.bigip.iapp_update_orig
+        self.bigip.cleanup_nodes = Mock()
+
+        # Do the BIG-IP configuration
+        self.bigip.regenerate_config_f5(self.cloud_data)
+
+        # Verify BIG-IP configuration
+        self.assertFalse(self.bigip.pool_update.called)
+        self.assertFalse(self.bigip.healthcheck_update.called)
+        self.assertFalse(self.bigip.member_update.called)
+        self.assertFalse(self.bigip.virtual_update.called)
+
+        self.assertTrue(self.bigip.ltm.virtuals.virtual.load.called)
+        self.assertTrue(self.bigip.ltm.pools.get_collection.called)
+        self.assertFalse(self.bigip.ltm.monitor.https.http.load.called)
+        self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.load.called)
+        self.assertFalse(self.bigip.member_delete.called)
+        self.assertFalse(self.bigip.iapp_delete.called)
+
+        self.assertFalse(self.bigip.ltm.virtuals.virtual.create.called)
+        self.assertFalse(self.bigip.ltm.pools.pool.create.called)
+        self.assertFalse(self.bigip.member_create.called)
+        self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.create.called)
+        self.assertFalse(self.bigip.ltm.monitor.https.http.create.called)
+
+        expected_name = 'default_configmap'
+        self.assertEquals(expected_name, self.test_iapp_list[0].name)
 
     def test_delete_iapp(self, cloud_state='tests/kubernetes_no_apps.json',
                          bigip_state='tests/bigip_test_blank.json',
