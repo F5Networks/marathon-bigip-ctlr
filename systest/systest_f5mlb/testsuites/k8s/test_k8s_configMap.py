@@ -38,9 +38,8 @@ def test_k8s_configMap_filter(ssh, orchestration, bigip,
     # the correct label defined in the defaults in utils.py
     svc = utils.create_managed_northsouth_service(orchestration, "svc")
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
     # - verify new bigip objects created for managed service
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     # - Deleting the configmap
     orchestration.app.delete_configmap("%s-map" % svc.id)
     utils.wait_for_bigip_controller()

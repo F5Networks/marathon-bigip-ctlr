@@ -19,6 +19,7 @@ import copy
 import re
 import time
 import subprocess
+import pykube
 
 
 from copy import deepcopy
@@ -504,6 +505,15 @@ def get_backend_objects_exp(svc, bigip_controller):
     return ret
 
 
+def verify_backend_objs(bigip, svc, bigip_controller):
+    """Verify backend objs are expected."""
+    backend_objs_exp = get_backend_objects_exp(svc, bigip_controller)
+    assert get_backend_objects(bigip) == backend_objs_exp
+    if is_kubernetes():
+        assert (get_backend_objects(bigip)['virtual_addresses'][0] ==
+                get_k8s_status_ip_address(svc))
+
+
 def wait_for_backend_objects(
         bigip, objs_exp, partition=DEFAULT_F5MLB_PARTITION, timeout=60):
     """Verify that the actual backend resources match what's expected."""
@@ -578,6 +588,15 @@ def get_app_instance(app, marathon_instance_number=0,
             if namespace == k8s_namespace:
                 return (name, namespace)
         return (None, None)
+
+
+def get_k8s_status_ip_address(svc):
+    """Return the IP address contained in the status annotation."""
+    cm = pykube.ConfigMap.objects(svc._api).get_by_name(
+        "{}-map".format(svc.id))
+    annotations = cm.obj['metadata']['annotations']
+    status = annotations['status.virtual-server.f5.com/ip']
+    return status
 
 
 def get_k8s_pod_name_and_namespace(pod_name):

@@ -394,8 +394,7 @@ def test_restore_after_bigip_controller_delete(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     old_uid = svc.uid
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
@@ -403,12 +402,12 @@ def test_restore_after_bigip_controller_delete(
     # - verify managed service is unchanged
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     # - recreate bigip-controller and verify restoration
     bigip_controller.create()
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
 
 
 @meta_test(id="f5mlb-16", tags=[])
@@ -422,7 +421,7 @@ def test_restore_after_bigip_controller_delete_then_svc_delete(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
@@ -452,7 +451,7 @@ def test_restore_after_bigip_controller_delete_then_svc_update(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.delete()
@@ -550,8 +549,7 @@ def test_restore_after_bigip_controller_suspend(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     old_uid = svc.uid
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
@@ -559,14 +557,14 @@ def test_restore_after_bigip_controller_suspend(
     # - verify managed service is unchanged
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     # - resume bigip-controller and verify restoration
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.resume()
     utils.wait_for_bigip_controller()
     assert svc.uid == old_uid
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
 
 
 @meta_test(id="f5mlb-21", tags=[])
@@ -580,7 +578,7 @@ def test_restore_after_bigip_controller_suspend_then_svc_delete(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
@@ -612,7 +610,7 @@ def test_restore_after_bigip_controller_suspend_then_svc_update(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
@@ -639,7 +637,7 @@ def test_restore_after_bigip_controller_suspend_then_backend_delete(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
@@ -672,7 +670,7 @@ def test_restore_after_bigip_controller_suspend_then_backend_update(
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
     backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     if utils.is_kubernetes():
         orchestration.namespace = utils.controller_namespace()
     bigip_controller.suspend()
@@ -740,8 +738,7 @@ def test_restore_after_svc_becomes_unmanaged(
     """
     svc = utils.create_managed_northsouth_service(orchestration)
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
     # - remove bigip-controller decorations from the managed service
     utils.unmanage_northsouth_service(orchestration, svc)
     utils.wait_for_bigip_controller()

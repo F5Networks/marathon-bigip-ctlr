@@ -138,5 +138,4 @@ def test_svc_config_bind_addr_added(ssh, orchestration,
     assert svc.instances.count() > 0
     # - verify bigip objects created for managed service
     utils.wait_for_bigip_controller()
-    backend_objs_exp = utils.get_backend_objects_exp(svc, bigip_controller)
-    assert utils.get_backend_objects(bigip) == backend_objs_exp
+    utils.verify_backend_objs(bigip, svc, bigip_controller)
