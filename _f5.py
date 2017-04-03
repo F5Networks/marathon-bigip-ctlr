@@ -235,11 +235,10 @@ class CloudBigIP(BigIP):
         except Exception as e:
             raise
 
-        if os.environ.get('SCALE_PERF_ENABLE'):
+        if os.environ.get('SCALE_PERF_ENABLE'):  # pragma: no cover
             test_data = {}
             app_count = 0
             backend_count = 0
-
             if self._cloud == 'marathon':
                 for app in cloud_state:
                     if app.partition == 'test':
