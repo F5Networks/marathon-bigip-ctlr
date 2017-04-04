@@ -10,3 +10,4 @@ omit =
     scripts/*
     logs/*
     docs/*
+    tests/*
