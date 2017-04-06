@@ -10,7 +10,8 @@ unit_test:
   script:
     - pip install -r marathon-build-requirements.txt
     - pip install -r marathon-runtime-requirements.txt
-    - flake8 --exclude=docs/ ./ 
+    - flake8 --exclude=docs/ ./
+    - ./build-tools/lint.sh
     - coverage run -m unittest discover -v
     - coverage html
     - coverage report
@@ -85,4 +86,3 @@ Publish docs to internet:
     - build docs
   script:
     - publish-product-docs-to-prod connectors/marathon-bigip-ctlr v1.0
-
