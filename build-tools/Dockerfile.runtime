@@ -1,0 +1,19 @@
+FROM python:2.7-alpine
+
+ENV APPPATH /app
+
+RUN mkdir -p "$APPPATH" \
+ && chmod -R 755 "$APPPATH"
+ 
+WORKDIR $APPPATH
+
+COPY marathon-runtime-requirements.txt /tmp/runtime-requirements.txt
+COPY run $APPPATH
+COPY marathon-bigip-ctlr.py $APPPATH
+COPY common.py $APPPATH
+COPY _f5.py $APPPATH
+    
+RUN pip install -r /tmp/runtime-requirements.txt
+
+# The run script is the entry point to marathon-bigip-ctlr
+ENTRYPOINT [ "/app/run" ]

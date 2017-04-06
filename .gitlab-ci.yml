@@ -1,6 +1,5 @@
 variables:
-  TEST_RE: '^v[0-9]+\.[0-9]+\.[0-9]+[-0-9A-Za-z]*'
-  EXTRACT_RE: '^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([-0-9A-Za-z]*\)'
+  baseimg: "docker-registry.pdbld.f5net.com/${CI_PROJECT_NAMESPACE}/marathon-bigip-ctlr"
 
 stages:
   - test
@@ -9,11 +8,8 @@ stages:
 
 unit_test:
   script:
-    - pip install flake8==3.2.1
-    - pip install flake8_docstrings==1.0.2
-    - pip install -r requirements.txt 
-    - pip install mock
-    - pip install coverage
+    - pip install -r marathon-build-requirements.txt
+    - pip install -r marathon-runtime-requirements.txt
     - flake8 --exclude=docs/ ./ 
     - coverage run -m unittest discover -v
     - coverage html
@@ -30,7 +26,7 @@ build docs:
   image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
   script:
     - cp ATTRIBUTIONS.md docs/
-    - ./scripts/test-docs.sh
+    - ./build-tools/test-docs.sh
   tags:
     - docker
   stage: build
@@ -42,48 +38,20 @@ build docs:
 
 
 # Create the docker container and upload it to the internal docker registry with the tags
-#   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<COMMIT_ID>
 #   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<BRANCH>
 #   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<BRANCH>-<BUILD_ID>
+#   <PROJ_NAMESPACE>/marathon-bigip-ctlr:<BRANCH>-<PIPELINE_ID>
 dockerize:
   script:
-    - PROJ_NAMESPACE=$(basename $(dirname "$CI_BUILD_REPO"))
-    - REGISTRY="docker-registry.pdbld.f5net.com"
-    - BUILD_TAG="$REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF"
-    - docker build --no-cache -t $BUILD_TAG .
-    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
-    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
-    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
-    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
-    - if [ -v CI_BUILD_TAG ]; then
-    -   if [ "$CI_BUILD_REF_NAME" != "$CI_BUILD_TAG" ]; then
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_TAG
-    -   fi
-    -   if [[ $CI_BUILD_TAG =~ $TEST_RE ]]; then
-    -     latest=`git tag -l | sort -V | tail -n1`
-    -     if [ "$latest" == "$CI_BUILD_TAG" ]; then
-    -       docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
-    -       docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
-    -       docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:latest
-    -     fi
-    -     major=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\1#"`
-    -     minor=`echo $CI_BUILD_TAG | sed -e "s#$EXTRACT_RE#\2#"`
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
-    -     docker tag $BUILD_TAG $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
-    -     docker push $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major
-    -     docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:v$major.$minor
-    -   fi
-    - fi
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME-$CI_BUILD_ID
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF_NAME
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF
-    - docker rmi $REGISTRY/$PROJ_NAMESPACE/marathon-bigip-ctlr:$CI_BUILD_REF-$CI_PIPELINE_ID
+    - export IMG_TAG="${baseimg}:${CI_BUILD_REF}"
+    - ./build-tools/build-runtime-images.sh
+    - docker tag "$IMG_TAG" "$baseimg:$CI_BUILD_REF_NAME"
+    - docker tag "$IMG_TAG" "$baseimg:$CI_BUILD_REF_NAME-$CI_BUILD_ID"
+    - docker tag "$IMG_TAG" "$baseimg:$CI_BUILD_REF_NAME-$CI_PIPELINE_ID"
+    - docker push "$IMG_TAG"
+    - docker push "$baseimg:$CI_BUILD_REF_NAME"
+    - docker push "$baseimg:$CI_BUILD_REF_NAME-$CI_BUILD_ID"
+    - docker push "$baseimg:$CI_BUILD_REF_NAME-$CI_PIPELINE_ID"
   stage: deploy
   tags:
     - docker-build
