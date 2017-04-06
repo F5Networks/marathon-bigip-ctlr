@@ -128,6 +128,9 @@ class CloudBigIP(BigIP):
       the member to the pool
     - If the app has a Marathon Health Monitor configured, create a
       corresponding health monitor for the BigIP pool member
+    - Token-based authentication is used by specifying a token named 'tmos'.
+      This will allow non-admin users to use the API (BIG-IP must configure
+      the accounts with proper permissions, for either local or remote auth).
 
     Args:
         cloud: cloud environment (marathon or kubernetes)
@@ -140,7 +143,7 @@ class CloudBigIP(BigIP):
     def __init__(self, cloud, hostname, port, username, password, partitions):
         """Initialize the CloudBigIP object."""
         super(CloudBigIP, self).__init__(hostname, username, password,
-                                         port=port)
+                                         port=port, token='tmos')
         self._cloud = cloud
         self._hostname = hostname
         self._port = port
