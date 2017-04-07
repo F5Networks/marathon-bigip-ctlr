@@ -12,7 +12,7 @@ RUN apk add --no-cache \
 		openssl-dev \
 		su-exec && \
 	pip install -r /tmp/build-requirements.txt && \
-	pip install -r /tmp/runtime-requirements.txt && \
+	pip install -r /tmp/runtime-requirements.txt 
 	
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "/bin/bash" ]
