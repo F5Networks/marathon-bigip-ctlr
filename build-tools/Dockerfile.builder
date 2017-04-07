@@ -13,7 +13,6 @@ RUN apk add --no-cache \
 		su-exec && \
 	pip install -r /tmp/build-requirements.txt && \
 	pip install -r /tmp/runtime-requirements.txt && \
-	pip install -r /tmp/requirements.docs.txt
 	
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "/bin/bash" ]
