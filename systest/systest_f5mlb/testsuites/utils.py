@@ -101,6 +101,7 @@ DEFAULT_BIGIP_OPENSHIFT_SELFNAME = "openshift-selfip"
 DEFAULT_BIGIP_OPENSHIFT_SELFIP = "10.131.255.1/14"
 DEFAULT_BIGIP_OPENSHIFT_SUBNET = "10.131.255.0/31"
 DEFAULT_OPENSHIFT_USER = "run-as-anyid"
+DEFAULT_OPENSHIFT_ADMIN = "bigip-controller"
 
 NODE_UNIN_YAML = '/home/centos/openshift-ansible/playbooks/adhoc/uninstall.yml'
 NODE_SCALE_YAML = \
@@ -200,9 +201,7 @@ LOG_TIMEOUT = 10 * 60
 
 def controller_namespace():
     """Return the appropriate namespace for kubernetes flavor."""
-    if symbols.orchestration == "openshift":
-        return 'management-infra'
-    elif symbols.orchestration == "k8s":
+    if is_kubernetes():
         return 'kube-system'
     return None
 
@@ -316,7 +315,7 @@ class BigipController(object):
         elif is_kubernetes():
             service_account = None
             if symbols.orchestration == "openshift":
-                service_account = "management-admin"
+                service_account = DEFAULT_OPENSHIFT_ADMIN
 
             self.app_kwargs = {
                 'id': id,

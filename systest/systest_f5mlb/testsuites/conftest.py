@@ -43,10 +43,19 @@ def pytest_namespace():
 
 
 @pytest.fixture(scope='session', autouse=True)
-def openshift_service_acct(request):
+def openshift_service_acct(request, orchestration):
     """Provide a service account with attached to anyuid scc."""
     if symbols.orchestration == "openshift":
         def teardown():
+            if orchestration.clusterroles.bindingExists("bigip-controllers"):
+                orchestration.clusterroles.unbindRole("bigip-controllers")
+            if orchestration.clusterroles.roleExists("bigip-controller-role"):
+                orchestration.clusterroles.deleteRole("bigip-controller-role")
+
+            cmd = ['oc', 'delete', 'serviceaccount', '-n',
+                   utils.controller_namespace(), utils.DEFAULT_OPENSHIFT_ADMIN]
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
             cmd = ['oc', 'delete', 'serviceaccount',
                    utils.DEFAULT_OPENSHIFT_USER]
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
@@ -62,6 +71,47 @@ def openshift_service_acct(request):
                utils.DEFAULT_OPENSHIFT_USER]
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         request.addfinalizer(teardown)
+
+        cmd = ['oc', 'create', 'serviceaccount', utils.DEFAULT_OPENSHIFT_ADMIN,
+               '-n', utils.controller_namespace()]
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        rules = [
+           {
+               "verbs": [
+                   "get",
+                   "list",
+                   "watch"
+               ],
+               "apiGroups": [
+                   ""
+               ],
+               "resources": [
+                   "endpoints",
+                   "nodes",
+                   "services"
+               ]
+           },
+           {
+               "verbs": [
+                   "get",
+                   "list",
+                   "update",
+                   "watch"
+               ],
+               "apiGroups": [
+                   ""
+               ],
+               "resources": [
+                   "configmaps"
+               ]
+           }
+        ]
+        orchestration.clusterroles.createRole("bigip-controller-role", rules)
+        orchestration.clusterroles.bindRole("bigip-controllers",
+                                            "bigip-controller-role",
+                                            utils.DEFAULT_OPENSHIFT_ADMIN,
+                                            utils.controller_namespace())
 
 
 @pytest.fixture(scope='session', autouse=False)
