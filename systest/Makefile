@@ -163,7 +163,7 @@ hatest:
 	@$(MAKE) hatest-install || ($(MAKE) hatest-teardown && false)
 	@$(MAKE) hatest-run || ($(MAKE) hatest-teardown && false)
 	@$(MAKE) hatest-teardown
-	
+
 smoketest:
 	@$(MAKE) smoketest-setup || ($(MAKE) smoketest-teardown && false)
 	@$(MAKE) smoketest-install || ($(MAKE) smoketest-teardown && false)
@@ -183,10 +183,10 @@ functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(func_testenv_name) \
-		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:2 \
-		--vars bigip_controller_img:"$(bigip_controller_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)" \
+		$(testenv_config)
 
 functest-run:
 	@echo "running $(orchestration) functional tests ..."
@@ -202,17 +202,17 @@ functest-teardown:
 		bastion:~/test_results/$(func_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) functional test environment ..."
-	testenv delete --name $(func_testenv_name) --config $(testenv_config)
+	testenv delete --name $(func_testenv_name) $(testenv_config)
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(scale_testenv_name) \
-		--config $(testenv_config) \
 		--requires bigip \
 		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
-		--vars bigip_controller_img:"$(bigip_controller_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)" \
+		$(testenv_config)
 
 scaletest-run:
 	@echo "running $(orchestration) scale tests ..."
@@ -228,17 +228,17 @@ scaletest-teardown:
 		bastion:~/test_results/$(scale_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) scale test environment ..."
-	testenv delete --name $(scale_testenv_name) --config $(testenv_config)
+	testenv delete --name $(scale_testenv_name) $(testenv_config)
 
 hatest-setup:
 	@echo "setting up $(orchestration) HA test environment ..."
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(ha_testenv_name) \
-		--config $(testenv_config) \
 		--requires bigip1-ha:$(ha_testenv_name)_bigip1 \
 		--requires bigip2-ha:$(ha_testenv_name)_bigip2 \
 		--params num_masters:1 --params num_workers:1 \
-		--vars bigip_controller_img:"$(bigip_controller_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)" \
+		$(testenv_config)
 
 hatest-run:
 	@echo "running $(orchestration) HA tests ..."
@@ -259,18 +259,18 @@ hatest-teardown:
 		bastion:~/test_results/$(ha_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) HA test environment ..."
-	testenv delete --name $(ha_testenv_name) --config $(testenv_config)
-	testenv delete --name $(ha_testenv_name)_bigip1 --config bigip1-ha
-	testenv delete --name $(ha_testenv_name)_bigip2 --config bigip2-ha
+	testenv delete --name $(ha_testenv_name) $(testenv_config)
+	testenv delete --name $(ha_testenv_name)_bigip1 bigip1-ha
+	testenv delete --name $(ha_testenv_name)_bigip2 bigip2-ha
 
 smoketest-setup:
 	@echo "setting up $(orchestration) smoke test environment ..."
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(smoke_testenv_name) \
-		--config $(testenv_config) \
 		--requires bigip \
 		--params num_masters:1 --params num_workers:2 \
-		--vars bigip_controller_img:"$(bigip_controller_img)"
+		--vars bigip_controller_img:"$(bigip_controller_img)" \
+		$(testenv_config)
 
 smoketest-run:
 	@echo "running $(orchestration) smoke tests ..."
@@ -286,4 +286,4 @@ smoketest-teardown:
 		bastion:~/test_results/$(smoke_session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) smoke test environment ..."
-	testenv delete --name $(smoke_testenv_name) --config $(testenv_config)
+	testenv delete --name $(smoke_testenv_name) $(testenv_config)
