@@ -27,23 +27,6 @@
           "poolMemberAddrs": [
             "172.16.0.5:30008"
           ],
-          "serviceName": "invalid_virtualAddress",
-          "servicePort": 80
-        },
-        "frontend": {
-          "virtualServerName": "invalid_virtualAddress_configmap",
-          "balance": "round-robin",
-          "mode": "http",
-          "partition": "k8s"
-        }
-      }
-    },
-    {
-      "virtualServer": {
-        "backend": {
-          "poolMemberAddrs": [
-            "172.16.0.5:30008"
-          ],
           "serviceName": "invalid_sslProfile0",
           "servicePort": 80
         },

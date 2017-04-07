@@ -199,11 +199,13 @@ class CloudBigIP(BigIP):
             is_valid = False
 
         # Validate address
-        try:
-            ipaddress.ip_address(app.bindAddr)
-        except ValueError:
-            logger.error(msg.format('F5_BIND_ADDR', app.appId, app.bindAddr))
-            is_valid = False
+        if app.bindAddr is not None:
+            try:
+                ipaddress.ip_address(app.bindAddr)
+            except ValueError:
+                logger.error(msg.format('F5_BIND_ADDR',
+                                        app.appId, app.bindAddr))
+                is_valid = False
 
         # Validate LB method
         if app.balance not in self._lbmethods:
@@ -328,8 +330,12 @@ class CloudBigIP(BigIP):
 
             # No address for this port
             if (('virtualAddress' not in frontend or
-                 'bindAddr' not in frontend['virtualAddress']) and
+                    'bindAddr' not in frontend['virtualAddress']) and
                     'iapp' not in frontend):
+                logger.debug("Creating pool only for %s",
+                             frontend['virtualServerName'])
+            elif ('iapp' not in frontend and 'bindAddr' not in
+                    frontend['virtualAddress']):
                 continue
 
             frontend_name = frontend['virtualServerName']
@@ -369,21 +375,24 @@ class CloudBigIP(BigIP):
                 elif get_protocol(frontend['mode']) == 'tcp':
                     profiles.append({'partition': 'Common', 'name': 'tcp'})
 
-                f5_service['virtual_address'] = frontend['virtualAddress'][
-                    'bindAddr']
+                if ('virtualAddress' in frontend and
+                        'bindAddr' in frontend['virtualAddress']):
+                    f5_service['virtual_address'] = \
+                        frontend['virtualAddress']['bindAddr']
 
-                f5_service['virtual'].update({
-                    'enabled': True,
-                    'disabled': False,
-                    'ipProtocol': get_protocol(frontend['mode']),
-                    'destination':
-                    "/%s/%s:%d" % (frontend['partition'],
-                                   frontend['virtualAddress']['bindAddr'],
-                                   frontend['virtualAddress']['port']),
-                    'pool': "/%s/%s" % (frontend['partition'], frontend_name),
-                    'sourceAddressTranslation': {'type': 'automap'},
-                    'profiles': profiles
-                })
+                    f5_service['virtual'].update({
+                        'enabled': True,
+                        'disabled': False,
+                        'ipProtocol': get_protocol(frontend['mode']),
+                        'destination':
+                        "/%s/%s:%d" % (frontend['partition'],
+                                       frontend['virtualAddress']['bindAddr'],
+                                       frontend['virtualAddress']['port']),
+                        'pool': "/%s/%s" % (frontend['partition'],
+                                            frontend_name),
+                        'sourceAddressTranslation': {'type': 'automap'},
+                        'profiles': profiles
+                    })
 
                 monitors = None
                 # Health Monitors
@@ -444,10 +453,7 @@ class CloudBigIP(BigIP):
 
         for app in sorted(apps, key=attrgetter('appId', 'servicePort')):
             f5_service = {
-                'virtual': {},
-                'pool': {},
                 'nodes': {},
-                'health': [],
                 'partition': '',
                 'name': ''
             }
@@ -458,13 +464,31 @@ class CloudBigIP(BigIP):
 
             # No address or iApp for this port
             if not app.bindAddr and not app.iapp:
-                continue
-
+                # Validate pool only configuration
+                if not self.is_label_data_valid(app):
+                    continue
+                else:
+                    logger.debug("Creating pool only for %s", app.appId)
             # Validate data from the app's labels
-            if not app.iapp and not self.is_label_data_valid(app):
+            elif not app.iapp and not self.is_label_data_valid(app):
                 continue
 
             f5_service['partition'] = app.partition
+
+            logger.info("Configuring app %s, partition %s", app.appId,
+                        app.partition)
+            backend = app.appId[1:].replace('/', '_') + '_' + \
+                str(app.servicePort)
+
+            frontend_name = "%s_%d" % ((app.appId).lstrip('/'),
+                                       app.servicePort)
+            # The Marathon appId contains the full path, replace all '/' in
+            # the name with '_'
+            frontend_name = frontend_name.replace('/', '_')
+            f5_service['name'] = frontend_name
+            if app.bindAddr:
+                logger.debug("Frontend at %s:%d with backend %s", app.bindAddr,
+                             app.servicePort, backend)
 
             if app.iapp:
                 # Translate from the internal properties we set on app to the
@@ -488,73 +512,65 @@ class CloudBigIP(BigIP):
                 for key in app.iappTables:
                     f5_service['iapp']['tables'][key] = \
                         json.loads(app.iappTables[key])
+            else:
+                f5_service['virtual'] = {}
+                f5_service['pool'] = {}
+                f5_service['health'] = []
 
-            logger.info("Configuring app %s, partition %s", app.appId,
-                        app.partition)
-            backend = app.appId[1:].replace('/', '_') + '_' + \
-                str(app.servicePort)
+                if app.healthCheck:
+                    for hc in app.healthCheck:
+                        logger.debug("Healthcheck for app '%s': %s",
+                                     app.appId, hc)
+                        hc['name'] = frontend_name
 
-            frontend = 'iapp' if app.iapp else app.bindAddr
-            frontend_name = "%s_%s_%d" % ((app.appId).lstrip('/'), frontend,
-                                          app.servicePort)
-            # The Marathon appId contains the full path, replace all '/' in
-            # the name with '_'
-            frontend_name = frontend_name.replace('/', '_')
-            f5_service['name'] = frontend_name
-            if app.bindAddr:
-                logger.debug("Frontend at %s:%d with backend %s", app.bindAddr,
-                             app.servicePort, backend)
-
-            if app.healthCheck:
-                for hc in app.healthCheck:
-                    logger.debug("Healthcheck for app '%s': %s", app.appId, hc)
-                    hc['name'] = frontend_name
-
-                    # normalize healtcheck protocol name to lowercase
-                    if 'protocol' in hc:
-                        hc['protocol'] = (hc['protocol']).lower()
-                    hc.update({
-                        'interval': hc['intervalSeconds'],
-                        'timeout': healthcheck_timeout_calculate(hc),
-                        'send': self.healthcheck_sendstring(hc),
+                        # normalize healtcheck protocol name to lowercase
+                        if 'protocol' in hc:
+                            hc['protocol'] = (hc['protocol']).lower()
+                        hc.update({
+                            'interval': hc['intervalSeconds'],
+                            'timeout': healthcheck_timeout_calculate(hc),
+                            'send': self.healthcheck_sendstring(hc),
                         })
-                    f5_service['health'].append(hc)
+                        f5_service['health'].append(hc)
 
-            # Parse the SSL profile into partition and name
-            profiles = []
-            if app.profile:
-                profile = app.profile.split('/')
-                if len(profile) != 2:
-                    logger.error("Could not parse partition and name from SSL"
-                                 " profile: %s", app.profile)
-                else:
-                    profiles.append({'partition': profile[0],
-                                     'name': profile[1]})
+                # Parse the SSL profile into partition and name
+                profiles = []
+                if app.profile:
+                    profile = app.profile.split('/')
+                    if len(profile) != 2:
+                        logger.error("Could not parse partition and name from"
+                                     " SSL profile: %s", app.profile)
+                    else:
+                        profiles.append({'partition': profile[0],
+                                        'name': profile[1]})
 
-            # Add appropriate profiles
-            if str(app.mode).lower() == 'http':
-                profiles.append({'partition': 'Common', 'name': 'http'})
-            elif get_protocol(app.mode) == 'tcp':
-                profiles.append({'partition': 'Common', 'name': 'tcp'})
+                # Add appropriate profiles
+                if str(app.mode).lower() == 'http':
+                    profiles.append({'partition': 'Common', 'name': 'http'})
+                elif get_protocol(app.mode) == 'tcp':
+                    profiles.append({'partition': 'Common', 'name': 'tcp'})
 
-            f5_service['virtual_address'] = app.bindAddr
+                if app.bindAddr:
+                    f5_service['virtual_address'] = app.bindAddr
 
-            f5_service['virtual'].update({
-                'enabled': True,
-                'disabled': False,
-                'ipProtocol': get_protocol(app.mode),
-                'destination':
-                "/%s/%s:%d" % (app.partition, app.bindAddr, app.servicePort),
-                'pool': "/%s/%s" % (app.partition, frontend_name),
-                'sourceAddressTranslation': {'type': 'automap'},
-                'profiles': profiles
-            })
-            f5_service['pool'].update({
-                'monitor': "/%s/%s" %
-                           (app.partition, f5_service['health'][0]['name'])
-                           if app.healthCheck else None,
-                'loadBalancingMode': app.balance
-            })
+                    f5_service['virtual'].update({
+                        'enabled': True,
+                        'disabled': False,
+                        'ipProtocol': get_protocol(app.mode),
+                        'destination':
+                        "/%s/%s:%d" % (app.partition, app.bindAddr,
+                                       app.servicePort),
+                        'pool': "/%s/%s" % (app.partition, frontend_name),
+                        'sourceAddressTranslation': {'type': 'automap'},
+                        'profiles': profiles
+                    })
+                f5_service['pool'].update({
+                    'monitor': "/%s/%s" %
+                               (app.partition,
+                                f5_service['health'][0]['name'])
+                               if app.healthCheck else None,
+                    'loadBalancingMode': app.balance
+                })
 
             key_func = attrgetter('host', 'port')
             for backendServer in sorted(app.backends, key=key_func):
@@ -606,7 +622,7 @@ class CloudBigIP(BigIP):
             cloud_virtual_list = \
                 [x for x in config.keys()
                  if config[x]['partition'] == partition and
-                 'iapp' not in config[x]]
+                 'iapp' not in config[x] and config[x]['virtual']]
             cloud_pool_list = \
                 [x for x in config.keys()
                  if config[x]['partition'] == partition and
@@ -639,13 +655,11 @@ class CloudBigIP(BigIP):
             for iapp in iapp_intersect:
                 self.iapp_update(partition, iapp, config[iapp])
 
-            # this is kinda kludgey: health monitor has the same name as the
-            # virtual, and there is no more than 1 monitor per virtual.
             cloud_healthcheck_list = []
-            for v in cloud_virtual_list:
-                for hc in config[v]['health']:
+            for pool in cloud_pool_list:
+                for hc in config[pool].get('health', {}):
                     if 'protocol' in hc:
-                        cloud_healthcheck_list.append(v)
+                        cloud_healthcheck_list.append(hc['name'])
 
             f5_pool_list = self.get_pool_list(partition)
             f5_virtual_list = self.get_virtual_list(partition)
@@ -703,9 +717,12 @@ class CloudBigIP(BigIP):
             healthcheck_add = list_diff(cloud_healthcheck_list,
                                         f5_healthcheck_list)
             log_sequence('Healthchecks to add', healthcheck_add)
-            for hc in healthcheck_add:
-                for item in config[hc]['health']:
-                    self.healthcheck_create(partition, item)
+
+            # healthcheck add
+            for key in config:
+                for hc in config[key].get('health', {}):
+                    if 'name' in hc and hc['name'] in healthcheck_add:
+                        self.healthcheck_create(partition, hc)
 
             # pool add
             pool_add = list_diff(cloud_pool_list, f5_pool_list)
@@ -720,13 +737,15 @@ class CloudBigIP(BigIP):
                 self.virtual_create(partition, virt, config[virt])
 
             # healthcheck intersection
-            healthcheck_intersect = list_intersect(cloud_virtual_list,
+            healthcheck_intersect = list_intersect(cloud_healthcheck_list,
                                                    f5_healthcheck_list)
             log_sequence('Healthchecks to update', healthcheck_intersect)
 
-            for hc in healthcheck_intersect:
-                for item in config[hc]['health']:
-                    self.healthcheck_update(partition, hc, item)
+            # healthcheck intersect
+            for key in config:
+                for hc in config[key].get('health', {}):
+                    if 'name' in hc and hc['name'] in healthcheck_intersect:
+                        self.healthcheck_update(partition, key, hc)
 
             # pool intersection
             pool_intersect = list_intersect(cloud_pool_list, f5_pool_list)

@@ -117,9 +117,14 @@ def test_svc_config_bind_addr_added(ssh, orchestration,
     svc = utils.create_managed_northsouth_service(orchestration, config=config)
     # - verify service is deployed
     assert svc.instances.count() > 0
-    # - verify no bigip objects created for unmanaged service
+    # - verify bigip objects created for pool only service (no virtual server)
     utils.wait_for_bigip_controller()
-    assert utils.get_backend_objects(bigip) == {}
+    # FIXME (rtalley): this is a placeholder until I get a programmatic
+    # way to verify a pool only service which will be addressed with
+    # VEL-826 since verify_backend_objs can not be leveraged in this case.
+    exp_keys = ['health_monitors', 'nodes', 'pool_members', 'pools']
+    for key in utils.get_backend_objects(bigip):
+        assert key in exp_keys
 
     if symbols.orchestration == "marathon":
         config = config_utils.get_managed_northsouth_service_config(

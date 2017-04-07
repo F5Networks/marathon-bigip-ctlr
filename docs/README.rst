@@ -107,7 +107,7 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 | F5_PARTITION          | string    | Required  | n/a           | BIG-IP partition in which to create       |                                   |
 |                       |           |           |               | objects; cannot be "Common"               |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BIND_ADDR     | string    | Required  | n/a           | IP address of the App service             |                                   |
+| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service             |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
 |                       |           |           |               |                                           |                                   |
@@ -156,8 +156,12 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 
 You can set the ``F5_{n}_BIND_ADDR`` label via an IPAM system. You can configure your IPAM system to set this label with a chosen IP address, and the controller
-will configure the BIG-IP virtual server when it sees a valid ``F5_{n}_BIND_ADDR``. Virtual server deployment requires the ``F5_{n}_BIND_ADDR`` label, but it is not 
+will configure the BIG-IP virtual server when it sees a valid ``F5_{n}_BIND_ADDR``. Virtual server deployment requires the ``F5_{n}_BIND_ADDR`` label, but it is not
 necessary to set it in your initial config, if you are relying on an IPAM system to set the field for you.
+
+If ``F5_{n}_BIND_ADDR`` is not provided as a label, then the controller will configure and manage pools, pool members, and healthchecks for the application without a virtual server on the BIG-IP.
+In this case you should already have a BIG-IP virtual server that handles client connections and has an irule or traffic policy to forward the request to the correct pool. The stable name of the pool will
+be the full path of the Marathon application with underscores substituted for forward slashes followed by an underscore followed by the port of the application.
 
 Application Labels for iApp Mode
 ````````````````````````````````
@@ -319,4 +323,3 @@ Run the command below on the BIG-IP to view the newly-created objects.
 .. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/iam-api/
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
-
