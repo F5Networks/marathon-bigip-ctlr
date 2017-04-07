@@ -1355,9 +1355,9 @@ class MarathonTest(BigIPTest):
             Mock(side_effect=self.raiseBigiControlUnexpectedHTTPError)
         self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
-        # Other exception types are raised
+        # Other exception types (retry)
         self.bigip._apply_config = Mock(side_effect=self.raiseTypeError)
-        self.assertRaises(TypeError, self.bigip.regenerate_config_f5, apps)
+        self.assertTrue(self.bigip.regenerate_config_f5(apps))
 
     def test_marathon_objects(
             self,

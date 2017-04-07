@@ -236,8 +236,12 @@ class CloudBigIP(BigIP):
             logger.error("HTTP Error: {}".format(e))
             # Indicate that we need to retry
             return True
-        except Exception as e:
-            raise
+        except Exception:
+            # Occasionally the SDK/BIG-IP fails to return an object and we
+            # don't expect this to ever occur.
+            logger.exception("Exception Error")
+            # Indicate that we need to retry
+            return True
 
         if os.environ.get('SCALE_PERF_ENABLE'):  # pragma: no cover
             test_data = {}
