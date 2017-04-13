@@ -51,6 +51,8 @@ all:
 	@printf "  \nOptional arguments:\n"
 	@printf "  bigip_ver - the version of BIG-IP to test against.\n"
 	@printf "      Valid values: v12.1.0, v12.0.0, v11.6.1.\n"
+	@printf "      Default is v12.1.0 if not specified. If specified\n"
+	@printf "      the resulting BIG-IP name includes version & stack name.\n"
 	@printf "  bigip_pool_mode - pool member mode to use for the tests\n"
 	@printf "      Valid values: nodeport cluster.\n"
 
@@ -129,9 +131,10 @@ bigip_oldver_1_ver := v12.0.0
 bigip_oldver_1_img := bigip-osready-12.0.0.4.0.674
 bigip_oldver_2_ver := v11.6.1
 bigip_oldver_2_img := bigip-osready-11.6.1.1.0.326
-# default to current version, will be overridden if it's put on the command line
-bigip_ver := $(bigip_current_ver)
-ifeq ($(bigip_ver), $(bigip_current_ver))
+
+ifeq ($(bigip_ver), )
+  bigip_params :=
+else ifeq ($(bigip_ver), v12.1.0)
   bigip_params :=
 else ifeq ($(bigip_ver), $(bigip_oldver_1_ver))
   bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_1_img)
@@ -141,6 +144,8 @@ else
   $(error ERROR: bigip version $(bigip_ver) is not supported)
 endif
 
+# function call to name specific version of bigip
+named_bigip = bigip:$(1)_bigip_$(bigip_ver)
 
 systest:
 	@$(MAKE) functest
@@ -184,7 +189,7 @@ functest-setup:
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(func_testenv_name) \
-		--requires bigip \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(func_testenv_name)),bigip) $(bigip_params) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
@@ -210,7 +215,7 @@ scaletest-setup:
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(scale_testenv_name) \
-		--requires bigip \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(scale_testenv_name)),bigip) $(bigip_params) \
 		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
@@ -271,7 +276,7 @@ smoketest-setup:
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(smoke_testenv_name) \
-		--requires bigip \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(smoke_testenv_name)),bigip) $(bigip_params) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
