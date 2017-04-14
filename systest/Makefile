@@ -96,7 +96,7 @@ else ifeq ($(orchestration), openshift)
 endif
 
 namespace := velcro
-repo := git+ssh://git@bldr-git.int.lineratesystems.com/$(namespace)/$(repo_name).git
+repo := git+ssh://git@gitlab.pdbld.f5net.com/$(namespace)/$(repo_name).git
 systest_pkg := systest_f5mlb
 registry := docker-registry.pdbld.f5net.com
 bigip_controller_img := $(registry)/$(namespace)/$(repo_name):master
@@ -181,6 +181,7 @@ functest-install scaletest-install hatest-install smoketest-install:
 
 functest-setup:
 	@echo "setting up $(orchestration) functional test environment ..."
+	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(func_testenv_name) \
 		--requires bigip \
@@ -206,6 +207,7 @@ functest-teardown:
 
 scaletest-setup:
 	@echo "setting up $(orchestration) scale test environment ..."
+	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(scale_testenv_name) \
 		--requires bigip \
@@ -232,6 +234,7 @@ scaletest-teardown:
 
 hatest-setup:
 	@echo "setting up $(orchestration) HA test environment ..."
+	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(ha_testenv_name) \
 		--requires bigip1-ha:$(ha_testenv_name)_bigip1 \
@@ -265,6 +268,7 @@ hatest-teardown:
 
 smoketest-setup:
 	@echo "setting up $(orchestration) smoke test environment ..."
+	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(smoke_testenv_name) \
 		--requires bigip \

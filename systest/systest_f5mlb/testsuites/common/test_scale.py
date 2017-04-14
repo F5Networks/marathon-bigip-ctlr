@@ -21,7 +21,7 @@ import re
 import time
 from copy import deepcopy
 
-from pytest import meta_suite, meta_test
+from pytest import meta_suite, meta_test, fixture
 from pytest import symbols
 
 from . import utils
@@ -37,7 +37,32 @@ SVC_TIMEOUT = 10 * 60
 SVC_START_PORT = 7000
 VS_INTERVAL = 10
 VS_TIMEOUT = 10 * 60
+DEFAULT_SSH_TIMEOUT = 3 * 60
 DEFAULT_SCALE_PERF_ENV_VARS = {'SCALE_PERF_ENABLE': True}
+
+
+@fixture(scope="module", autouse=True)
+def _envInfo(ssh):
+    for worker in symbols.workers:
+        envInfo = "\nEnvironment Info:\n  "
+        envInfo += worker + "\n  "
+        envInfo += "Linux kernel: "
+        envInfo += ssh.run(worker, "uname -r",
+                           timeout=DEFAULT_SSH_TIMEOUT) + "\n  "
+        envInfo += ssh.run(worker, "sudo docker --version",
+                           timeout=DEFAULT_SSH_TIMEOUT) + "\n  "
+        envInfo += ("Environment MemTotal: " +
+                    ssh.run(worker,
+                            "awk '/MemTotal/ {print $2}' /proc/meminfo",
+                            timeout=DEFAULT_SSH_TIMEOUT) + " KB\n  ")
+        envInfo += "Environment CPU:\n    "
+        envInfo += ssh.run(worker, "lscpu | sed 's/^/    /'",
+                           timeout=DEFAULT_SSH_TIMEOUT)
+        envInfo += ("\n    " +
+                    ssh.run(worker,
+                            "cat /proc/cpuinfo | grep -i 'model name' | uniq",
+                            timeout=DEFAULT_SSH_TIMEOUT))
+        print envInfo
 
 
 @meta_test(id="f5mlb-59", tags=[])
