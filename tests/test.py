@@ -1130,6 +1130,7 @@ class BigIPTest(unittest.TestCase):
         p_collection = []
         for key in self.bigip_data:
             p = Pool(key)
+            p.partition = 'mesos'
             p_collection.append(p)
         self.test_pool = p_collection
         return p_collection

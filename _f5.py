@@ -858,7 +858,7 @@ class CloudBigIP(BigIP):
         """
         # return pool object
 
-        # FIXME: This is the efficient way to lookup a pool object:
+        # FIXME(kenr): This is the efficient way to lookup a pool object:
         #
         #       p = self.ltm.pools.pool.load(
         #           name=name,
@@ -866,19 +866,20 @@ class CloudBigIP(BigIP):
         #       )
         #       return p
         #
-        # However, this doesn't work if the path to the pool contains a
-        # subpath. This is a known problem in the F5 SDK:
-        #     https://github.com/F5Networks/f5-common-python/issues/468
+        # However, this won't work for iapp created pools because they
+        # add a subPath component that is the iapp name appended by '.app'.
+        # To properly use the above code, we need to pass in the iapp name.
         #
         # The alternative (below) is to get the collection of pool objects
-        # and then search the list for the matching pool name.
-
+        # and then search the list for the matching pool name. However, we
+        # will return the first pool found even though there are multiple
+        # choices (if iapps are used).  See issue #138.
         pools = self.ltm.pools.get_collection()
         for pool in pools:
-            if pool.name == name:
+            if pool.partition == partition and pool.name == name:
                 return pool
-
-        return None
+        raise Exception("Failed to retrieve resource for pool {} "
+                        "in partition {}".format(name, partition))
 
     def get_pool_list(self, partition):
         """Get a list of pool names for a partition.
