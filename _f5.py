@@ -858,15 +858,27 @@ class CloudBigIP(BigIP):
         """
         # return pool object
 
-        p = self.ltm.pools.pool.load(
-            name=name,
-            partition=partition
-        )
+        # FIXME: This is the efficient way to lookup a pool object:
+        #
+        #       p = self.ltm.pools.pool.load(
+        #           name=name,
+        #           partition=partition
+        #       )
+        #       return p
+        #
+        # However, this doesn't work if the path to the pool contains a
+        # subpath. This is a known problem in the F5 SDK:
+        #     https://github.com/F5Networks/f5-common-python/issues/468
+        #
+        # The alternative (below) is to get the collection of pool objects
+        # and then search the list for the matching pool name.
 
-        if p is None:
-            raise Exception("Failed to retrieve resource for pool {} "
-                            "in partition {}".format(name, partition))
-        return p
+        pools = self.ltm.pools.get_collection()
+        for pool in pools:
+            if pool.name == name:
+                return pool
+
+        return None
 
     def get_pool_list(self, partition):
         """Get a list of pool names for a partition.
