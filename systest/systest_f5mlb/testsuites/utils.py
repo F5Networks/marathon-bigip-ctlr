@@ -59,6 +59,7 @@ if symbols.orchestration == "marathon":
 elif is_kubernetes():
     DEFAULT_F5MLB_WAIT = 20
 DEFAULT_F5MLB_VERIFY_INTERVAL = 2
+DEFAULT_F5MLB_NODE_POLL_INTERVAL = 1
 DEFAULT_F5MLB_NAMESPACE = "default"
 
 DEFAULT_SVC_CPUS = 0.1
@@ -139,7 +140,8 @@ elif is_kubernetes():
             "--bigip-username", DEFAULT_BIGIP_USERNAME,
             "--bigip-password", DEFAULT_BIGIP_PASSWORD,
             "--verify-interval", str(DEFAULT_F5MLB_VERIFY_INTERVAL),
-            "--namespace", DEFAULT_F5MLB_NAMESPACE
+            "--namespace", DEFAULT_F5MLB_NAMESPACE,
+            "--node-poll-interval", str(DEFAULT_F5MLB_NODE_POLL_INTERVAL)
         ],
         'env': {}
     }
@@ -186,13 +188,9 @@ if symbols.orchestration == "openshift":
                   DEFAULT_BIGIP_VXLAN_TUNNEL)
     DEFAULT_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
     DEFAULT_F5MLB_CONFIG['args'].append(vxlan_name)
-    DEFAULT_F5MLB_CONFIG['args'].append('--node-poll-interval')
-    DEFAULT_F5MLB_CONFIG['args'].append('1')
 
     BIGIP2_F5MLB_CONFIG['args'].append('--openshift-sdn-name')
     BIGIP2_F5MLB_CONFIG['args'].append(vxlan_name)
-    DEFAULT_F5MLB_CONFIG['args'].append('--node-poll-interval')
-    DEFAULT_F5MLB_CONFIG['args'].append('1')
 
 
 _next_id = 1
