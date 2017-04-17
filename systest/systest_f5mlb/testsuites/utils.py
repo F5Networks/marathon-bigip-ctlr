@@ -623,6 +623,16 @@ def get_k8s_pod_logs(pod_name, namespace):
         return ''
 
 
+def get_dcos_task_logs(task_id):
+    """Get logs of task specified by task id."""
+    log_cmd = ['dcos', 'task', 'log', '--lines=999999', task_id]
+    log = subprocess.check_output(log_cmd)
+    if log is not None:
+        return log
+    else:
+        return ''
+
+
 def check_logs(app, start_str, stop_str='\n'):
     """Search the log of an app for a matching string."""
     search_index = 0
@@ -630,8 +640,12 @@ def check_logs(app, start_str, stop_str='\n'):
 
     while time.time() - log_time < LOG_TIMEOUT:
         if symbols.orchestration == 'marathon':
-            log_mgr = app.get_stdout()
-            log_output = log_mgr.raw
+            if hasattr(symbols, 'mesos_flavor') and \
+               symbols.mesos_flavor == 'dcos':
+                log_output = get_dcos_task_logs(app.id)
+            else:
+                log_mgr = app.get_stderr()
+                log_output = log_mgr.raw
         elif symbols.orchestration == 'k8s':
             (name, namespace) = app
             log_output = get_k8s_pod_logs(name, namespace)

@@ -55,7 +55,11 @@ def test_no_disruptions_without_marathon(orchestration, bigip,
 
 def _stop_marathon():
     """Stop Marathon and verify that the process is gone."""
-    pytest.masters_cmd('sudo service marathon stop')
+    if hasattr(pytest.symbols, 'mesos_flavor') and \
+       pytest.symbols.mesos_flavor == 'dcos':
+        pytest.masters_cmd('sudo systemctl stop dcos-marathon.service')
+    else:
+        pytest.masters_cmd('sudo service marathon stop')
     for _ in range(60):
         if not any(pytest.masters_cmd(r"ps -ef | grep '\/[m]arathon'")):
             break
@@ -66,7 +70,11 @@ def _stop_marathon():
 
 def _start_marathon():
     """Start Marathon and verify it is serving connections."""
-    pytest.masters_cmd('sudo service marathon start')
+    if hasattr(pytest.symbols, 'mesos_flavor') and \
+       pytest.symbols.mesos_flavor == 'dcos':
+        pytest.masters_cmd('sudo systemctl start dcos-marathon.service')
+    else:
+        pytest.masters_cmd('sudo service marathon start')
     for _ in range(120):
         try:
             if requests.get(pytest.symbols.marathon_url).ok:
