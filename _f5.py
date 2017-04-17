@@ -405,11 +405,17 @@ class CloudBigIP(BigIP):
                 })
 
             f5_service['nodes'] = {}
-            for node in backend['poolMemberAddrs']:
-                f5_service['nodes'].update({node: {
-                    'state': 'user-up',
-                    'session': 'user-enabled'
-                }})
+            if backend['poolMemberAddrs']:
+                for node in backend['poolMemberAddrs']:
+                    f5_service['nodes'].update({node: {
+                        'state': 'user-up',
+                        'session': 'user-enabled'
+                    }})
+            else:
+                logger.warning(
+                    'Virtual server "{}" has service "{}", which is empty - '
+                    'configuring 0 pool members.'.format(
+                        frontend_name, backend['serviceName']))
 
             f5_services.update({frontend_name: f5_service})
 
