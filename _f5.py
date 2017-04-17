@@ -858,15 +858,28 @@ class CloudBigIP(BigIP):
         """
         # return pool object
 
-        p = self.ltm.pools.pool.load(
-            name=name,
-            partition=partition
-        )
-
-        if p is None:
-            raise Exception("Failed to retrieve resource for pool {} "
-                            "in partition {}".format(name, partition))
-        return p
+        # FIXME(kenr): This is the efficient way to lookup a pool object:
+        #
+        #       p = self.ltm.pools.pool.load(
+        #           name=name,
+        #           partition=partition
+        #       )
+        #       return p
+        #
+        # However, this won't work for iapp created pools because they
+        # add a subPath component that is the iapp name appended by '.app'.
+        # To properly use the above code, we need to pass in the iapp name.
+        #
+        # The alternative (below) is to get the collection of pool objects
+        # and then search the list for the matching pool name. However, we
+        # will return the first pool found even though there are multiple
+        # choices (if iapps are used).  See issue #138.
+        pools = self.ltm.pools.get_collection()
+        for pool in pools:
+            if pool.partition == partition and pool.name == name:
+                return pool
+        raise Exception("Failed to retrieve resource for pool {} "
+                        "in partition {}".format(name, partition))
 
     def get_pool_list(self, partition):
         """Get a list of pool names for a partition.

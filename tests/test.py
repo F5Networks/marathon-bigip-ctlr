@@ -654,10 +654,6 @@ class Pool():
         """Delet the pool object."""
         pass
 
-    def load(self, name=None, partition=None, cow=None):
-        """Load the pool object."""
-        pass
-
 
 class Member():
     """A mock BIG-IP Pool Member."""
@@ -1134,15 +1130,10 @@ class BigIPTest(unittest.TestCase):
         p_collection = []
         for key in self.bigip_data:
             p = Pool(key)
+            p.partition = 'mesos'
             p_collection.append(p)
         self.test_pool = p_collection
         return p_collection
-
-    def mock_pool_load(self, name=None, partition=None, cow=3):
-        """Mock: Return a mocked pool."""
-        pool = Pool(name)
-        self.test_pool.append(pool)
-        return pool
 
     def read_test_vectors(self, cloud_state, bigip_state=None,
                           hm_state=None, network_state=None):
@@ -1226,8 +1217,6 @@ class BigIPTest(unittest.TestCase):
             Mock(side_effect=self.mock_pool_create)
         self.bigip.ltm.pools.get_collection = \
             Mock(side_effect=self.mock_pools_get_collection)
-        self.bigip.ltm.pools.pool.load = \
-            Mock(side_effect=self.mock_pool_load)
 
         self.bigip.ltm.monitor.https.get_collection = \
             Mock(side_effect=self.mock_get_http_healthcheck_collection)
@@ -1546,10 +1535,10 @@ class MarathonTest(BigIPTest):
         self.assertFalse(self.bigip.iapp_delete.called)
 
         self.assertTrue(self.bigip.ltm.virtuals.virtual.load.called)
-        self.assertTrue(self.bigip.ltm.pools.pool.load.called)
+        self.assertTrue(self.bigip.ltm.pools.get_collection.called)
         self.assertTrue(self.bigip.ltm.monitor.tcps.tcp.load.called)
         self.assertEqual(self.bigip.ltm.virtuals.virtual.load.call_count, 1)
-        self.assertEqual(self.bigip.ltm.pools.pool.load.call_count, 1)
+        self.assertEqual(self.bigip.ltm.pools.get_collection.call_count, 1)
         self.assertEqual(self.bigip.ltm.monitor.tcps.tcp.load.call_count, 1)
 
     def test_app_scaled_up(self,
@@ -3164,7 +3153,7 @@ class KubernetesTest(BigIPTest):
         self.assertFalse(self.bigip.virtual_update.called)
 
         self.assertTrue(self.bigip.ltm.virtuals.virtual.load.called)
-        self.assertTrue(self.bigip.ltm.pools.pool.load.called)
+        self.assertTrue(self.bigip.ltm.pools.get_collection.called)
         self.assertFalse(self.bigip.ltm.monitor.https.http.load.called)
         self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.load.called)
         self.assertFalse(self.bigip.member_delete.called)
