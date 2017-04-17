@@ -74,10 +74,10 @@ else
   endif
 endif
 
-# - set testenv config file
+# - set testenv config file (mesos.testenv.yaml for stand-alone mesos marathon)
 ifeq ($(orchestration), marathon)
   repo_name := marathon-bigip-ctlr
-  testenv_config := mesos.testenv.yaml
+  testenv_config := dcos.testenv.yaml
   project_dir := velcro.marathon-bigip-ctlr
   bigip_pool_mode ?= cluster
   testenv_stack_timeout := 600
