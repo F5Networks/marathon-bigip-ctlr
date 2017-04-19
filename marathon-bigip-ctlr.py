@@ -789,7 +789,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     bigip = CloudBigIP('marathon', args.host, args.port, args.username,
-                       args.password, args.partition)
+                       args.password, args.partition, token="tmos")
 
     # Set request retries
     s = requests.Session()

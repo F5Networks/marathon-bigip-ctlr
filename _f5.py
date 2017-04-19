@@ -136,15 +136,21 @@ class CloudBigIP(BigIP):
     Args:
         cloud: cloud environment (marathon or kubernetes)
         hostname: IP address of BIG-IP
+        port: Port of BIG-IP
         username: BIG-IP username
         password: BIG-IP password
         partitions: List of BIG-IP partitions to manage
+        token: The optional auth token to use with BIG-IP (e.g. "tmos")
     """
 
-    def __init__(self, cloud, hostname, port, username, password, partitions):
+    def __init__(self, cloud, hostname, port, username, password, partitions,
+                 token=None):
         """Initialize the CloudBigIP object."""
+        super_kwargs = { "port" : port }
+        if token:
+            super_kwargs["token"] = token
         super(CloudBigIP, self).__init__(hostname, username, password,
-                                         port=port, token='tmos')
+                                         **super_kwargs)
         self._cloud = cloud
         self._hostname = hostname
         self._port = port
