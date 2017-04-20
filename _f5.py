@@ -146,7 +146,7 @@ class CloudBigIP(BigIP):
     def __init__(self, cloud, hostname, port, username, password, partitions,
                  token=None):
         """Initialize the CloudBigIP object."""
-        super_kwargs = { "port" : port }
+        super_kwargs = {"port": port}
         if token:
             super_kwargs["token"] = token
         super(CloudBigIP, self).__init__(hostname, username, password,
