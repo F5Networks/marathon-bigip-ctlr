@@ -391,10 +391,9 @@ def get_backend_object_name(svc, port_idx=0):
     """Generate expected backend object name."""
     if symbols.orchestration == "marathon":
         return (
-            "%s_%s_%s"
+            "%s_%s"
             % (
                 svc.id.replace("/", ""),
-                svc.labels['F5_%d_BIND_ADDR' % port_idx],
                 str(svc.labels['F5_%d_PORT' % port_idx])
             )
         )
