@@ -14,9 +14,6 @@
 
 """Test suite to verify iApp scenarios in an orchestration environment."""
 
-
-import copy
-import json
 import os
 
 from pytest import meta_suite, meta_test
@@ -59,8 +56,8 @@ def appsvcs_template(request, ssh, bigip):
 def test_iapp_f5_http(ssh, orchestration, bigip, bigip_controller):
     """Basic iApp config."""
     # - start managed service
-    iapp = SampleHttpIApp()
-    config = _get_iapp_config(iapp)
+    iapp = utils.SampleHttpIApp()
+    config = utils.get_iapp_config(iapp)
     svc = utils.create_managed_northsouth_service(
         orchestration,
         health_checks=utils.DEFAULT_SVC_HEALTH_CHECKS_TCP,
@@ -104,7 +101,7 @@ def test_iapp_appsvcs(ssh, orchestration, bigip, bigip_controller,
     """Test AppSvcs iApp config."""
     # - start managed service
     iapp = SampleAppSvcsIApp()
-    config = _get_iapp_config(iapp)
+    config = utils.get_iapp_config(iapp)
     svc = utils.create_managed_northsouth_service(
         orchestration,
         id=iapp.svc_name,
@@ -143,81 +140,6 @@ def test_iapp_appsvcs(ssh, orchestration, bigip, bigip_controller,
     curl_cmd = "curl -k %s" % svc_url
     res = ssh.run(symbols.bastion, curl_cmd)
     assert 'Connection reset by peer' in res
-
-
-def _get_iapp_config(iapp):
-    if symbols.orchestration == "marathon":
-        cfg = {
-            'F5_PARTITION': utils.DEFAULT_F5MLB_PARTITION,
-            'F5_0_IAPP_TEMPLATE': iapp.name,
-        }
-        if hasattr(iapp, 'pool_member_table_name'):
-            cfg['F5_0_IAPP_POOL_MEMBER_TABLE_NAME'] = \
-                iapp.pool_member_table_name
-        if hasattr(iapp, 'pool_member_table'):
-            cfg['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
-                json.dumps(iapp.pool_member_table)
-        for k, v in iapp.options.iteritems():
-            cfg['F5_0_IAPP_OPTION_' + k] = v
-        for k, v in iapp.vars.iteritems():
-            cfg['F5_0_IAPP_VARIABLE_' + k] = v
-        for k, v in iapp.tables.iteritems():
-            cfg['F5_0_IAPP_TABLE_' + k] = json.dumps(v)
-    if utils.is_kubernetes():
-        cfg = copy.deepcopy(utils.DEFAULT_SVC_CONFIG)
-        cfg['data']['data']['virtualServer'].pop('frontend')
-        cfg['data']['data']['virtualServer']['frontend'] = {
-            'partition': utils.DEFAULT_F5MLB_PARTITION,
-            'iapp': iapp.name,
-            'iappPoolMemberTable': iapp.pool_member_table,
-            'iappTables': iapp.tables,
-            'iappOptions': iapp.options,
-            'iappVariables': iapp.vars
-        }
-    return cfg
-
-
-class SampleHttpIApp(object):
-    """Test instance of the standard F5 HTTP iApp."""
-
-    def __init__(self):
-        """Initialize members."""
-        self.name = "/Common/f5.http"
-        self.options = {'description': "This is a test iApp"}
-        self.pool_member_table = {
-            "name": "pool__members",
-            "columns": [{"name": "addr", "kind": "IPAddress"},
-                        {"name": "port", "kind": "Port"},
-                        {"name": "connection_limit", "value": "0"}]
-        }
-        self.tables = {}
-
-        CREATE_NEW = "/#create_new#"
-        DONT_USE = "/#do_not_use#"
-        self.vars = {
-            'net__client_mode': "wan",
-            'net__server_mode': "lan",
-            'pool__addr': utils.DEFAULT_F5MLB_BIND_ADDR,
-            'pool__port': str(utils.DEFAULT_F5MLB_PORT),
-            'pool__pool_to_use': CREATE_NEW,
-            'pool__lb_method': "round-robin",
-            'pool__http': CREATE_NEW,
-            'pool__mask': "255.255.255.255",
-            'pool__persist': DONT_USE,
-            'monitor__monitor': CREATE_NEW,
-            'monitor__uri': "/",
-            'monitor__frequency': "30",
-            'monitor__response': "none",
-            'ssl_encryption_questions__advanced': "yes",
-            'net__vlan_mode': "all",
-            'net__snat_type': "automap",
-            'client__tcp_wan_opt': CREATE_NEW,
-            'client__standard_caching_with_wa': CREATE_NEW,
-            'client__standard_caching_without_wa': DONT_USE,
-            'server__tcp_lan_opt': CREATE_NEW,
-            'server__oneconnect': CREATE_NEW,
-            'server__ntlm': DONT_USE,
-        }
 
 
 class SampleAppSvcsIApp(object):
