@@ -13,7 +13,9 @@ COPY marathon-bigip-ctlr.py $APPPATH
 COPY common.py $APPPATH
 COPY _f5.py $APPPATH
     
-RUN pip install -r /tmp/runtime-requirements.txt
+RUN apk --no-cache --update add --virtual pip-install-deps git && \
+    pip install -r /tmp/runtime-requirements.txt && \
+    apk del pip-install-deps
 
 # The run script is the entry point to marathon-bigip-ctlr
 ENTRYPOINT [ "/app/run" ]

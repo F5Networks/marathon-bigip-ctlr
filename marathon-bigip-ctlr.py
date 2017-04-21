@@ -51,8 +51,8 @@ from sseclient import SSEClient
 
 from common import (set_logging_args, set_marathon_auth_args, setup_logging,
                     get_marathon_auth_params, resolve_ip)
-from _f5 import (CloudBigIP, has_partition, healthcheck_timeout_calculate,
-                 get_protocol)
+from f5_cccl._f5 import (CloudBigIP, has_partition,
+                         healthcheck_timeout_calculate, get_protocol)
 
 
 class InvalidServiceDefinitionError(ValueError):
