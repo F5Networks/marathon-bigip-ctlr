@@ -86,7 +86,7 @@ def _reset_node(args):
         node_ctl.add_node(config)
 
 
-@meta_test(id="f5mlb-69", tags=["no_marathon", "no_k8s"])
+@meta_test(id="f5mlb-71", tags=["no_marathon", "no_k8s"])
 def test_clusterscale(ssh, orchestration, bigip, bigip_controller,
                       node_controller):
     """Cluster scaling north-south test.
