@@ -34,6 +34,7 @@ from __future__ import print_function
 
 import json
 import logging
+from operator import attrgetter
 import os
 import os.path
 import re
@@ -49,8 +50,9 @@ from requests.exceptions import ConnectionError
 from sseclient import SSEClient
 
 from common import (set_logging_args, set_marathon_auth_args, setup_logging,
-                    get_marathon_auth_params)
-from _f5 import CloudBigIP
+                    get_marathon_auth_params, resolve_ip)
+from _f5 import (CloudBigIP, has_partition, healthcheck_timeout_calculate,
+                 get_protocol)
 
 
 class InvalidServiceDefinitionError(ValueError):
@@ -549,6 +551,165 @@ def get_apps(apps, health_check):
     return apps_list
 
 
+def create_config_marathon(bigip, apps):
+    """Create a BIG-IP configuration from the Marathon app list.
+
+    Args:
+        apps: Marathon app list
+    """
+    logger.debug(apps)
+    for app in apps:
+        logger.debug(app.__hash__())
+
+    logger.info("Generating config for BIG-IP")
+    f5 = {}
+    # partitions this script is responsible for:
+    partitions = frozenset(bigip.get_partitions())
+
+    for app in sorted(apps, key=attrgetter('appId', 'servicePort')):
+        f5_service = {
+            'nodes': {},
+            'partition': '',
+            'name': ''
+        }
+        # Only handle application if it's partition is one that this script
+        # is responsible for
+        if not has_partition(partitions, app.partition):
+            continue
+
+        # No address or iApp for this port
+        if not app.bindAddr and not app.iapp:
+            # Validate pool only configuration
+            if not bigip.is_label_data_valid(app):
+                continue
+            else:
+                logger.debug("Creating pool only for %s", app.appId)
+        # Validate data from the app's labels
+        elif not app.iapp and not bigip.is_label_data_valid(app):
+            continue
+
+        f5_service['partition'] = app.partition
+
+        logger.info("Configuring app %s, partition %s", app.appId,
+                    app.partition)
+        backend = app.appId[1:].replace('/', '_') + '_' + \
+            str(app.servicePort)
+
+        frontend_name = "%s_%d" % ((app.appId).lstrip('/'), app.servicePort)
+        # The Marathon appId contains the full path, replace all '/' in
+        # the name with '_'
+        frontend_name = frontend_name.replace('/', '_')
+        f5_service['name'] = frontend_name
+        if app.bindAddr:
+            logger.debug("Frontend at %s:%d with backend %s", app.bindAddr,
+                         app.servicePort, backend)
+
+        if app.iapp:
+            # Translate from the internal properties we set on app to the
+            # naming expected by the common f5_service['iapp']
+            # Only set properties that are actually present.
+            #
+            # tableName would be better as poolMemberTableName but it is
+            # required to be tableName to match the tableName produced by
+            # the k8s-bigip-ctlr
+            f5_service['iapp'] = {}
+            for k, v in {'template': 'iapp',
+                         'tableName': 'iappPoolMemberTableName',
+                         'poolMemberTable': 'iappPoolMemberTable',
+                         'tables': 'iappTables',
+                         'variables': 'iappVariables',
+                         'options': 'iappOptions'}.iteritems():
+                if hasattr(app, v):
+                    f5_service['iapp'][k] = getattr(app, v)
+
+            # Decode the tables
+            for key in app.iappTables:
+                f5_service['iapp']['tables'][key] = \
+                    json.loads(app.iappTables[key])
+        else:
+            f5_service['virtual'] = {}
+            f5_service['pool'] = {}
+            f5_service['health'] = []
+
+            if app.healthCheck:
+                for hc in app.healthCheck:
+                    logger.debug("Healthcheck for app '%s': %s",
+                                 app.appId, hc)
+                    hc['name'] = frontend_name
+
+                    # normalize healtcheck protocol name to lowercase
+                    if 'protocol' in hc:
+                        hc['protocol'] = (hc['protocol']).lower()
+                    hc.update({
+                        'interval': hc['intervalSeconds'],
+                        'timeout': healthcheck_timeout_calculate(hc),
+                        'send': bigip.healthcheck_sendstring(hc),
+                    })
+                    f5_service['health'].append(hc)
+
+            # Parse the SSL profile into partition and name
+            profiles = []
+            if app.profile:
+                profile = app.profile.split('/')
+                if len(profile) != 2:
+                    logger.error("Could not parse partition and name from"
+                                 " SSL profile: %s", app.profile)
+                else:
+                    profiles.append({'partition': profile[0],
+                                     'name': profile[1]})
+
+            # Add appropriate profiles
+            if str(app.mode).lower() == 'http':
+                profiles.append({'partition': 'Common', 'name': 'http'})
+            elif get_protocol(app.mode) == 'tcp':
+                profiles.append({'partition': 'Common', 'name': 'tcp'})
+
+            if app.bindAddr:
+                f5_service['virtual_address'] = app.bindAddr
+
+                f5_service['virtual'].update({
+                    'enabled': True,
+                    'disabled': False,
+                    'ipProtocol': get_protocol(app.mode),
+                    'destination':
+                    "/%s/%s:%d" % (app.partition, app.bindAddr,
+                                   app.servicePort),
+                    'pool': "/%s/%s" % (app.partition, frontend_name),
+                    'sourceAddressTranslation': {'type': 'automap'},
+                    'profiles': profiles
+                })
+            f5_service['pool'].update({
+                'monitor': "/%s/%s" %
+                           (app.partition, f5_service['health'][0]['name'])
+                           if app.healthCheck else None,
+                'loadBalancingMode': app.balance
+            })
+
+        key_func = attrgetter('host', 'port')
+        for backendServer in sorted(app.backends, key=key_func):
+            logger.debug("Found backend server at %s:%d for app %s",
+                         backendServer.host, backendServer.port, app.appId)
+
+            # Resolve backendServer hostname to IP address
+            ipv4 = resolve_ip(backendServer.host)
+
+            if ipv4 is not None:
+                f5_node_name = ipv4 + ':' + str(backendServer.port)
+                f5_service['nodes'].update({f5_node_name: {
+                    'state': 'user-up',
+                    'session': 'user-enabled'
+                }})
+            else:
+                logger.warning("Could not resolve ip for host %s, "
+                               "ignoring this backend", backendServer.host)
+
+        f5.update({frontend_name: f5_service})
+
+    logger.debug("F5 json config: %s", json.dumps(f5))
+
+    return f5
+
+
 class MarathonEventProcessor(object):
     """MarathonEventProcessor class.
 
@@ -599,7 +760,8 @@ class MarathonEventProcessor(object):
 
                     self.__apps = get_apps(self.__marathon.list(),
                                            self.__marathon.health_check())
-                    if self.__bigip.regenerate_config_f5(self.__apps):
+                    cfg = create_config_marathon(self.__bigip, self.__apps)
+                    if self.__bigip.regenerate_config_f5(cfg):
                         # Timeout (or some other retryable error occurred),
                         # do a reset so that we try again
                         self.retry_backoff(self.reset_from_tasks)
@@ -607,6 +769,23 @@ class MarathonEventProcessor(object):
                         # Reconfig was successful
                         self.start_checkpoint_timer()
                         self._backoff_timer = 1
+
+                        perf_enable = os.environ.get('SCALE_PERF_ENABLE')
+                        if perf_enable:  # pragma: no cover
+                            test_data = {}
+                            app_count = 0
+                            backend_count = 0
+                            for app in self.__apps:
+                                if app.partition == 'test':
+                                    app_count += 1
+                                    backends = len(app.backends)
+                                    test_data[app.appId[1:]] = backends
+                                    backend_count += backends
+                            test_data['Total_Services'] = app_count
+                            test_data['Total_Backends'] = backend_count
+                            test_data['Time'] = time.time()
+                            json_data = json.dumps(test_data)
+                            logger.info('SCALE_PERF: Test data: %s', json_data)
 
                     logger.debug("updating tasks finished, took %s seconds",
                                  time.time() - start_time)
@@ -788,7 +967,7 @@ if __name__ == '__main__':
     # parse args
     args = parse_args()
 
-    bigip = CloudBigIP('marathon', args.host, args.port, args.username,
+    bigip = CloudBigIP(args.host, args.port, args.username,
                        args.password, args.partition, token="tmos")
 
     # Set request retries
