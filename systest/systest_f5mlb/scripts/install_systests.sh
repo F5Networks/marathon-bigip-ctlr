@@ -28,10 +28,15 @@ chmod 600 $fl
 rm -rf systest
 virtualenv systest
 source systest/bin/activate
-pip install python-novaclient
 
 # - install system tests
+# - note that systests *MUST* be installed first because systest-common now
+#   pins *all* of it dependencies and will therefore fail to install if
+#   another package gets to install a bunch of incompatible dependencies first
 pip install ~/$systest_pkg
+
+# - install additional pkgs
+pip install python-novaclient
 
 # - wait for the pytest rootdir file to exist
 pkg_dir=$(python -c "import $systest_pkg as m; print m.__path__[0]")
