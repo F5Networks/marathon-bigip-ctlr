@@ -104,6 +104,15 @@ DEFAULT_BIGIP_OPENSHIFT_SUBNET = "10.131.255.0/31"
 DEFAULT_OPENSHIFT_USER = "run-as-anyid"
 DEFAULT_OPENSHIFT_ADMIN = "bigip-controller"
 
+DEFAULT_APP_IMG = TEST_NGINX_IMG
+DEFAULT_APP_PORT_MAPPING = [
+    {
+        'container_port': DEFAULT_SVC_PORT,
+        'host_port': 0,
+        'protocol': "tcp"
+    }
+]
+
 NODE_UNIN_YAML = '/home/centos/openshift-ansible/playbooks/adhoc/uninstall.yml'
 NODE_SCALE_YAML = \
     '/home/centos/openshift-ansible/playbooks/byo/openshift-node/scaleup.yml'
@@ -132,6 +141,8 @@ if symbols.orchestration == "marathon":
     BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
     BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
 elif is_kubernetes():
+    F5MLB_KUBE_CONFIG_USERNAME_IDX = 5
+    F5MLB_KUBE_CONFIG_PASSWORD_IDX = 7
     DEFAULT_F5MLB_CONFIG = {
         'cmd': "/app/bin/k8s-bigip-ctlr",
         'args': [
@@ -357,7 +368,9 @@ class BigipController(object):
         self.app.resume()
 
 
-def create_unmanaged_service(orchestration, id, labels={}):
+def create_unmanaged_service(orchestration, id, labels={},
+                             app_port_mapping=DEFAULT_APP_PORT_MAPPING,
+                             app_container_img=DEFAULT_APP_IMG):
     """Create a microservice with no bigip-controller decorations."""
     if symbols.orchestration == "openshift":
         service_account = DEFAULT_OPENSHIFT_USER
@@ -371,15 +384,9 @@ def create_unmanaged_service(orchestration, id, labels={}):
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         timeout=DEFAULT_DEPLOY_TIMEOUT,
-        container_img=TEST_NGINX_IMG,
+        container_img=app_container_img,
         labels=labels,
-        container_port_mappings=[
-            {
-                'container_port': DEFAULT_SVC_PORT,
-                'host_port': 0,
-                'protocol': "tcp"
-            }
-        ],
+        container_port_mappings=app_port_mapping,
         container_force_pull_image=True,
         service_account=service_account
     )
@@ -551,19 +558,33 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
         assert v >= min_res_per_member, msg
 
 
-def deploy_controller(request, orchestration, env_vars={}, mode=None):
+def deploy_controller(request, orchestration, env_vars={}, mode=None,
+                      user=None, pwd=None):
     """Configure and deploy marathon or k8s BIGIP controller."""
     if mode is None:
         mode = request.config._meta.vars.get(
             'controller-pool-mode', POOL_MODE_CLUSTER)
     assert mode in POOL_MODES, "controller-pool-mode var is invalid"
     ctlr_config = deepcopy(DEFAULT_F5MLB_CONFIG)
+
+    if user is not None:
+        if symbols.orchestration == "marathon":
+            ctlr_config['F5_CC_BIGIP_USERNAME'] = user
+        elif is_kubernetes():
+            ctlr_config['args'][F5MLB_KUBE_CONFIG_USERNAME_IDX] = user
+    if pwd is not None:
+        if symbols.orchestration == "marathon":
+            ctlr_config['F5_CC_BIGIP_PASSWORD'] = pwd
+        elif is_kubernetes():
+            ctlr_config['args'][F5MLB_KUBE_CONFIG_PASSWORD_IDX] = pwd
+
     for key in env_vars:
         val = env_vars[key]
         if symbols.orchestration == 'marathon':
             ctlr_config[key] = val
         elif symbols.orchestration == 'k8s':
             ctlr_config['env'].update({key: str(val)})
+
     controller = BigipController(orchestration, cpus=0.5,
                                  mem=128, config=ctlr_config,
                                  pool_mode=mode).create()
