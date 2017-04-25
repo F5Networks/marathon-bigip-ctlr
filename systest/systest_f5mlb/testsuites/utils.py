@@ -104,6 +104,15 @@ DEFAULT_BIGIP_OPENSHIFT_SUBNET = "10.131.255.0/31"
 DEFAULT_OPENSHIFT_USER = "run-as-anyid"
 DEFAULT_OPENSHIFT_ADMIN = "bigip-controller"
 
+DEFAULT_APP_IMG = TEST_NGINX_IMG
+DEFAULT_APP_PORT_MAPPING = [
+    {
+        'container_port': DEFAULT_SVC_PORT,
+        'host_port': 0,
+        'protocol': "tcp"
+    }
+]
+
 NODE_UNIN_YAML = '/home/centos/openshift-ansible/playbooks/adhoc/uninstall.yml'
 NODE_SCALE_YAML = \
     '/home/centos/openshift-ansible/playbooks/byo/openshift-node/scaleup.yml'
@@ -357,7 +366,9 @@ class BigipController(object):
         self.app.resume()
 
 
-def create_unmanaged_service(orchestration, id, labels={}):
+def create_unmanaged_service(orchestration, id, labels={},
+                             app_port_mapping=DEFAULT_APP_PORT_MAPPING,
+                             app_container_img=DEFAULT_APP_IMG):
     """Create a microservice with no bigip-controller decorations."""
     if symbols.orchestration == "openshift":
         service_account = DEFAULT_OPENSHIFT_USER
@@ -371,15 +382,9 @@ def create_unmanaged_service(orchestration, id, labels={}):
         cpus=DEFAULT_SVC_CPUS,
         mem=DEFAULT_SVC_MEM,
         timeout=DEFAULT_DEPLOY_TIMEOUT,
-        container_img=TEST_NGINX_IMG,
+        container_img=app_container_img,
         labels=labels,
-        container_port_mappings=[
-            {
-                'container_port': DEFAULT_SVC_PORT,
-                'host_port': 0,
-                'protocol': "tcp"
-            }
-        ],
+        container_port_mappings=app_port_mapping,
         container_force_pull_image=True,
         service_account=service_account
     )

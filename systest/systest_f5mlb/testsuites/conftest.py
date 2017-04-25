@@ -28,6 +28,17 @@ from . import utils
 
 DELETE_TIMEOUT = 2 * 60
 
+_RADIUS_APP_ID = 'radius'
+_RADIUS_APP_IMG = \
+      "docker-registry.pdbld.f5net.com/systest-common/test-radius:20170419"
+_RADIUS_APP_PORT_MAPPING = [
+    {
+        'container_port': 1812,
+        'host_port': 0,
+        'protocol': "udp"
+    }
+]
+
 
 def pytest_namespace():
     """Configure objects to go in the pytest namespace."""
@@ -326,3 +337,24 @@ def scale_controller(request, orchestration):
 
     request.addfinalizer(teardown)
     return controller
+
+
+@pytest.fixture(scope='function')
+def radius(request, orchestration):
+    """Create a Radius server."""
+    app = orchestration.app.exists(_RADIUS_APP_ID)
+    if not app:
+        radius_svc_name = 'svc-' + _RADIUS_APP_ID
+        app = utils.create_unmanaged_service(
+            orchestration, radius_svc_name,
+            app_port_mapping=_RADIUS_APP_PORT_MAPPING,
+            app_container_img=_RADIUS_APP_IMG
+        )
+
+        def _delete_app():
+            orchestration.app.delete(_RADIUS_APP_ID)
+            orchestration.app.wait_until_deleted(_RADIUS_APP_ID)
+
+        request.addfinalizer(_delete_app)
+
+    return app
