@@ -141,6 +141,8 @@ if symbols.orchestration == "marathon":
     BIGIP2_SVC_CONFIG = copy.deepcopy(DEFAULT_SVC_CONFIG)
     BIGIP2_SVC_CONFIG['F5_0_BIND_ADDR'] = BIGIP2_F5MLB_BIND_ADDR
 elif is_kubernetes():
+    F5MLB_KUBE_CONFIG_USERNAME_IDX = 5
+    F5MLB_KUBE_CONFIG_PASSWORD_IDX = 7
     DEFAULT_F5MLB_CONFIG = {
         'cmd': "/app/bin/k8s-bigip-ctlr",
         'args': [
@@ -556,19 +558,33 @@ def verify_bigip_round_robin(ssh, svc, protocol=None, ipaddr=None, port=None,
         assert v >= min_res_per_member, msg
 
 
-def deploy_controller(request, orchestration, env_vars={}, mode=None):
+def deploy_controller(request, orchestration, env_vars={}, mode=None,
+                      user=None, pwd=None):
     """Configure and deploy marathon or k8s BIGIP controller."""
     if mode is None:
         mode = request.config._meta.vars.get(
             'controller-pool-mode', POOL_MODE_CLUSTER)
     assert mode in POOL_MODES, "controller-pool-mode var is invalid"
     ctlr_config = deepcopy(DEFAULT_F5MLB_CONFIG)
+
+    if user is not None:
+        if symbols.orchestration == "marathon":
+            ctlr_config['F5_CC_BIGIP_USERNAME'] = user
+        elif is_kubernetes():
+            ctlr_config['args'][F5MLB_KUBE_CONFIG_USERNAME_IDX] = user
+    if pwd is not None:
+        if symbols.orchestration == "marathon":
+            ctlr_config['F5_CC_BIGIP_PASSWORD'] = pwd
+        elif is_kubernetes():
+            ctlr_config['args'][F5MLB_KUBE_CONFIG_PASSWORD_IDX] = pwd
+
     for key in env_vars:
         val = env_vars[key]
         if symbols.orchestration == 'marathon':
             ctlr_config[key] = val
         elif symbols.orchestration == 'k8s':
             ctlr_config['env'].update({key: str(val)})
+
     controller = BigipController(orchestration, cpus=0.5,
                                  mem=128, config=ctlr_config,
                                  pool_mode=mode).create()
