@@ -10,4 +10,4 @@ make -C docs html
 make -C docs linkcheck
 
 echo "Checking grammar and style"
-write-good docs/*.rst --weasel --so --passive --illusion --thereIs --toowordy --adverb --cliches
+write-good `find docs -name '*.rst'` --passive --so --no-illusion --thereIs --cliches
