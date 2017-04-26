@@ -28,7 +28,7 @@ import copy
 import time
 from sseclient import Event
 from mock import Mock, mock_open, patch
-from common import DCOSAuth, get_marathon_auth_params, setup_logging
+from f5_cccl.common import DCOSAuth, get_marathon_auth_params, setup_logging
 from f5.bigip import BigIP
 from f5_cccl._f5 import CloudBigIP, get_protocol
 from StringIO import StringIO

@@ -16,11 +16,12 @@ design,too-many-locals,\
 no-self-use,\
 too-many-lines,\
 unused-argument,\
+len-as-condition,\
 broad-except"
 
 [ -z $1 ] ||  DEFAULTS=$@
 
-LIST="$(find . -name '*py' ! -path '*test*' ! -path '*docs*')"
+LIST="$(find . -name '*py' ! -path '*test*' ! -path '*docs*' ! -path '*f5_cccl*' )"
 for i in $LIST; do
     pylint $i $DEFAULTS
 done

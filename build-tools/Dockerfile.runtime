@@ -4,14 +4,12 @@ ENV APPPATH /app
 
 RUN mkdir -p "$APPPATH" \
  && chmod -R 755 "$APPPATH"
- 
+
 WORKDIR $APPPATH
 
 COPY marathon-runtime-requirements.txt /tmp/runtime-requirements.txt
 COPY run $APPPATH
 COPY marathon-bigip-ctlr.py $APPPATH
-COPY common.py $APPPATH
-COPY _f5.py $APPPATH
     
 RUN apk --no-cache --update add --virtual pip-install-deps git && \
     pip install -r /tmp/runtime-requirements.txt && \
