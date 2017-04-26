@@ -1,4 +1,4 @@
-.PHONY: all systest functest scaletest hatest smoketest \
+.PHONY: all systest functest scaletest hatest smoketest symlink_symbols \
 	functest-setup functest-install functest-run functest-teardown \
 	scaletest-setup scaletest-install scaletest-run scaletest-teardown \
 	hatest-setup hatest-install hatest-run hatest-teardown \
@@ -97,33 +97,35 @@ else ifeq ($(orchestration), openshift)
   testenv_stack_timeout := 1800
 endif
 
-namespace := velcro
-repo := git+ssh://git@gitlab.pdbld.f5net.com/$(namespace)/$(repo_name).git
-systest_pkg := systest_f5mlb
-registry := docker-registry.pdbld.f5net.com
-bigip_controller_img := $(registry)/$(namespace)/$(repo_name):master
-ssh_conf := testenv_symbols/testenv_ssh_config
-
 # - <nearest reachable tag>-<num commits since>-g<abbreviated commit id>
 version := $(shell git describe --long)
 export version
 timestamp := $(shell date +"%Y%m%d-%H%M%S")
 export timestamp
+
+# - set testenv name
+ifeq ($(findstring functest, $(MAKECMDGOALS)), functest)
+  testenv_name := f5mlb_func_$(orchestration)
+else ifeq ($(findstring scaletest, $(MAKECMDGOALS)), scaletest)
+  testenv_name := f5mlb_scale_$(orchestration)
+else ifeq ($(findstring hatest, $(MAKECMDGOALS)), hatest)
+  testenv_name := f5mlb_ha_$(orchestration)
+else ifeq ($(findstring smoketest, $(MAKECMDGOALS)), smoketest)
+  testenv_name := f5mlb_smoke_$(orchestration)
+else
+  $(error ERROR: failed to calc testenv name.)
+endif
+session := $(testenv_name)_$(version)
+symbols_dir := $(CURDIR)/$(testenv_name)
+bigip_testenv_name := $(testenv_name)_bigip
+
+repo := git+ssh://git@gitlab.pdbld.f5net.com/$(namespace)/$(repo_name).git
+systest_pkg := systest_f5mlb
+registry := docker-registry.pdbld.f5net.com
+namespace := velcro
+bigip_controller_img := $(registry)/$(namespace)/$(repo_name):master
+ssh_conf := $(symbols_dir)/testenv_ssh_config
 results_dir := test_results/$(project_dir)/f5mlb-$(version)-$(orchestration)-$(timestamp)
-
-func_testenv_name := f5mlb_func_$(orchestration)
-func_session := $(func_testenv_name)_$(version)
-
-scale_testenv_name := f5mlb_scale_$(orchestration)
-scale_session := $(scale_testenv_name)_$(version)
-
-ha_testenv_name := f5mlb_ha_$(orchestration)
-ha_session := $(ha_testenv_name)_$(version)
-
-smoke_testenv_name := f5mlb_smoke_$(orchestration)
-smoke_session := $(smoke_testenv_name)_$(version)
-
-bigip_testenv_name := $(func_testenv_name)_bigip
 
 # - set bigip_img for older versions, default is specified in bigip.params.yaml
 bigip_current_ver := v12.1.0
@@ -175,6 +177,11 @@ smoketest:
 	@$(MAKE) smoketest-run || ($(MAKE) smoketest-teardown && false)
 	@$(MAKE) smoketest-teardown
 
+symlink_symbols:
+	if [ -d testenv_symbols ]; then rm -rf testenv_symbols; fi
+	if [ -L testenv_symbols ]; then rm testenv_symbols; fi
+	ln -s $(testenv_name) testenv_symbols
+
 functest-install scaletest-install hatest-install smoketest-install:
 	@echo "installing $(orchestration) system tests ..."
 	scp -F $(ssh_conf) \
@@ -184,12 +191,13 @@ functest-install scaletest-install hatest-install smoketest-install:
 	ssh -tF $(ssh_conf) bastion \
 		"~/install_systests.sh $(repo) $(systest_pkg)"
 
-functest-setup:
+functest-setup: symlink_symbols
 	@echo "setting up $(orchestration) functional test environment ..."
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
-		testenv -v create --name $(func_testenv_name) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(func_testenv_name)),bigip) $(bigip_params) \
+		testenv -v create --name $(testenv_name) \
+		--output-dir $(symbols_dir) \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
@@ -199,23 +207,24 @@ functest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(func_session) $(orchestration) func $(bigip_pool_mode)"
+		$(systest_pkg) $(session) $(orchestration) func $(bigip_pool_mode)"
 
 functest-teardown:
 	@echo "downloading $(orchestration) functional test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
-		bastion:~/test_results/$(func_session)/* $(results_dir)/
+		bastion:~/test_results/$(session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) functional test environment ..."
-	testenv delete --name $(func_testenv_name) $(testenv_config)
+	testenv delete --name $(testenv_name) $(testenv_config)
 
-scaletest-setup:
+scaletest-setup: symlink_symbols
 	@echo "setting up $(orchestration) scale test environment ..."
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
-		testenv -v create --name $(scale_testenv_name) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(scale_testenv_name)),bigip) $(bigip_params) \
+		testenv -v create --name $(testenv_name) \
+		--output-dir $(symbols_dir) \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
 		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
@@ -226,24 +235,25 @@ scaletest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(scale_session) $(orchestration) scale $(bigip_pool_mode)"
+		$(systest_pkg) $(session) $(orchestration) scale $(bigip_pool_mode)"
 
 scaletest-teardown:
 	@echo "downloading $(orchestration) scale test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
-		bastion:~/test_results/$(scale_session)/* $(results_dir)/
+		bastion:~/test_results/$(session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) scale test environment ..."
-	testenv delete --name $(scale_testenv_name) $(testenv_config)
+	testenv delete --name $(testenv_name) $(testenv_config)
 
-hatest-setup:
+hatest-setup: symlink_symbols
 	@echo "setting up $(orchestration) HA test environment ..."
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
-		testenv -v create --name $(ha_testenv_name) \
-		--requires bigip1-ha:$(ha_testenv_name)_bigip1 \
-		--requires bigip2-ha:$(ha_testenv_name)_bigip2 \
+		testenv -v create --name $(testenv_name) \
+		--output-dir $(symbols_dir) \
+		--requires bigip1-ha:$(testenv_name)_bigip1 \
+		--requires bigip2-ha:$(testenv_name)_bigip2 \
 		--params num_masters:1 --params num_workers:1 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
@@ -258,25 +268,26 @@ hatest-run:
 		"export OS_PASSWORD=$(OS_PASSWORD) &&" \
 		"export OS_AUTH_URL=$(OS_AUTH_URL) &&" \
 		"~/run_systests.sh \
-		$(systest_pkg) $(ha_session) $(orchestration) ha $(bigip_pool_mode)"
+		$(systest_pkg) $(session) $(orchestration) ha $(bigip_pool_mode)"
 
 hatest-teardown:
 	@echo "downloading $(orchestration) HA test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
-		bastion:~/test_results/$(ha_session)/* $(results_dir)/
+		bastion:~/test_results/$(session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) HA test environment ..."
-	testenv delete --name $(ha_testenv_name) $(testenv_config)
-	testenv delete --name $(ha_testenv_name)_bigip1 bigip1-ha
-	testenv delete --name $(ha_testenv_name)_bigip2 bigip2-ha
+	testenv delete --name $(testenv_name) $(testenv_config)
+	testenv delete --name $(testenv_name)_bigip1 bigip1-ha
+	testenv delete --name $(testenv_name)_bigip2 bigip2-ha
 
-smoketest-setup:
+smoketest-setup: symlink_symbols
 	@echo "setting up $(orchestration) smoke test environment ..."
 	@echo "BIG-IP under test: $(bigip_current_ver)"
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
-		testenv -v create --name $(smoke_testenv_name) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(smoke_testenv_name)),bigip) $(bigip_params) \
+		testenv -v create --name $(testenv_name) \
+		--output-dir $(symbols_dir) \
+		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
@@ -286,13 +297,13 @@ smoketest-run:
 	scp -F $(ssh_conf) $(systest_pkg)/scripts/run_systests.sh bastion:~/
 	ssh -tF $(ssh_conf) bastion \
 		"~/run_systests.sh \
-		$(systest_pkg) $(smoke_session) $(orchestration) smoke $(bigip_pool_mode)"
+		$(systest_pkg) $(session) $(orchestration) smoke $(bigip_pool_mode)"
 
 smoketest-teardown:
 	@echo "downloading $(orchestration) smoke test results ..."
 	if [ ! -e $(results_dir) ]; then mkdir -p $(results_dir); fi
 	-scp -rp -F $(ssh_conf) \
-		bastion:~/test_results/$(smoke_session)/* $(results_dir)/
+		bastion:~/test_results/$(session)/* $(results_dir)/
 
 	@echo "tearing down $(orchestration) smoke test environment ..."
-	testenv delete --name $(smoke_testenv_name) $(testenv_config)
+	testenv delete --name $(testenv_name) $(testenv_config)
