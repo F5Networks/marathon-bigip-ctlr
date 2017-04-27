@@ -42,9 +42,9 @@ else
 fi
 
 # - create the local results directory
-results_dir="~/test_results"
-if [[ ! -e "$results_dir" ]]; then
-    mkdir -p "$results_dir"
+results_dir=~/test_results
+if [[ ! -e $results_dir ]]; then
+    mkdir -p $results_dir"
 fi
 
 # - enter the systest virtualenv
