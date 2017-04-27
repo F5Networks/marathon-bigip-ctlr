@@ -10,8 +10,6 @@ CURDIR="$(dirname $BASH_SOURCE)"
 WKDIR=$(mktemp -d docker-build.XXXX)
 cp $CURDIR/Dockerfile.runtime $WKDIR
 cp $CURDIR/../marathon-runtime-requirements.txt $WKDIR
-cp $CURDIR/../_f5.py $WKDIR
-cp $CURDIR/../common.py $WKDIR
 cp $CURDIR/../marathon-bigip-ctlr.py $WKDIR
 cp $CURDIR/../run $WKDIR
 
