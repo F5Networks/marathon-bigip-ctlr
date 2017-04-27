@@ -331,6 +331,7 @@ def _verify_bigip_updates(orchestration, bigip, controller, valid_user):
     try:
         expected_objs = {}
         if valid_user:
+            utils.wait_for_bigip_controller()
             expected_objs = utils.get_backend_objects_exp(svc, controller)
         utils.wait_for_backend_objects(bigip, expected_objs)
     finally:

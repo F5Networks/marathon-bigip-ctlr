@@ -234,7 +234,8 @@ def create_managed_northsouth_service(
         num_instances=DEFAULT_SVC_INSTANCES,
         config=DEFAULT_SVC_CONFIG,
         wait_for_deploy=True,
-        service_type="NodePort"):
+        service_type="NodePort",
+        namespace=DEFAULT_F5MLB_NAMESPACE):
     """Create a microservice with bigip-controller decorations."""
     if id is None:
         id = unique_id("test-svc")
@@ -249,45 +250,55 @@ def create_managed_northsouth_service(
     if symbols.orchestration == "marathon":
         _lbls.update(config)
     if is_kubernetes():
-        orchestration.namespace = "default"
+        #  save the current namespace the orchestration was created in
+        _old_namespace = orchestration.namespace
+        orchestration.namespace = namespace
     if symbols.orchestration == "openshift":
         service_account = DEFAULT_OPENSHIFT_USER
     else:
         service_account = None
 
     print '%s: create_managed_northsouth_service: CALL systest-common'
-    svc = orchestration.app.create(
-        id=id,
-        cpus=cpus,
-        mem=mem,
-        timeout=timeout,
-        container_img=TEST_NGINX_IMG,
-        labels=_lbls,
-        container_port_mappings=[
-            {
-                'container_port': DEFAULT_SVC_PORT,
-                'host_port': 0,
-                'service_port': 0,
-                'protocol': "tcp"
-            }
-        ],
-        container_force_pull_image=True,
-        health_checks=health_checks,
-        num_instances=num_instances,
-        wait_for_deploy=wait_for_deploy,
-        service_account=service_account,
-        service_type=service_type
-    )
-    # By waiting until the app is deployed before creating the VS Resource,
-    # the big-ip won't fail any health checks, and things go faster.
-    #
-    # The reverse order is tested in ??????
-    if is_kubernetes():
-        config['name'] = "%s-map" % id
-        config['data']['data']['virtualServer']['backend']['serviceName'] = id
-        print '%s: create_managed_northsouth_service: CALL create_configmap'
-        orchestration.app.create_configmap(config)
-    return svc
+    try:
+        svc = orchestration.app.create(
+            id=id,
+            cpus=cpus,
+            mem=mem,
+            timeout=timeout,
+            container_img=TEST_NGINX_IMG,
+            labels=_lbls,
+            container_port_mappings=[
+                {
+                    'container_port': DEFAULT_SVC_PORT,
+                    'host_port': 0,
+                    'service_port': 0,
+                    'protocol': "tcp"
+                }
+            ],
+            container_force_pull_image=True,
+            health_checks=health_checks,
+            num_instances=num_instances,
+            wait_for_deploy=wait_for_deploy,
+            service_account=service_account,
+            service_type=service_type,
+            namespace=namespace
+        )
+        # By waiting until the app is deployed before creating the VS Resource,
+        # the big-ip won't fail any health checks, and things go faster.
+        #
+        # The reverse order is tested in ??????
+        if is_kubernetes():
+            config['name'] = "%s-map" % id
+            vs = config['data']['data']['virtualServer']
+            vs['backend']['serviceName'] = id
+            orchestration.app.create_configmap(config)
+
+        return svc
+
+    finally:
+        # Set the orchestration namespace back to the original
+        if is_kubernetes():
+            orchestration.namespace = _old_namespace
 
 
 def unmanage_northsouth_service(orchestration, svc):
@@ -407,7 +418,7 @@ def get_backend_object_name(svc, port_idx=0):
         )
     if is_kubernetes():
         return (
-            "%s_%s-map" % (DEFAULT_F5MLB_NAMESPACE, svc.id)
+            "%s_%s-map" % (svc.namespace, svc.id)
         )
 
 
@@ -573,24 +584,37 @@ def get_backend_pool_members_exp(svc, bigip_controller, port_idx=0):
         return pm
 
 
-def get_backend_objects_exp(svc, bigip_controller, pool_only=False):
+def get_backend_objects_exp(svcs, bigip_controller, pool_only=False):
     """A dict of the expected backend resources."""
-    instances = svc.instances.get()
-    obj_name = get_backend_object_name(svc)
+    if type(svcs) is not list:
+        svcs = [svcs]
     if bigip_controller.pool_mode == POOL_MODE_NODEPORT:
         nodes = symbols.worker_default_ips
     else:
-        nodes = set([i.host for i in instances])
-    if symbols.orchestration == "marathon":
-        virtual_addr = svc.labels.get('F5_0_BIND_ADDR', None)
-    elif is_kubernetes():
-        virtual_addr = DEFAULT_F5MLB_BIND_ADDR
-    pool_members = get_backend_pool_members_exp(svc, bigip_controller)
+        nodes = []
+    object_names = []
+    virtual_addr = []
+    pool_members = []
+    for service in svcs:
+        if bigip_controller.pool_mode == POOL_MODE_CLUSTER:
+            for i in service.instances.get():
+                nodes.append(i.host)
+        object_names.append(get_backend_object_name(service))
+        if symbols.orchestration == "marathon":
+            virtual_addr.append(service.labels['F5_0_BIND_ADDR'])
+        elif is_kubernetes() and not pool_only:
+            ips = get_k8s_status_ip_address(service)
+            for ip in ips:
+                virtual_addr.append(ip)
+        for pool_member in get_backend_pool_members_exp(
+                service, bigip_controller):
+            pool_members.append(pool_member)
+    object_names = sorted(object_names)
     ret = {
-        'virtual_servers': [obj_name],
-        'virtual_addresses': [virtual_addr],
-        'health_monitors': [obj_name],
-        'pools': [obj_name],
+        'virtual_servers': object_names,
+        'virtual_addresses': sorted(virtual_addr),
+        'health_monitors': object_names,
+        'pools': object_names,
         'pool_members': sorted(pool_members),
         'nodes': sorted(nodes),
     }
@@ -611,7 +635,7 @@ def verify_backend_objs(bigip, svc, bigip_controller, pool_only=False):
                                                pool_only=pool_only)
     assert get_backend_objects(bigip) == backend_objs_exp
     if is_kubernetes() and not pool_only:
-        assert (get_backend_objects(bigip)['virtual_addresses'][0] ==
+        assert (get_backend_objects(bigip)['virtual_addresses'] ==
                 get_k8s_status_ip_address(svc))
     elif is_kubernetes() and pool_only:
         assert (get_backend_objects(bigip).get('virtual_addresses', None) is
@@ -708,13 +732,18 @@ def get_app_instance(app, marathon_instance_number=0,
         return (None, None)
 
 
-def get_k8s_status_ip_address(svc):
+def get_k8s_status_ip_address(svcs):
     """Return the IP address contained in the status annotation."""
-    cm = pykube.ConfigMap.objects(svc._api).get_by_name(
-        "{}-map".format(svc.id))
-    annotations = cm.obj['metadata']['annotations']
-    status = annotations['status.virtual-server.f5.com/ip']
-    return status
+    if type(svcs) is not list:
+        svcs = [svcs]
+    status = []
+    for service in svcs:
+        cm = pykube.ConfigMap.objects(service._api).filter(
+            namespace=service._namespace).get_by_name(
+                "{}-map".format(service.id))
+        annotations = cm.obj['metadata']['annotations']
+        status.append(annotations['status.virtual-server.f5.com/ip'])
+    return sorted(status)
 
 
 def get_k8s_pod_name_and_namespace(pod_name):
