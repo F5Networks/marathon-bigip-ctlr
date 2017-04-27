@@ -240,6 +240,7 @@ def _scale_svcs(
     slices = [
         svc_inputs[i:i+pool_size] for i in range(0, len(svc_inputs), pool_size)
     ]
+    print '_scale_svcs: CALL multiprocessing'
     for slice in slices:
         p = multiprocessing.Pool(processes=len(slice))
         svcs += p.map(_create_svc, slice)
@@ -273,6 +274,7 @@ def _create_svc(kwargs):
     # - create a managed service
     svc_name = "svc-%d" % kwargs['idx']
     config = _get_scale_config(kwargs)
+    print '%s: _create_svc: CALL create_managed_northsouth_service' % svc_name
     svc = utils.create_managed_northsouth_service(
         kwargs['orchestration'],
         svc_name,
@@ -283,6 +285,7 @@ def _create_svc(kwargs):
         config=config
     )
     if kwargs['wait_for_vs'] is True:
+        print '%s: _create_svc: CALL _wait_for_virtual_server' % svc_name
         _wait_for_virtual_server(svc, kwargs['ssh'])
     return {
         'svc_name': svc_name,

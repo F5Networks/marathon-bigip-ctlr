@@ -254,6 +254,7 @@ def create_managed_northsouth_service(
     else:
         service_account = None
 
+    print '%s: create_managed_northsouth_service: CALL systest-common'
     svc = orchestration.app.create(
         id=id,
         cpus=cpus,
@@ -283,6 +284,7 @@ def create_managed_northsouth_service(
     if is_kubernetes():
         config['name'] = "%s-map" % id
         config['data']['data']['virtualServer']['backend']['serviceName'] = id
+        print '%s: create_managed_northsouth_service: CALL create_configmap'
         orchestration.app.create_configmap(config)
     return svc
 
