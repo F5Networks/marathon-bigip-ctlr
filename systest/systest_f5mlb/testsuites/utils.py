@@ -598,7 +598,7 @@ def get_app_instance(app, marathon_instance_number=0,
     """Return app instance."""
     if symbols.orchestration == 'marathon':
         return app.app.instances.get()[marathon_instance_number]
-    elif symbols.orchestration == 'k8s':
+    elif is_kubernetes():
         pod_name = app.app_kwargs['id']
         result = get_k8s_pod_name_and_namespace(pod_name)
         assert result, 'Could not find pod %s' % pod_name
@@ -631,6 +631,15 @@ def get_k8s_pod_name_and_namespace(pod_name):
             name = splits[1]
             matches.append((name, namespace))
     return matches
+
+
+def get_k8s_pod_ip(pod_name):
+    """Get the ip for a specific pod referenced by name."""
+    pod_cmd = ['kubectl', 'describe', 'pods', pod_name]
+    output = subprocess.check_output(pod_cmd)
+
+    return re.search(r'^Node:\s+([^/]+)/\S+$', output,
+                     flags=re.MULTILINE).group(1)
 
 
 def get_k8s_pod_logs(pod_name, namespace):
