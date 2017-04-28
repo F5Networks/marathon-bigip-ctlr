@@ -32,7 +32,7 @@ from f5_cccl.common import DCOSAuth, get_marathon_auth_params, setup_logging
 from f5.bigip import BigIP
 from f5_cccl._f5 import CloudBigIP, get_protocol
 from StringIO import StringIO
-from testcommon import BigIPTest, HealthCheck, Pool
+from f5_cccl.testcommon import BigIPTest, HealthCheck, Pool
 ctlr = __import__('marathon-bigip-ctlr')
 
 args_env = ['F5_CC_SYSLOG_SOCKET',
