@@ -16,6 +16,7 @@
 
 
 import copy
+import json
 import re
 import time
 import subprocess
@@ -415,6 +416,96 @@ def wait_for_bigip_controller(num_seconds=DEFAULT_F5MLB_WAIT):
     time.sleep(num_seconds)
 
 
+def update_svc_config(config, orchestration, svc_id):
+    """Update a service's configuration."""
+    if symbols.orchestration == 'marathon':
+        orchestration.app.update(svc_id, cpus=DEFAULT_SVC_CPUS,
+                                 mem=DEFAULT_SVC_MEM, labels=config,
+                                 timeout=DEFAULT_DEPLOY_TIMEOUT,
+                                 wait_for_deploy=True,
+                                 health_checks=DEFAULT_SVC_HEALTH_CHECKS_HTTP)
+    elif is_kubernetes():
+        config['name'] = svc_id + "-map"
+        config['data']['data']['virtualServer']['backend']['serviceName'] = \
+            svc_id
+        orchestration.app.update_configmap(config)
+
+
+def get_iapp_config(iapp):
+    if symbols.orchestration == "marathon":
+        cfg = {
+            'F5_PARTITION': DEFAULT_F5MLB_PARTITION,
+            'F5_0_IAPP_TEMPLATE': iapp.name,
+        }
+        if hasattr(iapp, 'pool_member_table_name'):
+            cfg['F5_0_IAPP_POOL_MEMBER_TABLE_NAME'] = \
+                iapp.pool_member_table_name
+        if hasattr(iapp, 'pool_member_table'):
+            cfg['F5_0_IAPP_POOL_MEMBER_TABLE'] = \
+                json.dumps(iapp.pool_member_table)
+        for k, v in iapp.options.iteritems():
+            cfg['F5_0_IAPP_OPTION_' + k] = v
+        for k, v in iapp.vars.iteritems():
+            cfg['F5_0_IAPP_VARIABLE_' + k] = v
+        for k, v in iapp.tables.iteritems():
+            cfg['F5_0_IAPP_TABLE_' + k] = json.dumps(v)
+    if is_kubernetes():
+        cfg = copy.deepcopy(DEFAULT_SVC_CONFIG)
+        cfg['data']['data']['virtualServer'].pop('frontend')
+        cfg['data']['data']['virtualServer']['frontend'] = {
+            'partition': DEFAULT_F5MLB_PARTITION,
+            'iapp': iapp.name,
+            'iappPoolMemberTable': iapp.pool_member_table,
+            'iappTables': iapp.tables,
+            'iappOptions': iapp.options,
+            'iappVariables': iapp.vars
+        }
+    return cfg
+
+
+class SampleHttpIApp(object):
+    """Test instance of the standard F5 HTTP iApp."""
+
+    def __init__(self):
+        """Initialize members."""
+        self.name = "/Common/f5.http"
+        self.options = {'description': "This is a test iApp"}
+        self.pool_member_table = {
+            "name": "pool__members",
+            "columns": [{"name": "addr", "kind": "IPAddress"},
+                        {"name": "port", "kind": "Port"},
+                        {"name": "connection_limit", "value": "0"}]
+        }
+        self.tables = {}
+
+        CREATE_NEW = "/#create_new#"
+        DONT_USE = "/#do_not_use#"
+        self.vars = {
+            'net__client_mode': "wan",
+            'net__server_mode': "lan",
+            'pool__addr': DEFAULT_F5MLB_BIND_ADDR,
+            'pool__port': str(DEFAULT_F5MLB_PORT),
+            'pool__pool_to_use': CREATE_NEW,
+            'pool__lb_method': "round-robin",
+            'pool__http': CREATE_NEW,
+            'pool__mask': "255.255.255.255",
+            'pool__persist': DONT_USE,
+            'monitor__monitor': CREATE_NEW,
+            'monitor__uri': "/",
+            'monitor__frequency': "30",
+            'monitor__response': "none",
+            'ssl_encryption_questions__advanced': "yes",
+            'net__vlan_mode': "all",
+            'net__snat_type': "automap",
+            'client__tcp_wan_opt': CREATE_NEW,
+            'client__standard_caching_with_wa': CREATE_NEW,
+            'client__standard_caching_without_wa': DONT_USE,
+            'server__tcp_lan_opt': CREATE_NEW,
+            'server__oneconnect': CREATE_NEW,
+            'server__ntlm': DONT_USE,
+        }
+
+
 def get_backend_objects(bigip, partition=DEFAULT_F5MLB_PARTITION):
     """Get the resources managed by BIG-IP."""
     ret = {}
@@ -482,7 +573,7 @@ def get_backend_pool_members_exp(svc, bigip_controller, port_idx=0):
         return pm
 
 
-def get_backend_objects_exp(svc, bigip_controller):
+def get_backend_objects_exp(svc, bigip_controller, pool_only=False):
     """A dict of the expected backend resources."""
     instances = svc.instances.get()
     obj_name = get_backend_object_name(svc)
@@ -491,7 +582,7 @@ def get_backend_objects_exp(svc, bigip_controller):
     else:
         nodes = set([i.host for i in instances])
     if symbols.orchestration == "marathon":
-        virtual_addr = svc.labels['F5_0_BIND_ADDR']
+        virtual_addr = svc.labels.get('F5_0_BIND_ADDR', None)
     elif is_kubernetes():
         virtual_addr = DEFAULT_F5MLB_BIND_ADDR
     pool_members = get_backend_pool_members_exp(svc, bigip_controller)
@@ -503,6 +594,10 @@ def get_backend_objects_exp(svc, bigip_controller):
         'pool_members': sorted(pool_members),
         'nodes': sorted(nodes),
     }
+    # pool only mode does not create virtual servers or virtual addresses
+    if pool_only:
+        del ret['virtual_servers']
+        del ret['virtual_addresses']
     # get_backend_objects doesn't return non-empty lists
     for k, v in ret.items():
         if not v:
@@ -510,13 +605,17 @@ def get_backend_objects_exp(svc, bigip_controller):
     return ret
 
 
-def verify_backend_objs(bigip, svc, bigip_controller):
+def verify_backend_objs(bigip, svc, bigip_controller, pool_only=False):
     """Verify backend objs are expected."""
-    backend_objs_exp = get_backend_objects_exp(svc, bigip_controller)
+    backend_objs_exp = get_backend_objects_exp(svc, bigip_controller,
+                                               pool_only=pool_only)
     assert get_backend_objects(bigip) == backend_objs_exp
-    if is_kubernetes():
+    if is_kubernetes() and not pool_only:
         assert (get_backend_objects(bigip)['virtual_addresses'][0] ==
                 get_k8s_status_ip_address(svc))
+    elif is_kubernetes() and pool_only:
+        assert (get_backend_objects(bigip).get('virtual_addresses', None) is
+                None)
 
 
 def wait_for_backend_objects(

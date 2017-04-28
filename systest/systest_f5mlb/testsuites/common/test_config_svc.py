@@ -119,12 +119,7 @@ def test_svc_config_bind_addr_added(ssh, orchestration,
     assert svc.instances.count() > 0
     # - verify bigip objects created for pool only service (no virtual server)
     utils.wait_for_bigip_controller()
-    # FIXME (rtalley): this is a placeholder until I get a programmatic
-    # way to verify a pool only service which will be addressed with
-    # VEL-826 since verify_backend_objs can not be leveraged in this case.
-    exp_keys = ['health_monitors', 'nodes', 'pool_members', 'pools']
-    for key in utils.get_backend_objects(bigip):
-        assert key in exp_keys
+    utils.verify_backend_objs(bigip, svc, bigip_controller, pool_only=True)
 
     if symbols.orchestration == "marathon":
         config = config_utils.get_managed_northsouth_service_config(
@@ -132,6 +127,8 @@ def test_svc_config_bind_addr_added(ssh, orchestration,
         orchestration.app.update(
             id=svc.id, labels=config,
             health_checks=utils.DEFAULT_SVC_HEALTH_CHECKS_HTTP)
+        # FIXME (rtalley): workaround for systest-common Issue #25
+        svc.labels.update({'F5_0_BIND_ADDR': utils.DEFAULT_F5MLB_BIND_ADDR})
     elif utils.is_kubernetes():
         annotate = ['kubectl', 'annotate', 'configmap',
                     '{}-map'.format(svc.id),
