@@ -18,6 +18,8 @@
 import functools
 import subprocess
 
+import pykube
+
 import pytest
 from pytest import symbols
 
@@ -288,20 +290,8 @@ def node_controller(request):
 @pytest.fixture(scope='function')
 def bigip_controller(request, orchestration):
     """Provide a default bigip-controller service."""
-    mode = request.config._meta.vars.get(
-        'controller-pool-mode', utils.POOL_MODE_CLUSTER)
-    assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
-
-    controller = utils.BigipController(orchestration, pool_mode=mode).create()
-
-    def teardown():
-        if request.config._meta.vars.get('skip_teardown', None):
-            return
-        orchestration.namespace = utils.controller_namespace()
-        controller.delete()
-
-    request.addfinalizer(teardown)
-    return controller
+    factory = bigip_controller_factory(request, orchestration)
+    return factory(ctlr_config=utils.DEFAULT_F5MLB_CONFIG)
 
 
 @pytest.fixture(scope='function')
@@ -358,3 +348,54 @@ def radius(request, orchestration):
         request.addfinalizer(_delete_app)
 
     return app
+
+
+@pytest.fixture(scope='function')
+def bigip_controller_factory(request, orchestration):
+    """Create a factory function that will create a configured bigip-ctlr."""
+    mode = request.config._meta.vars.get(
+        'controller-pool-mode', utils.POOL_MODE_CLUSTER)
+    assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
+
+    def _create_cltr_factory_func(ctlr_config, pool_mode=mode):
+
+        controller = utils.BigipController(
+            orchestration, config=ctlr_config, pool_mode=mode).create()
+
+        def teardown():
+            if request.config._meta.vars.get('skip_teardown', None):
+                return
+            orchestration.namespace = utils.controller_namespace()
+            controller.delete()
+
+        request.addfinalizer(teardown)
+        return controller
+    return _create_cltr_factory_func
+
+
+@pytest.fixture(scope='function')
+def namespaces_factory(request, orchestration):
+    """Create a factory function that will return a namespace object"""
+    def _create_namespace(namespace):
+        ns = {
+            'metadata': {
+                'name': namespace
+            }
+        }
+        pykube.Namespace(orchestration.conn, ns).create()
+
+        # remove all created namespaces but leave "default"and "kube-system"
+        def cleanup_namespaces():
+            for obj in pykube.Namespace.objects(orchestration.conn):
+                if obj.obj['metadata']['name'] != u"default" and \
+                    obj.obj['metadata']['name'] != u"kube-system" and \
+                        obj.obj['status']['phase'] != "Terminating":
+                    obj.delete()
+
+        request.addfinalizer(cleanup_namespaces)
+
+        for obj in pykube.Namespace.objects(orchestration.conn):
+            if obj.obj['metadata']['name'] == namespace:
+                return obj
+
+    return _create_namespace
