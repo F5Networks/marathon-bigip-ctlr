@@ -104,7 +104,11 @@ timestamp := $(shell date +"%Y%m%d-%H%M%S")
 export timestamp
 
 # - set testenv name
-ifeq ($(findstring functest, $(MAKECMDGOALS)), functest)
+ifeq ("$(MAKECMDGOALS)", "")
+  $(NOOP)
+else ifeq ($(MAKECMDGOALS), all)
+  $(NOOP)
+else ifeq ($(findstring functest, $(MAKECMDGOALS)), functest)
   testenv_name := f5mlb_func_$(orchestration)
 else ifeq ($(findstring scaletest, $(MAKECMDGOALS)), scaletest)
   testenv_name := f5mlb_scale_$(orchestration)
@@ -136,12 +140,14 @@ bigip_oldver_2_img := bigip-osready-11.6.1.1.0.326
 
 ifeq ($(bigip_ver), )
   bigip_params :=
-else ifeq ($(bigip_ver), v12.1.0)
+else ifeq ($(bigip_ver), $(bigip_current_ver))
   bigip_params :=
 else ifeq ($(bigip_ver), $(bigip_oldver_1_ver))
   bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_1_img)
+  bigip_current_ver := $(bigip_ver)
 else ifeq ($(bigip_ver), $(bigip_oldver_2_ver))
   bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_2_img)
+  bigip_current_ver := $(bigip_ver)
 else
   $(error ERROR: bigip version $(bigip_ver) is not supported)
 endif
