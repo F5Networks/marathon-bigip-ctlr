@@ -1,6 +1,17 @@
 Release Notes for Marathon BIG-IP Controller
 ============================================
 
+v1.1.0-dev
+----------
+
+* Features
+
+  * iApp and virtual server parameters are now mutually exclusive. This addresses a previous limitation in v1.0.0.
+  * Creates detached pools if virtual server bind addresses not specified.
+  * Container image size reduced from 321MB to 82MB.
+  * Can use local and non-local BIG-IP users.
+
+
 v1.0.0
 ------
 
