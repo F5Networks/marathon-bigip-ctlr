@@ -258,7 +258,6 @@ def create_managed_northsouth_service(
     else:
         service_account = None
 
-    print '%s: create_managed_northsouth_service: CALL systest-common'
     try:
         svc = orchestration.app.create(
             id=id,
