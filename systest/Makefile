@@ -76,8 +76,24 @@ else
   endif
 endif
 
-ifndef bigip_ctlr_tag
-  bigip_ctlr_tag := master
+# - set default bigip-ctlr image tag
+bigip_ctlr_tag ?= master
+
+# - set default bigip version
+ifndef bigip_ver
+  bigip_ver := v12.1.0
+  bigip_name := bigip
+endif
+
+# - set bigip_img
+ifeq ($(bigip_ver), v12.1.0)
+  bigip_img := bigip-osready-12.1.0.1.0.1447
+else ifeq ($(bigip_ver), v12.0.0)
+  bigip_img := bigip-osready-12.0.0.4.0.674
+else ifeq ($(bigip_ver), v11.6.1)
+  bigip_img := bigip-osready-11.6.1.1.0.326
+else
+  $(error ERROR: bigip version $(bigip_ver) is not supported)
 endif
 
 # - set testenv config file (mesos.testenv.yaml for stand-alone mesos marathon)
@@ -125,8 +141,11 @@ else
 endif
 
 # - bashify testenv name
-testenv_name := $(testenv_prefix)_$(orchestration)_$(bigip_ctlr_tag)
+testenv_name := $(testenv_prefix)_$(orchestration)_$(bigip_ctlr_tag)_$(bigip_ver)
 testenv_name := $(shell echo $(testenv_name) | sed s/[^0-9a-zA-Z_]/_/g | sed -E s/__+/_/g)
+
+# - set bigip name/alias
+bigip_name ?= $(testenv_name)_bigip
 
 session := $(testenv_name)_$(version)
 symbols_dir := $(CURDIR)/$(testenv_name)
@@ -140,29 +159,6 @@ bigip_controller_img := $(registry)/$(namespace)/$(repo_name):$(bigip_ctlr_tag)
 ssh_conf := $(symbols_dir)/testenv_ssh_config
 results_dir := test_results/$(project_dir)/f5mlb-$(version)-$(orchestration)-$(timestamp)
 
-# - set bigip_img for older versions, default is specified in bigip.params.yaml
-bigip_current_ver := v12.1.0
-bigip_oldver_1_ver := v12.0.0
-bigip_oldver_1_img := bigip-osready-12.0.0.4.0.674
-bigip_oldver_2_ver := v11.6.1
-bigip_oldver_2_img := bigip-osready-11.6.1.1.0.326
-
-ifeq ($(bigip_ver), )
-  bigip_params :=
-else ifeq ($(bigip_ver), $(bigip_current_ver))
-  bigip_params :=
-else ifeq ($(bigip_ver), $(bigip_oldver_1_ver))
-  bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_1_img)
-  bigip_current_ver := $(bigip_ver)
-else ifeq ($(bigip_ver), $(bigip_oldver_2_ver))
-  bigip_params := --params $(bigip_testenv_name)/bigip_img:$(bigip_oldver_2_img)
-  bigip_current_ver := $(bigip_ver)
-else
-  $(error ERROR: bigip version $(bigip_ver) is not supported)
-endif
-
-# function call to name specific version of bigip
-named_bigip = bigip:$(1)_bigip_$(bigip_ver)
 
 systest:
 	@$(MAKE) functest
@@ -212,7 +208,8 @@ functest-setup: symlink_symbols
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(testenv_name) \
 		--output-dir $(symbols_dir) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
+		--requires bigip:$(bigip_name) \
+		--params $(bigip_name)/bigip_img:$(bigip_img) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
@@ -239,7 +236,8 @@ scaletest-setup: symlink_symbols
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(testenv_name) \
 		--output-dir $(symbols_dir) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
+		--requires bigip:$(bigip_name) \
+		--params $(bigip_name)/bigip_img:$(bigip_img) \
 		--params bastion_flavor:m1.large \
 		--params num_masters:1 --params num_workers:6 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
@@ -302,7 +300,8 @@ smoketest-setup: symlink_symbols
 	TESTENV_STACK_TIMEOUT=$(testenv_stack_timeout) \
 		testenv -v create --name $(testenv_name) \
 		--output-dir $(symbols_dir) \
-		--requires $(if $(bigip_ver), $(call named_bigip,$(testenv_name)),bigip) $(bigip_params) \
+		--requires bigip:$(bigip_name) \
+		--params $(bigip_name)/bigip_img:$(bigip_img) \
 		--params num_masters:1 --params num_workers:2 \
 		--vars bigip_controller_img:"$(bigip_controller_img)" \
 		$(testenv_config)
