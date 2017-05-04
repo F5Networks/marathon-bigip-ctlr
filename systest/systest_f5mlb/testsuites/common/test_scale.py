@@ -122,10 +122,8 @@ def test_bigip_controller_application_scaling_sizing(
 def _run_scale_test(
         ssh, orchestration, num_svcs, num_srvs):
 
-    print '_run_scale_test: STARTED'
     # - first, scale-up the appropriate services and instances
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, True)
-    print '_run_scale_test: SVCS CREATED'
 
     # - set pool_size to number of cores on the bastion
     pool_size = 4
@@ -135,37 +133,30 @@ def _run_scale_test(
         p.map(_verify_bigip_controller, slice)
         p.close()
         p.join()
-    print '_run_scale_test: FINISHED'
 
 
 def _run_deployment_sizing_test(
         ssh, orchestration, request, num_svcs, num_srvs):
-    print '_run_deployment_sizing_test: STARTED'
     tot_srvs = num_svcs * num_srvs
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
-    print '_run_deployment_sizing_test: SVCS CREATED'
 
     # - check log for configuration finished
     ctlr = utils.deploy_controller(request, orchestration,
                                    env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
                                    mode=utils.POOL_MODE_CLUSTER)
     ctlr_instance = utils.get_app_instance(ctlr)
-    print '_run_deployment_sizing_test: CTLR DEPLOYED'
     start_str = 'SCALE_PERF: Started controller at: '
     for ctlr_log in utils.check_logs(ctlr_instance, start_str):
         start_time = float(ctlr_log)
         if start_time is not None:
             break
-    print '_run_deployment_sizing_test: INITIAL LOG FOUND'
 
     start_str = 'SCALE_PERF: Test data: '
     stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                             num_srvs, tot_srvs)
-    print '_run_deployment_sizing_test: FINAL LOG FOUND'
 
     orchestration.namespace = utils.controller_namespace()
     ctlr.delete()
-    print '_run_deployment_sizing_test: CTLR DELETED'
 
     dur = stop_time - start_time
     objs = tot_srvs + num_svcs + 1
@@ -178,38 +169,31 @@ def _run_deployment_sizing_test(
 
 def _run_scaling_sizing_test(
         ssh, orchestration, request, num_svcs, num_srvs):
-    print '_run_scaling_sizing_test: STARTED'
     tot_srvs = num_svcs * num_srvs
     svcs = _scale_svcs(ssh, orchestration, num_svcs, num_srvs, False)
-    print '_run_scaling_sizing_test: SVCS CREATED'
 
     # - check log for initial configuration finished
     ctlr = utils.deploy_controller(request, orchestration,
                                    env_vars=DEFAULT_SCALE_PERF_ENV_VARS,
                                    mode=utils.POOL_MODE_CLUSTER)
     ctlr_instance = utils.get_app_instance(ctlr)
-    print '_run_scaling_sizing_test: CTLR DEPLOYED'
     start_str = 'SCALE_PERF: Test data: '
     start_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                              num_srvs, tot_srvs)
-    print '_run_scaling_sizing_test: INITIAL LOG FOUND'
 
     # - scale-down services by 50%
     svc_name = svcs[0]['svc_name']
     num_scale = num_srvs / 2
     orchestration.app.scale(svc_name, num_scale, timeout=SVC_TIMEOUT)
-    print '_run_scaling_sizing_test: APP SCALED DOWN'
 
     # - check log for final configuration finished
     tot_srvs -= num_scale
     stop_time = _verify_scale_perf_log_data(ctlr_instance, start_str, svcs,
                                             num_srvs, tot_srvs,
                                             scaled_svc=(svc_name, num_scale))
-    print '_run_scaling_sizing_test: FINAL LOG FOUND'
 
     orchestration.namespace = utils.controller_namespace()
     ctlr.delete()
-    print '_run_scaling_sizing_test: CTLR DELETED'
 
     dur = stop_time - start_time
     objs = num_scale
@@ -240,7 +224,6 @@ def _scale_svcs(
     slices = [
         svc_inputs[i:i+pool_size] for i in range(0, len(svc_inputs), pool_size)
     ]
-    print '_scale_svcs: CALL multiprocessing'
     for slice in slices:
         p = multiprocessing.Pool(processes=len(slice))
         svcs += p.map(_create_svc, slice)
@@ -274,7 +257,6 @@ def _create_svc(kwargs):
     # - create a managed service
     svc_name = "svc-%d" % kwargs['idx']
     config = _get_scale_config(kwargs)
-    print '%s: _create_svc: CALL create_managed_northsouth_service' % svc_name
     svc = utils.create_managed_northsouth_service(
         kwargs['orchestration'],
         svc_name,
@@ -285,7 +267,6 @@ def _create_svc(kwargs):
         config=config
     )
     if kwargs['wait_for_vs'] is True:
-        print '%s: _create_svc: CALL _wait_for_virtual_server' % svc_name
         _wait_for_virtual_server(svc, kwargs['ssh'])
     return {
         'svc_name': svc_name,
