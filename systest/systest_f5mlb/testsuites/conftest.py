@@ -376,7 +376,10 @@ def bigip_controller_factory(request, orchestration):
 
 @pytest.fixture(scope='function')
 def namespaces_factory(request, orchestration):
-    """Create a factory function that will return a namespace object"""
+    """Create a factory function that will return a namespace object and
+    create the required serviceaccount for that namespace if running in
+    openshift
+    """
     def _create_namespace(namespace):
         ns = {
             'metadata': {
@@ -384,6 +387,9 @@ def namespaces_factory(request, orchestration):
             }
         }
         pykube.Namespace(orchestration.conn, ns).create()
+
+        if symbols.orchestration == "openshift":
+            _create_service_account(namespace)
 
         # remove all created namespaces but leave system required ones
         def cleanup_namespaces():
@@ -399,27 +405,20 @@ def namespaces_factory(request, orchestration):
 
         for obj in pykube.Namespace.objects(orchestration.conn):
             if obj.obj['metadata']['name'] == namespace:
+                obj.reload()
                 return obj
 
     return _create_namespace
 
 
-@pytest.fixture(scope='function')
-def openshift_service_acct_factory(request, orchestration):
-    """Provide a service account attached to anyuid scc in a specified
-    namespace."""
-    def _create_service_account(namespace):
-        cmd = ['oc', 'create', 'serviceaccount', utils.DEFAULT_OPENSHIFT_USER,
-               '-n', namespace]
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+def _create_service_account(namespace):
+    """"Create a service account for a namespace in openshift. This will be
+    cleaned up when the namespace is deleted.
+    """
+    cmd = ['oc', 'create', 'serviceaccount', utils.DEFAULT_OPENSHIFT_USER,
+           '-n', namespace]
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
-        cmd = ['oc', 'adm', 'policy', 'add-scc-to-user', 'anyuid', '-z',
-               utils.DEFAULT_OPENSHIFT_USER, '-n', namespace]
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-
-        def teardown():
-            cmd = ['oc', 'delete', 'serviceaccount', '-n',
-                   namespace, utils.DEFAULT_OPENSHIFT_USER]
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        request.addfinalizer(teardown)
-    return _create_service_account
+    cmd = ['oc', 'adm', 'policy', 'add-scc-to-user', 'anyuid', '-z',
+           utils.DEFAULT_OPENSHIFT_USER, '-n', namespace]
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT)
