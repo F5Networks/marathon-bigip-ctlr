@@ -102,7 +102,8 @@ def openshift_service_acct(request, orchestration):
                "resources": [
                    "endpoints",
                    "nodes",
-                   "services"
+                   "services",
+                   "namespaces"
                ]
            },
            {
@@ -358,9 +359,9 @@ def bigip_controller_factory(request, orchestration):
     assert mode in utils.POOL_MODES, "controller-pool-mode var is invalid"
 
     def _create_cltr_factory_func(ctlr_config, pool_mode=mode):
-
+        pm = pool_mode
         controller = utils.BigipController(
-            orchestration, config=ctlr_config, pool_mode=mode).create()
+            orchestration, config=ctlr_config, pool_mode=pm).create()
 
         def teardown():
             if request.config._meta.vars.get('skip_teardown', None):
@@ -384,13 +385,15 @@ def namespaces_factory(request, orchestration):
         }
         pykube.Namespace(orchestration.conn, ns).create()
 
-        # remove all created namespaces but leave "default"and "kube-system"
+        # remove all created namespaces but leave system required ones
         def cleanup_namespaces():
             for obj in pykube.Namespace.objects(orchestration.conn):
-                if obj.obj['metadata']['name'] != u"default" and \
-                    obj.obj['metadata']['name'] != u"kube-system" and \
+                if obj.obj['metadata']['name'] != "default" and \
+                    obj.obj['metadata']['name'] != "kube-system" and \
+                    obj.obj['metadata']['name'] != "openshift" and \
+                    obj.obj['metadata']['name'] != "openshift-infra" and \
                         obj.obj['status']['phase'] != "Terminating":
-                    obj.delete()
+                            obj.delete()
 
         request.addfinalizer(cleanup_namespaces)
 
@@ -399,3 +402,24 @@ def namespaces_factory(request, orchestration):
                 return obj
 
     return _create_namespace
+
+
+@pytest.fixture(scope='function')
+def openshift_service_acct_factory(request, orchestration):
+    """Provide a service account attached to anyuid scc in a specified
+    namespace."""
+    def _create_service_account(namespace):
+        cmd = ['oc', 'create', 'serviceaccount', utils.DEFAULT_OPENSHIFT_USER,
+               '-n', namespace]
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        cmd = ['oc', 'adm', 'policy', 'add-scc-to-user', 'anyuid', '-z',
+               utils.DEFAULT_OPENSHIFT_USER, '-n', namespace]
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        def teardown():
+            cmd = ['oc', 'delete', 'serviceaccount', '-n',
+                   namespace, utils.DEFAULT_OPENSHIFT_USER]
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        request.addfinalizer(teardown)
+    return _create_service_account

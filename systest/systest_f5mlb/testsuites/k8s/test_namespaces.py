@@ -18,7 +18,7 @@
 import copy
 import subprocess
 
-from pytest import meta_suite, meta_test
+from pytest import meta_suite, meta_test, symbols
 
 from .. import utils
 
@@ -28,7 +28,8 @@ pytestmark = meta_suite(tags=["func", "k8s", "openshift", "no_marathon"])
 
 @meta_test(id="k8s-7", tags=[])
 def test_k8s_namespace_label(ssh, orchestration, bigip,
-                             bigip_controller_factory, namespaces_factory):
+                             bigip_controller_factory, namespaces_factory,
+                             openshift_service_acct_factory):
     """Test adding and removing labels from a namespace."""
     assert utils.get_backend_objects(bigip) == {}
 
@@ -43,6 +44,11 @@ def test_k8s_namespace_label(ssh, orchestration, bigip,
 
     ns_foo = namespaces_factory("foo")
     ns_bar = namespaces_factory("bar")
+
+    if symbols.orchestration == "openshift":
+        openshift_service_acct_factory("foo")
+        openshift_service_acct_factory("bar")
+
     svc_foo = utils.create_managed_northsouth_service(
         orchestration, "svc-foo", namespace='foo')
     svc_bar = utils.create_managed_northsouth_service(
@@ -91,7 +97,8 @@ def test_k8s_namespace_label(ssh, orchestration, bigip,
 
 @meta_test(id="k8s-8", tags=[])
 def test_k8s_namespaces_all(ssh, orchestration, bigip,
-                            bigip_controller_factory, namespaces_factory):
+                            bigip_controller_factory, namespaces_factory,
+                            openshift_service_acct_factory):
     """Test adding and removing namespaces with services while watching all
     namespaces."""
     assert utils.get_backend_objects(bigip) == {}
@@ -109,6 +116,11 @@ def test_k8s_namespaces_all(ssh, orchestration, bigip,
     # Create two namespaces with a service in each
     ns_alpha = namespaces_factory("alpha")
     ns_bravo = namespaces_factory("bravo")
+
+    if symbols.orchestration == "openshift":
+        openshift_service_acct_factory("alpha")
+        openshift_service_acct_factory("bravo")
+
     svc_alpha = utils.create_managed_northsouth_service(
         orchestration, "svc-alpha", namespace='alpha')
     svc_bravo = utils.create_managed_northsouth_service(
@@ -154,7 +166,8 @@ def test_k8s_namespaces_all(ssh, orchestration, bigip,
 
 @meta_test(id="k8s-9", tags=[])
 def test_k8s_namespaces_list(ssh, orchestration, bigip,
-                             bigip_controller_factory, namespaces_factory):
+                             bigip_controller_factory, namespaces_factory,
+                             openshift_service_acct_factory):
     """Test adding and removing namespaces with services while watching a list
     of namespaces."""
     assert utils.get_backend_objects(bigip) == {}
@@ -176,6 +189,11 @@ def test_k8s_namespaces_list(ssh, orchestration, bigip,
     # Create two namespaces with a service in each
     ns_delta = namespaces_factory("delta")
     ns_echo = namespaces_factory("echo")
+
+    if symbols.orchestration == "openshift":
+        openshift_service_acct_factory("delta")
+        openshift_service_acct_factory("echo")
+
     svc_delta = utils.create_managed_northsouth_service(
         orchestration, "svc-delta", namespace='delta')
     svc_echo = utils.create_managed_northsouth_service(

@@ -590,21 +590,19 @@ def get_backend_objects_exp(svcs, bigip_controller, pool_only=False):
     if bigip_controller.pool_mode == POOL_MODE_NODEPORT:
         nodes = symbols.worker_default_ips
     else:
-        nodes = []
+        nodes = set()
     object_names = []
     virtual_addr = []
     pool_members = []
     for service in svcs:
         if bigip_controller.pool_mode == POOL_MODE_CLUSTER:
             for i in service.instances.get():
-                nodes.append(i.host)
+                nodes.add(i.host)
         object_names.append(get_backend_object_name(service))
         if symbols.orchestration == "marathon":
-            virtual_addr.append(service.labels['F5_0_BIND_ADDR'])
+            virtual_addr.append(service.labels.get('F5_0_BIND_ADDR', None))
         elif is_kubernetes() and not pool_only:
-            ips = get_k8s_status_ip_address(service)
-            for ip in ips:
-                virtual_addr.append(ip)
+            virtual_addr.append(service.vs_bind_addr)
         for pool_member in get_backend_pool_members_exp(
                 service, bigip_controller):
             pool_members.append(pool_member)
@@ -740,7 +738,9 @@ def get_k8s_status_ip_address(svcs):
         cm = pykube.ConfigMap.objects(service._api).filter(
             namespace=service._namespace).get_by_name(
                 "{}-map".format(service.id))
-        annotations = cm.obj['metadata']['annotations']
+        annotations = cm.obj['metadata'].get('annotations')
+        if annotations is None:
+            continue
         status.append(annotations['status.virtual-server.f5.com/ip'])
     return sorted(status)
 
