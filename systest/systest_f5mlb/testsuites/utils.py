@@ -44,7 +44,7 @@ DEFAULT_BIGIP_USERNAME = "admin"
 DEFAULT_DEPLOY_TIMEOUT = 6 * 60
 
 DEFAULT_F5MLB_CPUS = 0.1
-DEFAULT_F5MLB_MEM = 32
+DEFAULT_F5MLB_MEM = 48
 # FIXME(kenr): If we want to make general use of a second bigip in k8s, we
 #              need to remove hard-coded use of this in the functions below.
 DEFAULT_F5MLB_BIND_ADDR = symbols.bigip_ext_ip
