@@ -1542,6 +1542,7 @@ class MarathonTest(BigIPTest):
         self.bigip.iapp_create = self.bigip.iapp_create_orig
         self.bigip.sys.application.services.service.create = \
             Mock(side_effect=self.mock_iapp_service_create)
+        self.bigip.virtual_delete = Mock(side_effect=self.mock_virtual_delete)
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
@@ -1563,6 +1564,7 @@ class MarathonTest(BigIPTest):
         self.assertFalse(self.bigip.ltm.monitor.tcps.tcp.load.called)
         self.assertFalse(self.bigip.member_delete.called)
         self.assertFalse(self.bigip.iapp_delete.called)
+        self.assertFalse(self.bigip.virtual_delete.called)
 
         self.assertFalse(self.bigip.ltm.virtuals.virtual.create.called)
         self.assertFalse(self.bigip.ltm.pools.pool.create.called)
