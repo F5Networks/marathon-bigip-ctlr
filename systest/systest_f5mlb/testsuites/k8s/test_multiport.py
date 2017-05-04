@@ -155,7 +155,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     #    (There should be 3 of them)
     #
     pod1_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod1_cfg, 'pod1')
+    _configure_pod_name(pod1_cfg, 'test-pod1')
     _configure_pod_port(pod1_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod1_cfg, 1, 'bar', '8081')
 
@@ -167,7 +167,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     named_ports['bar'].append(pod_ip + ":8081")
 
     pod2_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod2_cfg, 'pod2')
+    _configure_pod_name(pod2_cfg, 'test-pod2')
     _configure_pod_port(pod2_cfg, 0, 'bar', '8081')
     _configure_pod_port(pod2_cfg, 1, 'foo', '8080')
 
@@ -178,7 +178,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     named_ports['foo'].append(pod_ip + ":8080")
 
     pod3_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod3_cfg, 'pod3')
+    _configure_pod_name(pod3_cfg, 'test-pod3')
     _configure_pod_port(pod3_cfg, 0, 'foo', '80')
     _configure_pod_port(pod3_cfg, 1, 'baz', '8080')
 
@@ -190,7 +190,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
 
     # create service for target foo
     svc_cfg = _copy_template(SERVICE_TEMPLATE)
-    _configure_service_name(svc_cfg, 'svc-1')
+    _configure_service_name(svc_cfg, 'test-svc-1')
     _configure_service_port(svc_cfg, 0, name='port-a', protocol='TCP',
                             targetPort='foo', servicePort=80)
     _create_service(api, svc_cfg)
@@ -199,13 +199,13 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     vs_cfg = _copy_template(VIRTUAL_SERVER_TEMPLATE)
     _configure_virtualserver(vs_cfg, fe_mode='http',
                              fe_bind_addr=utils.symbols.bigip_ext_ip,
-                             fe_bind_port=80, be_service_name='svc-1',
+                             fe_bind_port=80, be_service_name='test-svc-1',
                              be_service_port=80)
     cmap_cfg = _copy_template(CONFIGMAP_TEMPLATE)
-    _configure_configmap(cmap_cfg, 'cmap-1', vs_cfg)
+    _configure_configmap(cmap_cfg, 'test-cmap-1', vs_cfg)
     _create_configmap(api, cmap_cfg)
 
-    vs_name_cfg = _get_virtual_server_name('cmap-1', 80)
+    vs_name_cfg = _get_virtual_server_name('test-cmap-1', 80)
     _verify_virtual_server_objects(bigip, 1, vs_name_cfg, named_ports['foo'])
 
     #
@@ -213,7 +213,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     #    There should now be four ports tagged with 'foo'
     #
     pod4_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod4_cfg, 'pod4')
+    _configure_pod_name(pod4_cfg, 'test-pod4')
     _configure_pod_port(pod4_cfg, 0, 'foo', '9090')
 
     pod4_obj = _create_pod(api, pod4_cfg)
@@ -227,7 +227,7 @@ def test_k8s_multiport_pods_with_multiple_ports(ssh, orchestration, bigip,
     # 3. Add another unrelated pod and verify there are still 4 'foo' ports
     #
     pod5_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod5_cfg, 'pod5')
+    _configure_pod_name(pod5_cfg, 'test-pod5')
     _configure_pod_port(pod5_cfg, 0, 'bar', '9090')
 
     pod5_obj = _create_pod(api, pod5_cfg)
@@ -300,12 +300,12 @@ def test_k8s_multiport_service_with_multiple_ports(ssh, orchestration, bigip,
     # 1. Create 2 identical pods (each with 2 ports)
     #
     pod1_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod1_cfg, 'pod1')
+    _configure_pod_name(pod1_cfg, 'test-pod1')
     _configure_pod_port(pod1_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod1_cfg, 1, 'bar', '8081')
 
     pod2_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod2_cfg, 'pod2')
+    _configure_pod_name(pod2_cfg, 'test-pod2')
     _configure_pod_port(pod2_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod2_cfg, 1, 'bar', '8081')
 
@@ -323,7 +323,7 @@ def test_k8s_multiport_service_with_multiple_ports(ssh, orchestration, bigip,
     # 2. Create one service  with two ports, each going to one of the pod ports
     #
     svc_cfg = _copy_template(SERVICE_TEMPLATE)
-    _configure_service_name(svc_cfg, 'svc-1')
+    _configure_service_name(svc_cfg, 'test-svc-1')
     _configure_service_port(svc_cfg, 0, name='port-a', protocol='TCP',
                             targetPort='foo', servicePort=80)
     _configure_service_port(svc_cfg, 1, name='port-b', protocol='TCP',
@@ -336,13 +336,13 @@ def test_k8s_multiport_service_with_multiple_ports(ssh, orchestration, bigip,
     vs1_cfg = _copy_template(VIRTUAL_SERVER_TEMPLATE)
     _configure_virtualserver(vs1_cfg, fe_mode='http',
                              fe_bind_addr=utils.symbols.bigip_ext_ip,
-                             fe_bind_port=80, be_service_name='svc-1',
+                             fe_bind_port=80, be_service_name='test-svc-1',
                              be_service_port=80)
     cmap1_cfg = _copy_template(CONFIGMAP_TEMPLATE)
-    _configure_configmap(cmap1_cfg, 'cmap-1', vs1_cfg)
+    _configure_configmap(cmap1_cfg, 'test-cmap-1', vs1_cfg)
     cmap1_obj = _create_configmap(api, cmap1_cfg)
 
-    vs_name_port_a = _get_virtual_server_name('cmap-1', 80)
+    vs_name_port_a = _get_virtual_server_name('test-cmap-1', 80)
     _verify_virtual_server_objects(bigip, 1, vs_name_port_a,
                                    named_ports['foo'])
 
@@ -352,13 +352,13 @@ def test_k8s_multiport_service_with_multiple_ports(ssh, orchestration, bigip,
     vs2_cfg = _copy_template(VIRTUAL_SERVER_TEMPLATE)
     _configure_virtualserver(vs2_cfg, fe_mode='http',
                              fe_bind_addr=utils.symbols.bigip_ext_ip,
-                             fe_bind_port=8080, be_service_name='svc-1',
+                             fe_bind_port=8080, be_service_name='test-svc-1',
                              be_service_port=8080)
     cmap2_cfg = _copy_template(CONFIGMAP_TEMPLATE)
-    _configure_configmap(cmap2_cfg, 'cmap-2', vs2_cfg)
+    _configure_configmap(cmap2_cfg, 'test-cmap-2', vs2_cfg)
     _create_configmap(api, cmap2_cfg)
 
-    vs_name_port_b = _get_virtual_server_name('cmap-2', 8080)
+    vs_name_port_b = _get_virtual_server_name('test-cmap-2', 8080)
     _verify_virtual_server_objects(bigip, 2, vs_name_port_a,
                                    named_ports['foo'])
     _verify_virtual_server_objects(bigip, 2, vs_name_port_b,
@@ -393,12 +393,12 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     # 1. Create 2 identical pods (each with 2 ports)
     #
     pod1_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod1_cfg, 'pod1')
+    _configure_pod_name(pod1_cfg, 'test-pod1')
     _configure_pod_port(pod1_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod1_cfg, 1, 'bar', '8081')
 
     pod2_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod2_cfg, 'pod2')
+    _configure_pod_name(pod2_cfg, 'test-pod2')
     _configure_pod_port(pod2_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod2_cfg, 1, 'bar', '8081')
 
@@ -416,7 +416,7 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     # 2. Create one service with two ports, each going to one of the pod ports
     #
     svc_cfg = _copy_template(SERVICE_TEMPLATE)
-    _configure_service_name(svc_cfg, 'svc-1')
+    _configure_service_name(svc_cfg, 'test-svc-1')
     _configure_service_port(svc_cfg, 0, name='port-a', protocol='TCP',
                             targetPort='foo', servicePort=80)
     _configure_service_port(svc_cfg, 1, name='port-b', protocol='TCP',
@@ -429,13 +429,13 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     vs1_cfg = _copy_template(VIRTUAL_SERVER_TEMPLATE)
     _configure_virtualserver(vs1_cfg, fe_mode='http',
                              fe_bind_addr=utils.symbols.bigip_ext_ip,
-                             fe_bind_port=80, be_service_name='svc-1',
+                             fe_bind_port=80, be_service_name='test-svc-1',
                              be_service_port=80)
     cmap1_cfg = _copy_template(CONFIGMAP_TEMPLATE)
-    _configure_configmap(cmap1_cfg, 'cmap-1', vs1_cfg)
+    _configure_configmap(cmap1_cfg, 'test-cmap-1', vs1_cfg)
     _create_configmap(api, cmap1_cfg)
 
-    vs_name_cfg1 = _get_virtual_server_name('cmap-1', 80)
+    vs_name_cfg1 = _get_virtual_server_name('test-cmap-1', 80)
     _verify_virtual_server_objects(bigip, 1, vs_name_cfg1, named_ports['foo'])
 
     #
@@ -444,14 +444,14 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     vs2_cfg = _copy_template(VIRTUAL_SERVER_TEMPLATE)
     _configure_virtualserver(vs2_cfg, fe_mode='http',
                              fe_bind_addr=utils.symbols.bigip_ext_ip,
-                             fe_bind_port=8080, be_service_name='svc-1',
+                             fe_bind_port=8080, be_service_name='test-svc-1',
                              be_service_port=80, be_hm_protocol='tcp',
                              be_hm_send='')
     cmap2_cfg = _copy_template(CONFIGMAP_TEMPLATE)
-    _configure_configmap(cmap2_cfg, 'cmap-2', vs2_cfg)
+    _configure_configmap(cmap2_cfg, 'test-cmap-2', vs2_cfg)
     cmap2_obj = _create_configmap(api, cmap2_cfg)
 
-    vs_name_cfg2 = _get_virtual_server_name('cmap-2', 8080)
+    vs_name_cfg2 = _get_virtual_server_name('test-cmap-2', 8080)
     _verify_virtual_server_objects(bigip, 2, vs_name_cfg1, named_ports['foo'])
     _verify_virtual_server_objects(bigip, 2, vs_name_cfg2, named_ports['foo'])
     _verify_health_monitor_object(bigip, vs_name_cfg1, '/Common/http')
@@ -461,7 +461,7 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     # 5. Add third pod and verify both VS are updated on Big-IP
     #
     pod3_cfg = _copy_template(POD_TEMPLATE)
-    _configure_pod_name(pod3_cfg, 'pod3')
+    _configure_pod_name(pod3_cfg, 'test-pod3')
     _configure_pod_port(pod3_cfg, 0, 'foo', '8080')
     _configure_pod_port(pod3_cfg, 1, 'bar', '8081')
 
@@ -479,7 +479,7 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     # 6. Modify 2nd virtual server to use different service port
     #
     vs2_cfg['virtualServer']['backend']['servicePort'] = 8080
-    _configure_configmap(cmap2_cfg, 'cmap-2', vs2_cfg)
+    _configure_configmap(cmap2_cfg, 'test-cmap-2', vs2_cfg)
     _update_configmap(api, cmap2_cfg)
 
     _verify_virtual_server_objects(bigip, 2, vs_name_cfg1, named_ports['foo'])
@@ -503,7 +503,7 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     # 8. Modify 2nd virtual server to use same port again
     #
     vs2_cfg['virtualServer']['backend']['servicePort'] = 80
-    _configure_configmap(cmap2_cfg, 'cmap-2', vs2_cfg)
+    _configure_configmap(cmap2_cfg, 'test-cmap-2', vs2_cfg)
     _update_configmap(api, cmap2_cfg)
 
     _verify_virtual_server_objects(bigip, 2, vs_name_cfg1, named_ports['foo'])
@@ -524,7 +524,7 @@ def test_k8s_multiport_shared_service_port(ssh, orchestration, bigip,
     #
     vs2_cfg['virtualServer']['backend']['healthMonitors'] = \
         copy.deepcopy(vs1_cfg['virtualServer']['backend']['healthMonitors'])
-    _configure_configmap(cmap2_cfg, 'cmap-2', vs2_cfg)
+    _configure_configmap(cmap2_cfg, 'test-cmap-2', vs2_cfg)
     _create_configmap(api, cmap2_cfg)
 
     _verify_virtual_server_objects(bigip, 2, vs_name_cfg1, named_ports['foo'])
