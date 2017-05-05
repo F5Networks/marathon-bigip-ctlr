@@ -1,8 +1,8 @@
 Release Notes for Marathon BIG-IP Controller
 ============================================
 
-v1.1.0-dev
-----------
+v1.1.0-beta.1
+-------------
 
 * Features
 
