@@ -81,7 +81,7 @@ Publish docs to internet:
   tags:
    - docker
   only:
-   - 1.1.0-beta.1@velcro/marathon-bigip-controller
+   - 1.1.0-beta.1@velcro/marathon-bigip-ctlr
   dependencies:
     - build docs
   script:
