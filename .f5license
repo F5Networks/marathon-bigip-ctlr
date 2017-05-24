@@ -135,9 +135,10 @@
        use or other dealings in these Data Files or Software without prior
        written authorization of the copyright holder.
 
+# The netaddr module specifies the license as 'BSD License', here is the actual
+# license that we can use.
 - name: netaddr
   version: 0.7.19
-  license: BDS-4-Clause
   attribution_text: |
     Copyright (c) 2008 by David P. D. Moss. All rights reserved.
 
