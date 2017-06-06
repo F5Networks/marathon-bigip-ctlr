@@ -1,0 +1,40 @@
+language: bash
+sudo: required
+services:
+  - docker
+
+env:
+  global: BASE_PUSH_TARGET="$DOCKER_NAMESPACE/marathon-bigip-ctlr"
+
+before_install:
+  - docker pull f5devcentral/containthedocs
+  - docker pull f5devcentral/attributions-generator
+
+script:
+  - |
+    if ["$TRAVIS_REPO_SLUG" == "F5Networks/marathon-bigip-ctlr"]; then
+        docker login -u="$DOCKER_U" -p="$DOCKER_P"
+      else
+        echo "[INFO]: Not an 'F5Networks' commit, docker optional."
+        if [ "$DOCKER_P" == "" -o "$DOCKER_U" == "" ]; then
+          echo "[INFO]: DOCKER_U and/or DOCKER_P environment var absent. Add to travis to push to docker."
+        else
+          docker login -u="$DOCKER_U" -p="$DOCKER_P"
+        fi
+    fi
+  - export IMG_TAG="${BASE_PUSH_TARGET}:${TRAVIS_COMMIT}"
+  - export BUILD_IMG_TAG="${BASE_PUSH_TARGET}-devel:${TRAVIS_COMMIT}"
+  - ./build-tools/build-devel-image.sh
+  - ./build-tools/run-in-docker.sh make python-sanity
+  - make att-gen
+  - cp ATTRIBUTIONS.md docs/_static
+  - make test-docs
+  - ./build-tools/build-runtime-images.sh
+  - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
+  - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH-$TRAVIS_BUILD_ID"
+  - |
+    if [ "$DOCKER_P" != "" -a "$DOCKER_U" != "" ]; then
+      docker push "$IMG_TAG"
+      docker push "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
+      docker push "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH-$TRAVIS_BUILD_ID"
+    fi

@@ -24,7 +24,7 @@ unit_test:
   stage: test
 
 build docs:
-  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
+  image: f5devcentral/containthedocs:latest
   script:
     - cp ATTRIBUTIONS.md docs/_static
     - ./build-tools/test-docs.sh
@@ -76,7 +76,7 @@ attributions generator:
 
 Publish docs to internet:
   # Publish ONLY 1.0-stable to the internet.
-  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
+  image: f5devcentral/containthedocs:latest
   stage: deploy
   tags:
    - docker
