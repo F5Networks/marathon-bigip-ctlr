@@ -10,7 +10,7 @@ unit_test:
   script:
     - pip install -r marathon-build-requirements.txt
     - pip install -r marathon-runtime-requirements.txt
-    - flake8 --exclude=docs/ ./
+    - flake8 --exclude=docs/,src/ ./
     - ./build-tools/lint.sh
     - coverage run -m unittest discover -v
     - coverage html
@@ -24,9 +24,9 @@ unit_test:
   stage: test
 
 build docs:
-  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
+  image: f5devcentral/containthedocs:latest
   script:
-    - cp ATTRIBUTIONS.md docs/
+    - cp ATTRIBUTIONS.md docs/_static
     - ./build-tools/test-docs.sh
   tags:
     - docker
@@ -62,7 +62,7 @@ attributions generator:
   image: docker-registry.pdbld.f5net.com/velcro/attributions-generator:master
   stage: test
   script:
-    - /usr/local/bin/run-backends.sh $PWD
+    - /usr/local/bin/run-backends.sh $PWD --pip="--requirements=marathon-runtime-requirements.txt"
     - node /frontEnd/frontEnd.js $PWD
   tags:
     - docker
@@ -76,7 +76,7 @@ attributions generator:
 
 Publish docs to internet:
   # Publish ONLY 1.0-stable to the internet.
-  image: docker-registry.pdbld.f5net.com/tools/containthedocs:master
+  image: f5devcentral/containthedocs:latest
   stage: deploy
   tags:
    - docker

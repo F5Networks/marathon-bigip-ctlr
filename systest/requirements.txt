@@ -1,3 +1,0 @@
-# - install the latest version of systest-common (which, in turn, installs a
-#   bunch of common test tools)
-git+ssh://git@gitlab.pdbld.f5net.com/velcro/systest-common.git

@@ -2833,20 +2833,88 @@ class GetProtocolTest(unittest.TestCase):
             self.assertEqual(res, None)
 
 
-class MockAppLabelData():
-    """Mock marathon label data."""
+class VirtualUpdateTest(unittest.TestCase):
+    """Test CCCL virtual_update function."""
 
-    def __init__(self, proto, port, addr, balance):
-        """Initialize a MockAppLabelData object."""
-        self.appId = 'mockApp'
-        self.mode = proto
-        self.servicePort = port
-        self.bindAddr = addr
-        self.balance = balance
+    class MockVirtual():
+        """Mock virtual class."""
+
+        def __init__(self, destination, data):
+            """Initialize a MockVirtual object."""
+            self.destination = destination
+            self.data = data
+
+        def modify(self, **kwargs):
+            """Mocked modify function."""
+            pass
+
+    def mock_get_virtual(self, partition, virtual):
+        """Returns the mocked virtual passed to it."""
+        return virtual
+
+    def mock_get_virtual_profiles(self, virtual):
+        """Returns list of mocked virtual profiles."""
+        profiles = []
+        for profile in virtual.data['profiles']:
+            if profile['name'] == 'http':
+                profiles.append({'partition': profile['partition'],
+                                 'name': 'tcp'})
+            profiles.append(profile)
+        return profiles
+
+    def setUp(self):
+        """Test suite set up."""
+        # Mock the call to _get_tmos_version(), which tries to make a
+        # connection
+        self.partition = 'test'
+        self.ipAddr = '1.2.3.4'
+        with patch.object(BigIP, '_get_tmos_version'):
+            self.bigip = CloudBigIP(self.ipAddr, '443', 'admin',
+                                    'default', [self.partition])
+
+        # Mock out SDK function calls
+        self.bigip.get_virtual_address = Mock(return_value=self.ipAddr)
+        self.bigip.virtual_address_update = Mock()
+        self.bigip.get_virtual = Mock(side_effect=self.mock_get_virtual)
+        self.bigip.get_virtual_profiles = \
+            Mock(side_effect=self.mock_get_virtual_profiles)
+        self.virtual_address_delete = Mock()
+        self.MockVirtual.modify = Mock()
+
+    def test_virtual_update_inherited_profile_no_update(self):
+        """Test virtual_update with inherited tcp profiles."""
+        destination = '/mockpath/' + self.ipAddr + ':8080'
+        data = {
+                    'virtual': {
+                        'destination': destination,
+                        'profiles': [
+                            {'partition': self.partition, 'name': 'http'}
+                        ]
+                    },
+                    'virtual_address': self.ipAddr
+                }
+        virtual = self.MockVirtual(destination, data['virtual'])
+
+        # Verify that the virtual server is not updated since the inherited tcp
+        # profiles should be removed preventing a mismatch in data profiles and
+        # the profiles returned from the BIG-IP.
+        self.bigip.virtual_update(self.partition, virtual, data)
+        self.assertFalse(self.MockVirtual.modify.called)
 
 
 class IsLabelDataValidTest(unittest.TestCase):
     """Test marathon-bigip-ctlr is_label_data_valid method."""
+
+    class MockAppLabelData():
+        """Mock marathon label data."""
+
+        def __init__(self, proto, port, addr, balance):
+            """Initialize a MockAppLabelData object."""
+            self.appId = 'mockApp'
+            self.mode = proto
+            self.servicePort = port
+            self.bindAddr = addr
+            self.balance = balance
 
     def setUp(self):
         """Test suite set up."""
@@ -2879,19 +2947,19 @@ class IsLabelDataValidTest(unittest.TestCase):
                    'ratio-least-connections-member',
                    'ratio-session']
         for i in range(0, len(proto)):
-            app = MockAppLabelData(proto[i], port[0], addr[0], balance[0])
+            app = self.MockAppLabelData(proto[i], port[0], addr[0], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(port)):
-            app = MockAppLabelData(proto[0], port[i], addr[0], balance[0])
+            app = self.MockAppLabelData(proto[0], port[i], addr[0], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(addr)):
-            app = MockAppLabelData(proto[0], port[0], addr[i], balance[0])
+            app = self.MockAppLabelData(proto[0], port[0], addr[i], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(balance)):
-            app = MockAppLabelData(proto[0], port[0], addr[0], balance[i])
+            app = self.MockAppLabelData(proto[0], port[0], addr[0], balance[i])
             res = self.bigip.is_label_data_valid(app)
             self.assertTrue(res)
 
@@ -2904,19 +2972,19 @@ class IsLabelDataValidTest(unittest.TestCase):
                 [], {}]
         balance = ['string', '', ' ', 123, False, [], {}]
         for i in range(0, len(proto)):
-            app = MockAppLabelData(proto[i], port[0], addr[0], balance[0])
+            app = self.MockAppLabelData(proto[i], port[0], addr[0], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(port)):
-            app = MockAppLabelData(proto[0], port[i], addr[0], balance[0])
+            app = self.MockAppLabelData(proto[0], port[i], addr[0], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(addr)):
-            app = MockAppLabelData(proto[0], port[0], addr[i], balance[0])
+            app = self.MockAppLabelData(proto[0], port[0], addr[i], balance[0])
             res = self.bigip.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(balance)):
-            app = MockAppLabelData(proto[0], port[0], addr[0], balance[i])
+            app = self.MockAppLabelData(proto[0], port[0], addr[0], balance[i])
             res = self.bigip.is_label_data_valid(app)
             self.assertFalse(res)
 

@@ -46,7 +46,7 @@ from recommonmark.parser import CommonMarkParser
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = '1.4.5'
+# needs_sphinx = '1.4.5'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -56,7 +56,9 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.ifconfig',
-    'sphinx.ext.autosectionlabel',
+    'sphinx.ext.doctest',
+    'sphinxjp.themes.basicstrap',
+    #'sphinx.ext.autosectionlabel',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -102,7 +104,7 @@ rst_epilog = '''
     <a href="http://clouddocs.f5.com/products/connectors/marathon-bigip-ctlr/%(url_version)s/RELEASE-NOTES.html">Release Notes</a>
 .. |attributions| raw:: html
 
-    <a href="http://clouddocs.f5.com/products/connectors/marathon-bigip-ctlr/%(url_version)s/ATTRIBUTIONS.html">Attributions</a>
+    <a href="http://clouddocs.f5.com/products/connectors/marathon-bigip-ctlr/%(url_version)s/_static/ATTRIBUTIONS.html">Attributions</a>
 ''' % {
     'url_version': version
 }
@@ -178,7 +180,9 @@ todo_include_todos = True
 #
 html_theme = 'f5_sphinx_theme'
 html_theme_path = f5_sphinx_theme.get_html_theme_path()
-html_theme_options = {}
+html_theme_options = {
+    'next_prev_link': False
+}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
