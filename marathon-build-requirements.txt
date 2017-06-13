@@ -7,3 +7,4 @@ flake8==3.2.1
 mock
 coverage
 pylint
+coveralls==1.1
