@@ -1,3 +1,5 @@
+.PHONY: all doc-preview test-docs devel-image python-lint python-unit python-sanity
+
 all:
 	@printf "\n\nAvailable targets:\n"
 	@printf "  devel-image - build development ready docker container\n"
@@ -15,3 +17,28 @@ test-docs:
 
 devel-image:
 	./build-tools/build-devel-image.sh
+
+python-lint:
+	flake8 --exclude=docs/,src/ ./
+	./build-tools/lint.sh
+
+python-unit:
+	coverage run -m unittest discover -v
+	coverage html
+	coverage report
+
+python-sanity: python-lint python-unit
+
+att-gen-backends:
+	docker run -v $(PWD):$(PWD) --rm -it \
+		f5devcentral/attributions-generator \
+		bash usr/local/bin/run-backends.sh $(PWD)
+
+att-gen-frontend:
+	docker run -v $(PWD):$(PWD) --rm -it \
+		f5devcentral/attributions-generator \
+		node /frontEnd/frontEnd.js $(PWD)
+
+att-gen: att-gen-backends att-gen-frontend
+
+
