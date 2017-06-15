@@ -9,6 +9,7 @@ WORKDIR $APPPATH
 
 COPY marathon-runtime-requirements.txt /tmp/runtime-requirements.txt
 COPY run $APPPATH
+COPY common.py $APPPATH
 COPY marathon-bigip-ctlr.py $APPPATH
     
 RUN apk --no-cache --update add --virtual pip-install-deps git && \
