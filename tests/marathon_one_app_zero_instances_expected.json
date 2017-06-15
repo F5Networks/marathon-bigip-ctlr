@@ -1,0 +1,53 @@
+{
+    "iapps": [],
+    "l7Policies": [],
+    "monitors": [
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 10,
+            "intervalSeconds": 10,
+            "maxConsecutiveFailures": 1,
+            "name": "server-app_80_0_http",
+            "path": "/my_healthcheck",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 21,
+            "timeoutSeconds": 20,
+            "type": "http"
+        }
+    ],
+    "pools": [
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [],
+            "monitors": [
+                "/mesos/server-app_80_0_http"
+            ],
+            "name": "server-app_80"
+        }
+    ],
+    "virtualServers": [
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:80",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app_80",
+            "pool": "/mesos/server-app_80",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        }
+    ]
+}
