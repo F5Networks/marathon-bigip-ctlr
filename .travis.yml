@@ -14,13 +14,7 @@ script:
   - |
     if [ "$DOCKER_P" == "" -o "$DOCKER_U" == "" -o $DOCKER_NAMESPACE == "" ]; then
       echo "[INFO] Docker user, password, or namespace vars absent from travis-ci."
-      if [ "$TRAVIS_REPO_SLUG" == "F5Networks/marathon-bigip-ctlr" ]; then
-        echo "[ERROR] Docker push will fail. See README.md 'build' section and contact repo admin."
-        false
-      else
-        echo "[INFO] Not an 'F5Networks' commit, docker optional."
-        echo "[INFO] See README.md section 'build' to configure travis with DockerHub."
-      fi
+      echo "[INFO] See README.md section 'build' to configure travis with DockerHub."
     else
       docker login -u="$DOCKER_U" -p="$DOCKER_P"
       DOCKER_READY="true"
