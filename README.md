@@ -1,8 +1,10 @@
+[![Build Status](https://travis-ci.org/F5Networks/marathon-bigip-ctlr.svg?branch=master)](https://travis-ci.org/F5Networks/marathon-bigip-ctlr) [![Coverage Status](https://coveralls.io/repos/github/F5Networks/marathon-bigip-ctlr/badge.svg?branch=HEAD)](https://coveralls.io/github/F5Networks/marathon-bigip-ctlr?branch=HEAD)
+
 F5 Marathon BIG-IP Controller
 =============================
 
 The F5 Marathon BIG-IP Controller makes F5 BIG-IP
-[Local Traffic Manager](<https://f5.com/products/big-ip/local-traffic-manager-ltm)
+[Local Traffic Manager](https://f5.com/products/big-ip/local-traffic-manager-ltm)
 services available for applications defined in a
 [Marathon](https://mesosphere.github.io/marathon/) environment.
 
@@ -49,4 +51,3 @@ To build a docker image with those artifacts:
 ```shell
 ./build-tools/build-runtime-image.sh
 ```
-
