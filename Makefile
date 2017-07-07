@@ -23,6 +23,7 @@ python-lint:
 	./build-tools/lint.sh
 
 python-unit:
+	pip install -r marathon-runtime-requirements.txt
 	coverage run -m unittest discover -v
 	coverage html
 	coverage report
