@@ -23,6 +23,8 @@ python-lint:
 	./build-tools/lint.sh
 
 python-unit:
+	#pip install -r marathon-runtime-requirements.txt
+	cat /usr/local/lib/python2.7/site-packages/f5-cccl.egg-link
 	coverage run -m unittest discover -v
 	coverage html
 	coverage report
