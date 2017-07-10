@@ -3,7 +3,8 @@ FROM python:2.7-alpine
 ENV APPPATH /app
 
 RUN mkdir -p "$APPPATH" \
- && chmod -R 755 "$APPPATH"
+ && chmod -R 755 "$APPPATH" \
+ && adduser -D ctlr
 
 WORKDIR $APPPATH
 
@@ -14,6 +15,8 @@ COPY marathon-bigip-ctlr.py $APPPATH
 RUN apk --no-cache --update add --virtual pip-install-deps git && \
     pip install -r /tmp/runtime-requirements.txt && \
     apk del pip-install-deps
+
+USER ctlr
 
 # The run script is the entry point to marathon-bigip-ctlr
 ENTRYPOINT [ "/app/run" ]
