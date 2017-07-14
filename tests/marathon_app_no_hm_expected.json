@@ -1,0 +1,136 @@
+{
+    "iapps": [],
+    "l7Policies": [],
+    "monitors": [
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app_80_0_http",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "http"
+        }
+    ],
+    "pools": [
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31132,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31615,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31972,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31982,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app_80_0_http"
+            ],
+            "name": "server-app_80"
+        },
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31356,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31627,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [],
+            "name": "server-app3_8089"
+        }
+    ],
+    "virtualServers": [
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:80",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app_80",
+            "pool": "/mesos/server-app_80",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        },
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:8089",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app3_8089",
+            "pool": "/mesos/server-app3_8089",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        }
+    ]
+}

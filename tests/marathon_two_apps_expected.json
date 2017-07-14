@@ -1,0 +1,152 @@
+{
+    "iapps": [],
+    "l7Policies": [],
+    "monitors": [
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app_80_0_http",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "http"
+        },
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app2_8080_0_tcp",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "TCP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "tcp"
+        }
+    ],
+    "pools": [
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31972,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31982,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app_80_0_http"
+            ],
+            "name": "server-app_80"
+        },
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31126,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31151,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31345,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31701,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app2_8080_0_tcp"
+            ],
+            "name": "server-app2_8080"
+        }
+    ],
+    "virtualServers": [
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:80",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app_80",
+            "pool": "/mesos/server-app_80",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        },
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:8080",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app2_8080",
+            "pool": "/mesos/server-app2_8080",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        }
+    ]
+}

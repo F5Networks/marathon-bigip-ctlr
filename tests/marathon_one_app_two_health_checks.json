@@ -127,8 +127,8 @@
             },
             {
                 "path": "/",
-                "protocol": "HTTPS",
-                "portIndex": 1,
+                "protocol": "TCP",
+                "portIndex": 0,
                 "gracePeriodSeconds": 300,
                 "intervalSeconds": 60,
                 "timeoutSeconds": 20,

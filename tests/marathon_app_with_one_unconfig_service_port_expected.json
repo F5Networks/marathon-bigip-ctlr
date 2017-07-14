@@ -1,0 +1,175 @@
+{
+    "iapps": [],
+    "l7Policies": [],
+    "monitors": [
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app4_8080_0_http",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "http"
+        },
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app4_8090_0_http",
+            "path": "/",
+            "portIndex": 1,
+            "protocol": "HTTP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "http"
+        },
+        {
+            "gracePeriodSeconds": 5,
+            "ignoreHttp1xx": false,
+            "interval": 20,
+            "intervalSeconds": 20,
+            "maxConsecutiveFailures": 3,
+            "name": "server-app4_10003_0_http",
+            "path": "/",
+            "portIndex": 2,
+            "protocol": "HTTP",
+            "timeout": 61,
+            "timeoutSeconds": 20,
+            "type": "http"
+        }
+    ],
+    "pools": [
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31365,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31388,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app4_8080_0_http"
+            ],
+            "name": "server-app4_8080"
+        },
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31366,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31389,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app4_8090_0_http"
+            ],
+            "name": "server-app4_8090"
+        },
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31367,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "10.141.141.10",
+                    "connectionLimit": 0,
+                    "port": 31390,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/server-app4_10003_0_http"
+            ],
+            "name": "server-app4_10003"
+        }
+    ],
+    "virtualServers": [
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:8080",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app4_8080",
+            "pool": "/mesos/server-app4_8080",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        },
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.242:8090",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "server-app4_8090",
+            "pool": "/mesos/server-app4_8090",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        }
+    ]
+}

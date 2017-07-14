@@ -21,7 +21,7 @@ broad-except"
 
 [ -z $1 ] ||  DEFAULTS=$@
 
-LIST="$(find . -name '*py' ! -path '*test*' ! -path '*docs*' ! -path '*f5_cccl*' )"
+LIST="$(find . -name '*py' ! -path '*test*' ! -path '*docs*' ! -path '*f5-cccl*' )"
 for i in $LIST; do
     pylint $i $DEFAULTS
 done
