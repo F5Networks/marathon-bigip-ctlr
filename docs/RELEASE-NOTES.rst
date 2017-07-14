@@ -1,7 +1,7 @@
 Release Notes for Marathon BIG-IP Controller
 ============================================
 
-v1.1.0-dev
+|release|
 ----------
 
 Added Functionality
@@ -37,4 +37,3 @@ Limitations
 * The deployment of the controller will fail if the BIG-IP is not available when the controller starts.
 * Parameters other than IPAddress and Port (e.g. Connection Limit) specified in the iApp Pool Member Table apply to all members of the pool.
 * Health monitor timeout is not described in documentation
-
