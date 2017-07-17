@@ -24,9 +24,6 @@ script:
   - export COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
   - ./build-tools/build-devel-image.sh
   - ./build-tools/run-in-docker.sh make python-sanity
-  - make att-gen
-  - cp ATTRIBUTIONS.md docs/_static
-  - make test-docs
   - ./build-tools/build-runtime-images.sh
   - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
   - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH-n-$TRAVIS_BUILD_NUMBER-id-$TRAVIS_BUILD_ID"
@@ -41,6 +38,9 @@ script:
     if [ "$TRAVIS_REPO_SLUG" == "F5Networks/k8s-bigip-ctlr" -o "$COVERALLS_REPO_TOKEN" ]; then
       ./build-tools/run-in-docker.sh coveralls
     fi
+  - make att-gen
+  - cp ATTRIBUTIONS.md docs/_static
+  - make test-docs
 
 deploy:
   - provider: script
