@@ -10,6 +10,8 @@ Added Functionality
 * Creates detached pools if virtual server bind addresses not specified.
 * Container image size reduced from 321MB to 82MB.
 * Can use local and non-local BIG-IP users.
+* Supports multiple BIG-IP health monitors for each Marathon application Service Port.
+* Wildcard (*) for F5_CC_PARTITIONS Configuration Parameter is no longer supported.
 
 v1.0.0
 ------
