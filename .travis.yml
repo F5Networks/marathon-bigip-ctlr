@@ -50,3 +50,8 @@ deploy:
       repo: F5Networks/marathon-bigip-ctlr
     script:
       - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr v1.1
+
+notifications:
+  slack:
+    rooms:
+      secure: BbX9rEy7iR/QpN5lOFIpDLX61LcCoi2czfVMGi+msax5JmxmreKhZazRYnvr1gZAIUekgSPYnZwyyP56FFpLADQxXBhEWHSM3Wpkz5mfsoHJxiZxWXUB6lvvXX3BoCgyVafVwTReQxR5xByw2YUKbrnKZ5+10ohp6ElVvqQifi0urNbwfIW/Ff/rlp0cOg+BRpE/qacvyWGfNKrBeXxNK+AM1dN3/MX4NcOjwd4N2/PMvOppI9ZYebFzgUn3ICpdixAR1i/No/QhcE5GnplG5EKp/vNkE9LZXnCHFVQGTkU2M+2a5U9akNVVw5V6eu7NFXnDt1REpdKXRlCmJbVCCuPkdxB0Bl0oQwFbI03gXJY7zCkwsf+V6DM9mfezXjDO0q+vVmttbQyDHXx9SefFpfj/jIwwoksna0Wl/RlMsFKzrtapDrB/XDe/uJPk6vHGGyiQBcFnwwweE5VxTGL0dHkYTAZg4GBcleTKUQo8dpfQajBjEEd5IeWc4StogFHmANzV3PxKPKsEZzFT6drOASZisAG6P78SDY5a+AEPf9m8eWvQeksZRx26pLL3QtHUt92J9HbnrnfNgSxCYYogWDg0HPQdQpuv7HysrtFtRBT4tmmEVrWOITo1g3auX1Ho+XUxgOqKHV+fmzhsA2NkUypPk+8jJOMnMbkBNdgKJbo=
