@@ -24,9 +24,6 @@ script:
   - export COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
   - ./build-tools/build-devel-image.sh
   - ./build-tools/run-in-docker.sh make python-sanity
-  - make att-gen
-  - cp ATTRIBUTIONS.md docs/_static
-  - make test-docs
   - ./build-tools/build-runtime-images.sh
   - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
   - docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH-n-$TRAVIS_BUILD_NUMBER-id-$TRAVIS_BUILD_ID"
@@ -41,6 +38,9 @@ script:
     if [ "$TRAVIS_REPO_SLUG" == "F5Networks/k8s-bigip-ctlr" -o "$COVERALLS_REPO_TOKEN" ]; then
       ./build-tools/run-in-docker.sh coveralls
     fi
+  - make att-gen
+  - cp ATTRIBUTIONS.md docs/_static
+  - make test-docs
 
 deploy:
   - provider: script
@@ -54,4 +54,11 @@ deploy:
 notifications:
   slack:
     rooms:
-      secure: BbX9rEy7iR/QpN5lOFIpDLX61LcCoi2czfVMGi+msax5JmxmreKhZazRYnvr1gZAIUekgSPYnZwyyP56FFpLADQxXBhEWHSM3Wpkz5mfsoHJxiZxWXUB6lvvXX3BoCgyVafVwTReQxR5xByw2YUKbrnKZ5+10ohp6ElVvqQifi0urNbwfIW/Ff/rlp0cOg+BRpE/qacvyWGfNKrBeXxNK+AM1dN3/MX4NcOjwd4N2/PMvOppI9ZYebFzgUn3ICpdixAR1i/No/QhcE5GnplG5EKp/vNkE9LZXnCHFVQGTkU2M+2a5U9akNVVw5V6eu7NFXnDt1REpdKXRlCmJbVCCuPkdxB0Bl0oQwFbI03gXJY7zCkwsf+V6DM9mfezXjDO0q+vVmttbQyDHXx9SefFpfj/jIwwoksna0Wl/RlMsFKzrtapDrB/XDe/uJPk6vHGGyiQBcFnwwweE5VxTGL0dHkYTAZg4GBcleTKUQo8dpfQajBjEEd5IeWc4StogFHmANzV3PxKPKsEZzFT6drOASZisAG6P78SDY5a+AEPf9m8eWvQeksZRx26pLL3QtHUt92J9HbnrnfNgSxCYYogWDg0HPQdQpuv7HysrtFtRBT4tmmEVrWOITo1g3auX1Ho+XUxgOqKHV+fmzhsA2NkUypPk+8jJOMnMbkBNdgKJbo=
+      # marathon channel
+      - secure: BbX9rEy7iR/QpN5lOFIpDLX61LcCoi2czfVMGi+msax5JmxmreKhZazRYnvr1gZAIUekgSPYnZwyyP56FFpLADQxXBhEWHSM3Wpkz5mfsoHJxiZxWXUB6lvvXX3BoCgyVafVwTReQxR5xByw2YUKbrnKZ5+10ohp6ElVvqQifi0urNbwfIW/Ff/rlp0cOg+BRpE/qacvyWGfNKrBeXxNK+AM1dN3/MX4NcOjwd4N2/PMvOppI9ZYebFzgUn3ICpdixAR1i/No/QhcE5GnplG5EKp/vNkE9LZXnCHFVQGTkU2M+2a5U9akNVVw5V6eu7NFXnDt1REpdKXRlCmJbVCCuPkdxB0Bl0oQwFbI03gXJY7zCkwsf+V6DM9mfezXjDO0q+vVmttbQyDHXx9SefFpfj/jIwwoksna0Wl/RlMsFKzrtapDrB/XDe/uJPk6vHGGyiQBcFnwwweE5VxTGL0dHkYTAZg4GBcleTKUQo8dpfQajBjEEd5IeWc4StogFHmANzV3PxKPKsEZzFT6drOASZisAG6P78SDY5a+AEPf9m8eWvQeksZRx26pLL3QtHUt92J9HbnrnfNgSxCYYogWDg0HPQdQpuv7HysrtFtRBT4tmmEVrWOITo1g3auX1Ho+XUxgOqKHV+fmzhsA2NkUypPk+8jJOMnMbkBNdgKJbo=
+        on_success: never
+        on_failure: always
+      # gitlab channel
+      - secure: 5jdTfKznAhtza31PjcPhyg+Fr4bw5ko5+fqUGzMy7klc8HKCN3mLGiVS1hoSx/u6J7MbL4r3cWusWMPxXNFkkk9UMDKkQLuWtiS3gGk0kCldp833tbPdWL68UpY+Zd/M1lckVsUj1oU06KqxMGwcBFn4gsWRkjyvSFALQ3uddF6WtegVKA068mfrc033tQz8mWWIC+rcawOK9r4YaFi28C2wMg4QBTa4CVOkGByHPRv4T7AEYCdJD7kELM9ftXbvSv4g6wT9QBcOaPFyjP6rcX7F1tsp+N63asgqSJQ+G5UlU5fFzkMT0kvLXXsRBvHLnONh7AN1Wf4MDcMnZ8C0yAochooW16zI6ts82Be6hVgUgPraRvEdgtQGp5BV8q9kLJsxcpiDr1Bo3Q/KnuozVFLpQBFMaoGlrcGLnSz9LYZfqJVgapNrOoImm1hJna/JUodROsYHZ28L42ErBysj5TK+zArJfqRsUXsFwF+4iqADf93Wg2/jCucRJ54klL/CRZc+Me6sPjw6kc+d2aiyIVP+UGz3poJ12ZaS8K0mW541Keq+LqUJlJ/FExyPFwQRA4dqKvfyTZdONFzVza5EY7Bgk25NdbzPj9CwifJkednvzBYO9E7p2mrJZMYWcInhMbdWLlLa7CLgiztrp4OqPMEFte9fiWAyeA5QBzISmTU=
+        on_success: always
+        on_failure: never
