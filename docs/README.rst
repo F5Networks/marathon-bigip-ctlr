@@ -1,5 +1,5 @@
-F5 Marathon BIG-IP Controller
-=============================
+F5 BIG-IP Controller for Marathon
+=================================
 
 .. toctree::
     :hidden:
@@ -8,7 +8,7 @@ F5 Marathon BIG-IP Controller
     RELEASE-NOTES
     /_static/ATTRIBUTIONS
 
-The F5 Marathon BIG-IP Controller is a `Marathon Application`_ that manages F5 BIG-IP `Local Traffic Manager <https://f5.com/products/big-ip/local-traffic-manager-ltm>`_ (LTM) services.
+The |project| is a `Marathon Application`_ that manages F5 BIG-IP `Local Traffic Manager <https://f5.com/products/big-ip/local-traffic-manager-ltm>`_ (LTM) services.
 
 |release-notes|
 
@@ -33,7 +33,7 @@ See the `F5 Marathon Container Connector user documentation </containers/v1/mara
 Overview
 --------
 
-The F5 Marathon BIG-IP Controller is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
+The |project| is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
 
 - matches the Marathon App to the specified BIG-IP partition;
 - creates a virtual server and pool for each `port-mapping <https://mesosphere.github.io/marathon/docs/ports.html>`_ ;
@@ -97,7 +97,7 @@ F5 application labels are key-value pairs that correspond to BIG-IP configuratio
 To configure virtual servers on the BIG-IP for specific application service ports, define a port index in the configuration parameter.
 In the table below, ``{n}`` refers to an index into the service-port mapping array, starting at 0.
 
-F5 Marathon BIG-IP Controller supports two BIG-IP configuration modes (normal and iApp), with a different set of application labels for each mode. Normal mode directly configures the virtual servers via the application labels, whereas iApp mode configures virtual servers via an iApp template.
+|project| supports two BIG-IP configuration modes (normal and iApp), with a different set of application labels for each mode. Normal mode directly configures the virtual servers via the application labels, whereas iApp mode configures virtual servers via an iApp template.
 
 
 Application Labels for Normal Mode
@@ -289,7 +289,7 @@ Example Configuration Files
 Usage Example
 -------------
 
-The F5 Marathon BIG-IP Controller configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- starting the F5 Marathon BIG-IP Controller with the following JSON in Marathon creates objects in the ``/mesos`` partition on the BIG-IP.
+The |project| configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- starting the |project| with the following JSON in Marathon creates objects in the ``/mesos`` partition on the BIG-IP.
 
 ::
 
