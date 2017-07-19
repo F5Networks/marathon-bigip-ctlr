@@ -83,7 +83,7 @@ source_parsers = {
 master_doc = 'index'
 
 # General information about the project.
-project = u'F5 Marathon BIG-IP Controller'
+project = u'F5 BIG-IP Controller for Marathon'
 copyright = u'2016,2017 F5 Networks Inc'
 author = u'F5 Networks'
 
