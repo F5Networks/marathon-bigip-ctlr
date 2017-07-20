@@ -105,6 +105,8 @@ rst_epilog = '''
 .. |attributions| raw:: html
 
     <a href="http://clouddocs.f5.com/products/connectors/marathon-bigip-ctlr/%(url_version)s/_static/ATTRIBUTIONS.html">Attributions</a>
+.. |mctlr| replace:: :code:`marathon-bigip-ctlr`
+.. |mctlr-long| replace:: F5 BIG-IP Controller for Marathon
 ''' % {
     'url_version': version
 }
