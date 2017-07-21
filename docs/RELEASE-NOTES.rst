@@ -34,7 +34,7 @@ Added Functionality
 Limitations
 ^^^^^^^^^^^
 * Command line parameter alternatives to the environment variables are not documented in the user guide.
-* Cannot share endpoints managed in the partition controlled by the |project| with endpoints managed in another partition.
+* Cannot share endpoints managed in the partition controlled by the |mctlr-long| with endpoints managed in another partition.
 * iApp and virtual server parameters are not treated as being mutually exclusive. You should not specify both, otherwise the BIG-IP may be improperly configured.
 * The deployment of the controller will fail if the BIG-IP is not available when the controller starts.
 * Parameters other than IPAddress and Port (e.g. Connection Limit) specified in the iApp Pool Member Table apply to all members of the pool.
