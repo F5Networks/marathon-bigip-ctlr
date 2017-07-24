@@ -32,7 +32,8 @@ python-sanity: python-lint python-unit
 att-gen-backends:
 	docker run -v $(PWD):$(PWD) --rm -it \
 		f5devcentral/attributions-generator \
-		bash usr/local/bin/run-backends.sh $(PWD)
+		bash usr/local/bin/run-backends.sh $(PWD) \
+		--pip="--requirements=marathon-runtime-requirements.txt"
 
 att-gen-frontend:
 	docker run -v $(PWD):$(PWD) --rm -it \
