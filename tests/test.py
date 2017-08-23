@@ -835,30 +835,33 @@ class MarathonTest(unittest.TestCase):
         expected_name = 'server-app2_10000'
 
         # Verfiy the iapp variables and tables
-        expected_tables = \
-            [{'columnNames': ['addr', 'port', 'connection_limit'], 'rows':
-              [{'row': ['10.141.141.10', '31256', '0']},
-               {'row': ['10.141.141.10', '31269', '0']},
-               {'row': ['10.141.141.10', '31698', '0']},
-               {'row': ['10.141.141.10', '31748', '0']}],
-                'name': u'pool__members'}]
-        expected_variables = \
-            [{'name': u'monitor__monitor', 'value': u'/#create_new#'},
-             {'name': u'net__client_mode', 'value': u'wan'},
-             {'name': u'pool__pool_to_use', 'value': u'/#create_new#'},
-             {'name': u'net__server_mode', 'value': u'lan'},
-             {'name': u'pool__addr', 'value': u'10.128.10.240'},
-             {'name': u'monitor__response', 'value': u'none'},
-             {'name': u'monitor__uri', 'value': u'/'},
-             {'name': u'pool__port', 'value': u'8080'}]
+        expected_table = {
+            "name": "pool__members",
+            "columns": [{"kind": "IPAddress", "name": "addr"},
+                        {"kind": "Port", "name": "port"},
+                        {"name": "connection_limit", "value": "0"}],
+            "members": [{"address": "10.141.141.10", "port": 31256},
+                        {"address": "10.141.141.10", "port": 31269},
+                        {"address": "10.141.141.10", "port": 31698},
+                        {"address": "10.141.141.10", "port": 31748}]}
+
+        expected_variables = {
+            'monitor__monitor': '/#create_new#',
+            'net__client_mode': 'wan',
+            'pool__pool_to_use': '/#create_new#',
+            'net__server_mode': 'lan',
+            'pool__addr': '10.128.10.240',
+            'monitor__response': 'none',
+            'monitor__uri': '/',
+            'pool__port': '8080'}
 
         # Verify the iapp variables and tables
         self.assertEquals(expected_name, cfg['iapps'][0]['name'])
-        self.assertEquals(expected_tables, cfg['iapps'][0]['tables'])
+        self.assertEquals(expected_table, cfg['iapps'][0]['poolMemberTable'])
         self.assertEquals(expected_variables, cfg['iapps'][0]['variables'])
 
     def check_expected_iapp_poolmember_table(self, pool_member_table_input,
-                                             expected_tables):
+                                             expected_table):
         """Check that the controller properly interprets POOL_MEMBER_TABLE.
 
         pool_member_table_description - Converted to a JSON string and assigned
@@ -889,7 +892,7 @@ class MarathonTest(unittest.TestCase):
 
         # Verify the iapp variables and tables
         self.assertEquals(expected_name, cfg['iapps'][0]['name'])
-        self.assertEquals(expected_tables, cfg['iapps'][0]['tables'])
+        self.assertEquals(expected_table, cfg['iapps'][0]['poolMemberTable'])
 
     def test_new_iapp_nondefault_column_names(self):
         """Test: Marathon app with iApp, override pool-member column names."""
@@ -901,17 +904,18 @@ class MarathonTest(unittest.TestCase):
                 {"name": "ConnectionLimit", "value": "0"}
             ]
         }
-        expected_tables = \
-            [{'columnNames': [u'IPAddress', u'Port', u'ConnectionLimit'],
-              'rows':
-              [{'row': ['10.141.141.10', '31256', '0']},
-               {'row': ['10.141.141.10', '31269', '0']},
-               {'row': ['10.141.141.10', '31698', '0']},
-               {'row': ['10.141.141.10', '31748', '0']}],
-                'name': u'pool__members'}]
+        expected_table = {
+            "name": "pool__members",
+            "columns": [{"kind": "IPAddress", "name": "IPAddress"},
+                        {"kind": "Port", "name": "Port"},
+                        {"name": "ConnectionLimit", "value": "0"}],
+            "members": [{"address": "10.141.141.10", "port": 31256},
+                        {"address": "10.141.141.10", "port": 31269},
+                        {"address": "10.141.141.10", "port": 31698},
+                        {"address": "10.141.141.10", "port": 31748}]}
         self.check_expected_iapp_poolmember_table(
             pool_member_table_input,
-            expected_tables)
+            expected_table)
 
     def test_new_iapp_nondefault_column_names_short(self):
         """Test: Marathon app with iApp, override only IPAddress and Port."""
@@ -922,17 +926,18 @@ class MarathonTest(unittest.TestCase):
                 {"name": "Port", "kind": "Port"},
             ]
         }
-        expected_tables = \
-            [{'columnNames': [u'IPAddress', u'Port'],
-              'rows':
-              [{'row': ['10.141.141.10', '31256']},
-               {'row': ['10.141.141.10', '31269']},
-               {'row': ['10.141.141.10', '31698']},
-               {'row': ['10.141.141.10', '31748']}],
-                'name': u'pool__members'}]
+        expected_table = {
+            'name': 'pool__members',
+            'columns': [{'kind': 'IPAddress', 'name': 'IPAddress'},
+                        {'kind': 'Port', 'name': 'Port'}],
+            'members': [{'port': 31256, 'address': '10.141.141.10'},
+                        {'port': 31269, 'address': '10.141.141.10'},
+                        {'port': 31698, 'address': '10.141.141.10'},
+                        {'port': 31748, 'address': '10.141.141.10'}]}
+
         self.check_expected_iapp_poolmember_table(
             pool_member_table_input,
-            expected_tables)
+            expected_table)
 
     def test_new_iapp_nondefault_column_names_reorder(self):
         """Test: Marathon app with iApp, override pool-member column order."""
@@ -944,17 +949,19 @@ class MarathonTest(unittest.TestCase):
                 {"name": "IPAddress", "kind": "IPAddress"},
             ]
         }
-        expected_tables = \
-            [{'columnNames': [u'ConnectionLimit', u'Port', u'IPAddress'],
-              'rows':
-              [{'row': ['0', '31256', '10.141.141.10']},
-               {'row': ['0', '31269', '10.141.141.10']},
-               {'row': ['0', '31698', '10.141.141.10']},
-               {'row': ['0', '31748', '10.141.141.10']}],
-                'name': u'pool__members'}]
+        expected_table = {
+            "name": "pool__members",
+            "columns": [{"name": "ConnectionLimit", "value": "0"},
+                        {"kind": "Port", "name": "Port"},
+                        {"kind": "IPAddress", "name": "IPAddress"}],
+            "members": [{"address": "10.141.141.10", "port": 31256},
+                        {"address": "10.141.141.10", "port": 31269},
+                        {"address": "10.141.141.10", "port": 31698},
+                        {"address": "10.141.141.10", "port": 31748}]}
+
         self.check_expected_iapp_poolmember_table(
             pool_member_table_input,
-            expected_tables)
+            expected_table)
 
     def test_new_iapp_nondefault_column_names_appsvcs(self):
         """Test: Marathon app with iApp, override the AppSvcs iApp fields."""
@@ -971,32 +978,24 @@ class MarathonTest(unittest.TestCase):
                 {"name": "AdvOptions", "value": ""}
             ]
         }
-        expected_tables = [{
-            'columnNames': [
-                u'Index',
-                u'IPAddress',
-                u'Port',
-                u'ConnectionLimit',
-                u'Ratio',
-                u'PriorityGroup',
-                u'State',
-                u'AdvOptions',
-            ],
-            'rows': [
-                {'row': ['0', '10.141.141.10', '31256', '1000', '1', '0',
-                         'enabled', '']},
-                {'row': ['0', '10.141.141.10', '31269', '1000', '1', '0',
-                         'enabled', '']},
-                {'row': ['0', '10.141.141.10', '31698', '1000', '1', '0',
-                         'enabled', '']},
-                {'row': ['0', '10.141.141.10', '31748', '1000', '1', '0',
-                         'enabled', '']},
-            ],
-            'name': u'pool__members'
-        }]
+        expected_table = {
+            "name": "pool__members",
+            "columns": [{"name": "Index", "value": "0"},
+                        {"name": "IPAddress", "kind": "IPAddress"},
+                        {"name": "Port", "kind": "Port"},
+                        {"name": "ConnectionLimit", "value": "1000"},
+                        {"name": "Ratio", "value": "1"},
+                        {"name": "PriorityGroup", "value": "0"},
+                        {"name": "State", "value": "enabled"},
+                        {"name": "AdvOptions", "value": ""}],
+            "members": [{"address": "10.141.141.10", "port": 31256},
+                        {"address": "10.141.141.10", "port": 31269},
+                        {"address": "10.141.141.10", "port": 31698},
+                        {"address": "10.141.141.10", "port": 31748}]}
+
         self.check_expected_iapp_poolmember_table(
             pool_member_table_input,
-            expected_tables)
+            expected_table)
 
     def check_failed_iapp_pool_member_table(self, pool_member_table_input,
                                             do_json=True):
@@ -1157,30 +1156,30 @@ class MarathonTest(unittest.TestCase):
         expected_name = 'server-app2_10000'
 
         # Verify the iapp variables and tables
-        expected_tables = \
-            [{'columnNames': [u'addr', u'port', u'connection_limit'],
-              'rows':
-              [{'row': ['10.141.141.10', '31256', '0']},
-               {'row': ['10.141.141.10', '31269', '0']},
-               {'row': ['10.141.141.10', '31698', '0']},
-               {'row': ['10.141.141.10', '31748', '0']}],
-                'name': u'pool__members'},
-             {'columnNames': [u'Group', u'Operand', u'Negate', u'Condition',
-                              u'Value', u'CaseSensitive', u'Missing'],
-              'rows':
-              [{'row': [0, u'http-uri/request/path', u'no', u'starts-with',
-                        u'/env', u'no', u'no']},
-               {'row': [u'default', u'', u'no', u'', u'', u'no', u'no']}],
-                'name': u'l7policy__rulesMatch'},
-             {'columnNames': [u'Group', u'Target', u'Parameter'],
-              'rows':
-              [{'row': [0, u'forward/request/reset', u'none']},
-               {'row': [u'default', u'forward/request/select/pool',
-                        u'pool:0']}],
-                'name': u"'l7policy__rulesAction"}]
+        expected_table = {
+            "name": "pool__members",
+            "columns": [{"kind": "IPAddress", "name": "addr"},
+                        {"kind": "Port", "name": "port"},
+                        {"name": "connection_limit", "value": "0"}],
+            "members": [{"address": "10.141.141.10", "port": 31256},
+                        {"address": "10.141.141.10", "port": 31269},
+                        {"address": "10.141.141.10", "port": 31698},
+                        {"address": "10.141.141.10", "port": 31748}]}
+        expected_tables = {
+            "l7policy__rulesMatch": {
+                "rows": [["0", "http-uri/request/path", "no", "starts-with",
+                          "/env", "no", "no"],
+                         ["default", "", "no", "", "", "no", "no"]],
+                "columns": ["Group", "Operand", "Negate", "Condition",
+                            "Value", "CaseSensitive", "Missing"]},
+            "l7policy__rulesAction": {
+                "rows": [["0", "forward/request/reset", "none"],
+                         ["default", "forward/request/select/pool", "pool:0"]],
+                "columns": ["Group", "Target", "Parameter"]}}
 
         # Verify the iapp tables
         self.assertEquals(expected_name, cfg['iapps'][0]['name'])
+        self.assertEquals(expected_table, cfg['iapps'][0]['poolMemberTable'])
         self.assertEquals(expected_tables, cfg['iapps'][0]['tables'])
 
     def test_event_processor(self):
