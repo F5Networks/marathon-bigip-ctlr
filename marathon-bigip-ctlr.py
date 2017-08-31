@@ -577,6 +577,9 @@ def get_apps(apps, health_check):
                 marathon_app.app['labels']['F5_PARTITION']
         marathon_apps.append(marathon_app)
 
+
+        del app['ports']
+
         # Address nonexistent 'ports' for application when DC/OS Virtual
         # Networking is used.
         try:
@@ -585,7 +588,7 @@ def get_apps(apps, health_check):
                          (repr(service_ports)))
             logger.debug("Labels for app %s: %s", app['id'],
                          marathon_app.app['labels'])
-        except Exception:
+        except KeyError:
             service_ports = {}
             logger.warning("Warning, no service ports found for " + appId)
 
