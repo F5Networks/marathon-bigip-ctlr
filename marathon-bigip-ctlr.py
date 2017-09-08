@@ -668,84 +668,6 @@ def get_apps(apps, health_check):
     return apps_list
 
 
-def iapp_build_definition(config, members):
-    """Create a dict that defines the 'variables' and 'tables' for an iApp.
-
-    Args:
-        config: BIG-IP config dict
-    """
-    # Build variable list
-    variables = []
-    for key, value in config['variables'].items():
-        var = {'name': key, 'value': value}
-        variables.append(var)
-
-    # The schema says only one of poolMemberTable or tableName is
-    # valid, so if the user set both it should have already been rejected.
-    # But if not, prefer the new poolMemberTable over tableName.
-    tables = []
-    if 'poolMemberTable' in config:
-        tableConfig = config['poolMemberTable']
-
-        # Construct columnNames array from the 'name' prop of each column
-        columnNames = []
-        for col in tableConfig['columns']:
-            columnNames.append(col['name'])
-
-        # Construct rows array - one row for each node, interpret the
-        # 'kind' or 'value' from the column spec.
-        rows = []
-        for node in members:
-            row = []
-            for i, col in enumerate(tableConfig['columns']):
-                if 'value' in col:
-                    row.append(col['value'])
-                elif 'kind' in col:
-                    if col['kind'] == 'IPAddress':
-                        row.append(str(node['address']))
-                    elif col['kind'] == 'Port':
-                        row.append(str(node['port']))
-                    else:
-                        raise ValueError('Unknown kind "%s"' % col['kind'])
-                else:
-                    raise ValueError('Column %d has neither value nor kind'
-                                     % i)
-            rows.append({'row': row})
-
-        # Done - add the generated pool member table to the set of tables
-        # we're going to configure.
-        tables.append({
-            'name': tableConfig['name'],
-            'columnNames': columnNames,
-            'rows': rows
-        })
-    elif 'tableName' in config:
-        # Before adding the flexible poolMemberTable mode, we only
-        # supported three fixed columns in order, and connection_limit was
-        # hardcoded to 0 ("no limit")
-        rows = []
-        for node in members:
-            rows.append({'row': [str(node['address']),
-                                 str(node['port']), '0']})
-        tables.append({
-            'name': config['tableName'],
-            'columnNames': ['addr', 'port', 'connection_limit'],
-            'rows': rows
-        })
-
-    # Add other tables
-    for key in config['tables']:
-        data = config['tables'][key]
-        table = {'columnNames': data['columns'],
-                 'name': key,
-                 'rows': []}
-        for row in data['rows']:
-            table['rows'].append({'row': row})
-        tables.append(table)
-
-    return {'variables': variables, 'tables': tables}
-
-
 def create_config_marathon(cccl, apps):
     """Create a BIG-IP configuration from the Marathon app list.
 
@@ -818,7 +740,11 @@ def create_config_marathon(cccl, apps):
             # Translate from the internal properties we set on app to the
             # naming expected by the iapp.
             # Only set properties that are actually present.
-            cfg = {}
+            cfg = {
+                'variables': {},
+                'tables': {},
+                'options': {}
+            }
             for k, v in {'template': 'iapp',
                          'tableName': 'iappPoolMemberTableName',
                          'poolMemberTable': 'iappPoolMemberTable',
@@ -836,20 +762,36 @@ def create_config_marathon(cccl, apps):
                 logger.error("IAPP TABLE data is not valid JSON")
                 continue
 
-            try:
-                # format the variables and tables per the schema
-                iapp_def = iapp_build_definition(cfg, members)
-            except ValueError as e:
-                logger.error("Invalid pool-member table data: %s", e)
-                continue
-
             iapp = {
                 'name': frontend_name,
                 'template': cfg['template'],
-                'variables': iapp_def['variables'],
-                'tables': iapp_def['tables'],
+                'variables': cfg['variables'],
+                'tables': cfg['tables'],
                 'options': cfg['options']
             }
+
+            for member in members:
+                # iApp will manage member state
+                del member['session']
+
+            # Add the poolMemberTable
+            if 'poolMemberTable' in cfg:
+                cfg['poolMemberTable']['members'] = members
+                iapp['poolMemberTable'] = cfg['poolMemberTable']
+            elif 'tableName' in cfg:
+                # Before adding the flexible poolMemberTable mode, we only
+                # supported three fixed columns in order, and connection_limit
+                # was hardcoded to 0 ("no limit")
+                poolMemberTable = {
+                    "name": cfg['tableName'],
+                    "columns": [
+                        {"name": "addr", "kind": "IPAddress"},
+                        {"name": "port", "kind": "Port"},
+                        {"name": "connection_limit", "value": "0"}
+                    ]
+                }
+                poolMemberTable['members'] = members
+                iapp['poolMemberTable'] = poolMemberTable
 
             services['iapps'].append(iapp)
         else:
