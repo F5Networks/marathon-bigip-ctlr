@@ -28,15 +28,14 @@ import copy
 import time
 from sseclient import Event
 from mock import Mock, mock_open, patch
-from f5_cccl.common import DCOSAuth, get_marathon_auth_params, setup_logging
-from f5.bigip import ManagementRoot
+from common import DCOSAuth, get_marathon_auth_params, setup_logging
+from f5_cccl.utils.mgmt import ManagementRoot
+from f5_cccl.utils.mgmt import mgmt_root
 from f5_cccl.api import F5CloudServiceManager
 from f5_cccl.exceptions import F5CcclValidationError
 from f5_cccl.exceptions import F5CcclSchemaError
 from StringIO import StringIO
 ctlr = __import__('marathon-bigip-ctlr')
-
-schema_path = "/src/f5-cccl/f5_cccl/schemas/cccl-api-schema.yml"
 
 # Marathon app data
 marathon_test_data = [
@@ -658,17 +657,16 @@ class MarathonTest(unittest.TestCase):
         # Mock the call to _get_tmos_version(), which tries to make a
         # connection
         with patch.object(ManagementRoot, '_get_tmos_version'):
-            bigip = ManagementRoot(
+            bigip = mgmt_root(
                 '1.2.3.4',
                 'admin',
                 'admin',
-                port=443,
-                token='tmos')
+                443,
+                'tmos')
             self.cccl = F5CloudServiceManager(
                 bigip,
                 'mesos',
-                prefix='',
-                schema_path=schema_path)
+                prefix='')
         self.cccl._service_manager._service_deployer._bigip.refresh = Mock()
         self.cccl._service_manager._service_deployer.deploy = \
             Mock(return_value=0)
@@ -766,17 +764,16 @@ class MarathonTest(unittest.TestCase):
         # times the virtual-server name is found
         for partition in partitions:
             with patch.object(ManagementRoot, '_get_tmos_version'):
-                bigip = ManagementRoot(
+                bigip = mgmt_root(
                     '1.2.3.4',
                     'admin',
                     'default',
-                    port=443,
-                    token='tmos')
+                    443,
+                    'tmos')
                 cccl = F5CloudServiceManager(
                     bigip,
                     partition,
-                    prefix='',
-                    schema_path=schema_path)
+                    prefix='')
 
                 cfg = ctlr.create_config_marathon(cccl, apps)
                 if len(cfg['virtualServers']) > 0:
@@ -1313,12 +1310,12 @@ class MarathonTest(unittest.TestCase):
     def test_cccl_exceptions(self, cloud_state='tests/marathon_one_app.json'):
         """Test: CCCL exceptions."""
         with patch.object(ManagementRoot, '_get_tmos_version'):
-            bigip = ManagementRoot(
+            bigip = mgmt_root(
                 '1.2.3.4',
                 'admin',
                 'default',
-                port=443,
-                token='tmos')
+                443,
+                'tmos')
             self.assertRaises(F5CcclSchemaError, F5CloudServiceManager,
                               bigip,
                               'test',

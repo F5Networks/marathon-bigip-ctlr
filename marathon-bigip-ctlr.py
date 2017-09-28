@@ -52,9 +52,9 @@ from sseclient import SSEClient
 
 from common import (set_logging_args, set_marathon_auth_args,
                     setup_logging, get_marathon_auth_params, resolve_ip)
-from f5.bigip import ManagementRoot
 from f5_cccl.api import F5CloudServiceManager
 from f5_cccl.exceptions import F5CcclError
+from f5_cccl.utils.mgmt import mgmt_root
 
 
 # BIG-IP load-balancing methods
@@ -1142,12 +1142,12 @@ if __name__ == '__main__':
     setup_logging(logging.getLogger(), args.log_format, args.log_level)
 
     # BIG-IP to manage
-    bigip = ManagementRoot(
+    bigip = mgmt_root(
         args.host,
         args.username,
         args.password,
-        port=args.port,
-        token="tmos")
+        args.port,
+        "tmos")
 
     # Management for the BIG-IP partitions
     cccls = []
@@ -1155,8 +1155,7 @@ if __name__ == '__main__':
         cccl = F5CloudServiceManager(
             bigip,
             partition,
-            prefix="",
-            schema_path="./src/f5-cccl/f5_cccl/schemas/cccl-api-schema.yml")
+            prefix="")
         cccls.append(cccl)
 
     # Set request retries
