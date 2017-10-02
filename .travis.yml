@@ -21,6 +21,7 @@ script:
     fi
   - export IMG_TAG="${BASE_PUSH_TARGET}:${TRAVIS_COMMIT}"
   - export BUILD_IMG_TAG="${BASE_PUSH_TARGET}-devel:${TRAVIS_COMMIT}"
+  - export BUILD_STAMP=devel-$TRAVIS_BRANCH-n-$TRAVIS_BUILD_NUMBER-id-$TRAVIS_BUILD_ID-$(date +%s)
   - export COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
   - export CTLR_VERSION=$(echo $TRAVIS_BRANCH | sed s/-stable//g)
   - ./build-tools/build-devel-image.sh
@@ -30,8 +31,11 @@ script:
     if [ "$DOCKER_READY" ]; then
       docker tag "$IMG_TAG" "$BASE_PUSH_TARGET"
       docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
-      docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH-n-$TRAVIS_BUILD_NUMBER-id-$TRAVIS_BUILD_ID"
-      docker push "$BASE_PUSH_TARGET"
+      docker tag "$IMG_TAG" "$BASE_PUSH_TARGET:$BUILD_STAMP"
+      docker push "$IMG_TAG"
+      docker push "$BASE_PUSH_TARGET:devel-$TRAVIS_BRANCH"
+      docker push "$BASE_PUSH_TARGET:$BUILD_STAMP"
+      docker push "$BASE_PUSH_TARGET:latest"
     fi
   - |
     if [ "$TRAVIS_REPO_SLUG" == "F5Networks/k8s-bigip-ctlr" -o "$COVERALLS_REPO_TOKEN" ]; then
