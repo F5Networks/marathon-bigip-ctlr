@@ -22,6 +22,7 @@ script:
   - export IMG_TAG="${BASE_PUSH_TARGET}:${TRAVIS_COMMIT}"
   - export BUILD_IMG_TAG="${BASE_PUSH_TARGET}-devel:${TRAVIS_COMMIT}"
   - export COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
+  - export CTLR_VERSION=$(echo $TRAVIS_BRANCH | sed s/-stable//g)
   - ./build-tools/build-devel-image.sh
   - ./build-tools/run-in-docker.sh make python-sanity
   - ./build-tools/build-runtime-images.sh
@@ -46,10 +47,11 @@ deploy:
   - provider: script
     skip_cleanup: true
     on:
-      branch: 1.1-stable
+      all_branches: true
       repo: F5Networks/marathon-bigip-ctlr
+      condition: $TRAVIS_BRANCH == *"-stable"
     script:
-      - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr v1.1
+      - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr v$CTLR_VERSION
 
 notifications:
   slack:
