@@ -40,6 +40,12 @@ The |mctlr-long| is a Docker container that runs as a `Marathon Application`_. I
 - creates a pool member for each App task and adds the member to the default pool;
 - creates health monitors on the BIG-IP for pool members if the Marathon App has health checks configured.
 
+.. danger::
+ 
+   The |mctlr-long| monitors the BIG-IP partition it manages for configuration changes. If it discovers changes, the Controller reapplies its own configuration to the BIG-IP system.
+   
+   F5 does not recommend making configuration changes to objects in any partition managed by the |mctlr-long| via any other means (for example, the configuration utility, TMOS, or by syncing configuration with another device or service group). Doing so may result in disruption of service or unexpected behavior.
+
 Configuration Parameters
 ------------------------
 
