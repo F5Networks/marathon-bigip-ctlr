@@ -653,3 +653,13 @@
   license: MIT
   author:
     name: Bob Ippolito
+
+# The urllib3 module has an MIT license
+- name: urllib3
+  version: 1.13.1
+  license: MIT
+
+# The chardet module has an LGPL v2.1 license
+- name: chardet
+  version: 2.3.0
+  license: LGPL v2.1
