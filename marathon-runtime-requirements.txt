@@ -1,4 +1,4 @@
--e git+https://github.com/f5devcentral/f5-cccl.git@4c0a4fc9b15ef0adacdd45bdaf789ddfdbb68f5c#egg=f5-cccl
+-e git+https://github.com/f5devcentral/f5-cccl.git@5edac6c7be8fb105cc3394d846949c329f5b829d#egg=f5-cccl
 requests==2.9.1
 sseclient==0.0.14
 configargparse==0.10.0

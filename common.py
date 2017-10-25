@@ -16,6 +16,8 @@
 
 """Common utility functions."""
 
+import ipaddress
+import re
 import sys
 import time
 import json
@@ -27,6 +29,10 @@ import jwt
 import requests
 
 from requests.auth import AuthBase
+
+
+# Big-IP Address Pattern: <ipaddr>%<route_domain>
+ip_rd_re = re.compile(r'^([^%]*)%(\d+)$')
 
 
 def parse_log_level(log_level_arg):
@@ -182,3 +188,32 @@ def resolve_ip(host):
             return ip
         except socket.gaierror:
             return None
+
+
+def split_ip_with_route_domain(address):
+    u"""Return ip and route-domain parts of address
+
+    Input ip format must be of the form:
+        <ip_v4_or_v6_addr>[%<route_domain_id>]
+    """
+    match = ip_rd_re.match(address)
+    if match:
+        ip = match.group(1)
+        route_domain = int(match.group(2))
+    else:
+        ip = address
+        route_domain = None
+
+    return ip, route_domain
+
+
+def validate_bigip_address(address):
+    """Verify the address is a valid Big-IP address"""
+
+    is_valid = True
+    try:
+        ip = split_ip_with_route_domain(address)[0]
+        ipaddress.ip_address(ip)
+    except Exception:
+        is_valid = False
+    return is_valid

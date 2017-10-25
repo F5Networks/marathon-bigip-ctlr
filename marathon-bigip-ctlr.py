@@ -32,7 +32,6 @@ marathon-bigip-ctlr just needs to know where to find Marathon.
 
 from __future__ import print_function
 
-import ipaddress
 import json
 import logging
 from operator import attrgetter
@@ -51,7 +50,8 @@ from requests.exceptions import ConnectionError
 from sseclient import SSEClient
 
 from common import (set_logging_args, set_marathon_auth_args,
-                    setup_logging, get_marathon_auth_params, resolve_ip)
+                    setup_logging, get_marathon_auth_params, resolve_ip,
+                    validate_bigip_address)
 from f5_cccl.api import F5CloudServiceManager
 from f5_cccl.exceptions import F5CcclError
 from f5_cccl.utils.mgmt import mgmt_root
@@ -99,7 +99,7 @@ class InvalidServiceDefinitionError(ValueError):
 def set_bindAddr(x, v):
     """App label callback.
 
-    Setthe Virtual Server address from label F5_n_BIND_ADDR
+    Set the Virtual Server address from label F5_n_BIND_ADDR
     """
     x.bindAddr = v
 
@@ -343,9 +343,7 @@ def is_label_data_valid(app):
 
     # Validate address
     if app.bindAddr is not None:
-        try:
-            ipaddress.ip_address(app.bindAddr)
-        except ValueError:
+        if not validate_bigip_address(app.bindAddr):
             logger.error(msg.format('F5_BIND_ADDR', app.appId, app.bindAddr))
             is_valid = False
 
