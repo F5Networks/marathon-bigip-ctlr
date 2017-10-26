@@ -1379,7 +1379,8 @@ class IsLabelDataValidTest(unittest.TestCase):
         """Test is_label_data_valid with valid input."""
         proto = ['tcp', 'http', 'udp']
         port = [1, 10000, 65535]
-        addr = [unicode('192.168.0.1'), unicode('2001:db8::')]
+        addr = [unicode('192.168.0.1'), unicode('2001:db8::'),
+                unicode('192.168.0.1%24'), unicode('2001:db8::%0')]
         balance = ['dynamic-ratio-member',
                    'least-connections-member',
                    'observed-node',
@@ -1418,26 +1419,34 @@ class IsLabelDataValidTest(unittest.TestCase):
 
     def test_is_label_data_valid_invalid_input(self):
         """Test is_label_data_valid with invalid input."""
+        valid_proto = 'tcp'
         proto = ['abc', 'ABC', 'abc', '', ' ', 1, False, [], {}]
+        valid_port = 8000
         port = [0, -10000, 65536, '123', '', False, [], {}]
+        valid_addr = unicode('192.168.0.1')
         addr = [unicode('258.0.0.1'), unicode('2001:dg8::1'),
                 unicode('string'), unicode(''), unicode(' '), 'string', True,
-                [], {}]
+                [], {}, unicode('1.1.1.1%cow'), unicode('1.1.1.1%')]
+        valid_balance = 'round-robin'
         balance = ['string', '', ' ', 123, False, [], {}]
         for i in range(0, len(proto)):
-            app = self.MockAppLabelData(proto[i], port[0], addr[0], balance[0])
+            app = self.MockAppLabelData(proto[i], valid_port,
+                                        valid_addr, valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(port)):
-            app = self.MockAppLabelData(proto[0], port[i], addr[0], balance[0])
+            app = self.MockAppLabelData(valid_proto, port[i],
+                                        valid_addr, valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(addr)):
-            app = self.MockAppLabelData(proto[0], port[0], addr[i], balance[0])
+            app = self.MockAppLabelData(valid_proto, valid_port,
+                                        addr[i], valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(balance)):
-            app = self.MockAppLabelData(proto[0], port[0], addr[0], balance[i])
+            app = self.MockAppLabelData(valid_proto, valid_port,
+                                        valid_addr, balance[i])
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
 

@@ -12,7 +12,12 @@ Added Functionality
 * Can use local and non-local BIG-IP users.
 * Supports multiple BIG-IP health monitors for each Marathon application Service Port.
 * Wildcard (*) for F5_CC_PARTITIONS Configuration Parameter is no longer supported.
+* Support for BIG-IP partitions with non-zero default route domains.
 
+Limitations
+^^^^^^^^^^^
+* You cannot change the default route domain for a partition managed by an F5 controller after the controller has deployed. To specify a new default route domain, use a different partition.
+  
 v1.0.0
 ------
 

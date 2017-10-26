@@ -117,7 +117,7 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                       |           |           |               | objects; cannot be "Common"               |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
 | \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service             |                                   |
-|                       |           |           |               |                                           |                                   |
+| [#ba]_                |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | ``"F5_0_BIND_ADDR": "10.0.0.42"``         |                                   |
@@ -163,6 +163,7 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                       |           |           |               | ``"F5_0_SSL_PROFILE": "Common/clientssl"``|                                   |
 |                       |           |           |               |                                           |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
+.. [#ba] The controller supports BIG-IP `route domain`_ specific addresses.
 
 You can set the ``F5_{n}_BIND_ADDR`` label via an IPAM system. You can configure your IPAM system to set this label with a chosen IP address, and the controller
 will configure the BIG-IP virtual server when it sees a valid ``F5_{n}_BIND_ADDR``. Virtual server deployment requires the ``F5_{n}_BIND_ADDR`` label, but it is not
@@ -332,3 +333,4 @@ Run the command below on the BIG-IP to view the newly-created objects.
 .. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/iam-api/
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
+.. _route domain: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-routing-administration-12-0-0/9.html
