@@ -5,24 +5,30 @@ Release Notes for F5 BIG-IP Controller for Marathon
 ----------
 
 Added Functionality
-^^^^^^^^^^^^^^^^^^^
+```````````````````
+* Support for BIG-IP partitions with non-zero default route domains.
+
+Limitations
+```````````
+* You cannot change the default route domain for a partition managed by an F5 controller after the controller has deployed. To specify a new default route domain, use a different partition.
+
+v1.1.0
+------
+
+Added Functionality
+```````````````````
 * iApp and virtual server parameters are now mutually exclusive. This addresses a previous limitation in v1.0.0.
 * Creates detached pools if virtual server bind addresses not specified.
 * Container image size reduced from 321MB to 82MB.
 * Can use local and non-local BIG-IP users.
 * Supports multiple BIG-IP health monitors for each Marathon application Service Port.
 * Wildcard (*) for F5_CC_PARTITIONS Configuration Parameter is no longer supported.
-* Support for BIG-IP partitions with non-zero default route domains.
 
-Limitations
-^^^^^^^^^^^
-* You cannot change the default route domain for a partition managed by an F5 controller after the controller has deployed. To specify a new default route domain, use a different partition.
-  
 v1.0.0
 ------
 
 Added Functionality
-^^^^^^^^^^^^^^^^^^^
+```````````````````
 * Can manage multiple BIG-IP partitions in the following environments
   * Apache Mesos/Marathon
   * Mesosphere DC/OS Enterprise
@@ -37,7 +43,7 @@ Added Functionality
 * Auth0-based authentication for DC/OS Enterprise
 
 Limitations
-^^^^^^^^^^^
+```````````
 * Command line parameter alternatives to the environment variables are not documented in the user guide.
 * Cannot share endpoints managed in the partition controlled by the |mctlr-long| with endpoints managed in another partition.
 * iApp and virtual server parameters are not treated as being mutually exclusive. You should not specify both, otherwise the BIG-IP may be improperly configured.
