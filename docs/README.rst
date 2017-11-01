@@ -1,6 +1,8 @@
 F5 BIG-IP Controller for Marathon
 =================================
 
+|Slack|
+
 .. toctree::
     :hidden:
     :maxdepth: 2
@@ -332,3 +334,7 @@ Run the command below on the BIG-IP to view the newly-created objects.
 .. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/iam-api/
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
+.. _route domain: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-routing-administration-12-0-0/9.html
+.. |Slack| image:: https://f5cloudsolutions.herokuapp.com/badge.svg
+   :target: https://f5cloudsolutions.herokuapp.com
+   :alt: Slack
