@@ -925,7 +925,7 @@ class MarathonEventProcessor(object):
                     for cccl in self.__cccls:
                         cfg = create_config_marathon(cccl, self.__apps)
                         try:
-                            incomplete += cccl.apply_config(cfg)
+                            incomplete += cccl.apply_ltm_config(cfg)
                         except F5CcclError as e:
                             logger.error("CCCL Error: %s", e.msg)
 

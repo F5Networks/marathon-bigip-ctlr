@@ -667,8 +667,9 @@ class MarathonTest(unittest.TestCase):
                 bigip,
                 'mesos',
                 prefix='')
-        self.cccl._service_manager._service_deployer._bigip.refresh = Mock()
-        self.cccl._service_manager._service_deployer.deploy = \
+        self.cccl._service_manager._service_deployer._bigip.refresh_ltm = \
+            Mock()
+        self.cccl._service_manager._service_deployer.deploy_ltm = \
             Mock(return_value=0)
 
     def raiseSystemExit(self):
@@ -710,7 +711,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -824,7 +825,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -881,7 +882,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -1014,7 +1015,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -1129,7 +1130,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -1146,7 +1147,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -1206,21 +1207,21 @@ class MarathonTest(unittest.TestCase):
         event_invalid = Event(data='{"eventType": }')
         events = [event_empty, event_app, event_unknown, event_detached]
 
-        with patch.object(self.cccl, 'apply_config',
+        with patch.object(self.cccl, 'apply_ltm_config',
                           return_value=1):
             ctlr.process_sse_events(ep, events)
             self.assertRaises(ValueError, ctlr.process_sse_events, ep,
                               [event_invalid])
             time.sleep(1)
 
-        with patch.object(self.cccl, 'apply_config',
+        with patch.object(self.cccl, 'apply_ltm_config',
                           side_effect=requests.exceptions.ConnectionError):
             ctlr.process_sse_events(ep, events)
             self.assertRaises(ValueError, ctlr.process_sse_events, ep,
                               [event_invalid])
             time.sleep(1)
 
-        with patch.object(self.cccl, 'apply_config',
+        with patch.object(self.cccl, 'apply_ltm_config',
                           side_effect=F5CcclValidationError):
             ctlr.process_sse_events(ep, events)
             self.assertRaises(ValueError, ctlr.process_sse_events, ep,
@@ -1263,7 +1264,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
         self.assertEqual(len(cfg['virtualServers']), 0)
@@ -1275,7 +1276,7 @@ class MarathonTest(unittest.TestCase):
                                              unicode('10.128.10.240')})
         apps = ctlr.get_apps(self.cloud_data, True)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
         self.check_labels(self.cloud_data, apps)
         self.assertEqual(len(cfg['virtualServers']), 1)
 
@@ -1291,7 +1292,7 @@ class MarathonTest(unittest.TestCase):
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
         self.assertEqual(len(cfg['virtualServers']), 1)
@@ -1301,7 +1302,7 @@ class MarathonTest(unittest.TestCase):
         self.cloud_data[1]['labels'].pop(unicode('F5_0_BIND_ADDR'))
         apps = ctlr.get_apps(self.cloud_data, True)
         cfg = ctlr.create_config_marathon(self.cccl, apps)
-        self.cccl.apply_config(cfg)
+        self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
@@ -1323,10 +1324,14 @@ class MarathonTest(unittest.TestCase):
                               schema_path='not/a/valid/path.json')
 
         cfg = 'not valid json'
-        self.assertRaises(F5CcclValidationError, self.cccl.apply_config, cfg)
+        self.assertRaises(F5CcclValidationError,
+                          self.cccl.apply_ltm_config,
+                          cfg)
 
         cfg = '{}'
-        self.assertRaises(F5CcclValidationError, self.cccl.apply_config, cfg)
+        self.assertRaises(F5CcclValidationError,
+                          self.cccl.apply_ltm_config,
+                          cfg)
 
         # Get the test data
         self.read_test_vectors(cloud_state)
@@ -1337,7 +1342,9 @@ class MarathonTest(unittest.TestCase):
 
         # Corrupt the config
         del cfg['virtualServers'][0]['name']
-        self.assertRaises(F5CcclValidationError, self.cccl.apply_config, cfg)
+        self.assertRaises(F5CcclValidationError,
+                          self.cccl.apply_ltm_config,
+                          cfg)
 
 
 class GetProtocolTest(unittest.TestCase):
