@@ -58,7 +58,7 @@ Configuration Parameters
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | F5_CC_BIGIP_HOSTNAME              | string    | Required  | n/a           | BIG-IP hostname / IP address  |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username               |                   |
+| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username [#username]_  |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | F5_CC_BIGIP_PASSWORD              | bar       | Required  | n/a           | BIG-IP password               |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
@@ -96,6 +96,8 @@ Configuration Parameters
 | F5_CC_DCOS_AUTH_TOKEN             | string    | Optional  | n/a           | DC/OS ACS Token               |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 
+.. [#username] The controller requires the BIG-IP user account to have a defined role of ``Administrator``, ``Resource Administrator``, or ``Manager``. See `BIG-IP Users <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-concepts-11-5-0/10.html>`_ for further details.
+
 
 Application Labels
 ------------------
@@ -118,8 +120,8 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 | F5_PARTITION          | string    | Required  | n/a           | BIG-IP partition in which to create       |                                   |
 |                       |           |           |               | objects; cannot be "Common"               |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service             |                                   |
-| [#ba]_                |           |           |               |                                           |                                   |
+| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service [#ba]_      |                                   |
+|                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | ``"F5_0_BIND_ADDR": "10.0.0.42"``         |                                   |
