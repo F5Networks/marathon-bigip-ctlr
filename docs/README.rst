@@ -58,7 +58,7 @@ Configuration Parameters
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | F5_CC_BIGIP_HOSTNAME              | string    | Required  | n/a           | BIG-IP hostname / IP address  |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username               |                   |
+| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username [#username]_  |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | F5_CC_BIGIP_PASSWORD              | bar       | Required  | n/a           | BIG-IP password               |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
@@ -95,6 +95,8 @@ Configuration Parameters
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 | F5_CC_DCOS_AUTH_TOKEN             | string    | Optional  | n/a           | DC/OS ACS Token               |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
+
+.. [#username] The controller requires the BIG-IP user account to have a defined role of ``Administrator``, ``Resource Administrator``, or ``Manager``. See `BIG-IP Users <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-concepts-11-5-0/10.html>`_ for further details.
 
 
 Application Labels
