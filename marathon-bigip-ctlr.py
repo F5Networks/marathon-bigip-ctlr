@@ -1168,9 +1168,8 @@ if __name__ == '__main__':
         "tmos")
 
     # Set user-agent for ICR session
-    bigip.icrs.append_user_agent(
-        'marathon-bigip-ctlr-' + version_data['version'] + '-' +
-        version_data['build'])
+    user_agent = 'marathon-bigip-ctlr-' + version_data['version'] + '-' + \
+        version_data['build']
 
     # Management for the BIG-IP partitions
     cccls = []
@@ -1178,6 +1177,7 @@ if __name__ == '__main__':
         cccl = F5CloudServiceManager(
             bigip,
             partition,
+            user_agent=user_agent,
             prefix="")
         cccls.append(cccl)
 
