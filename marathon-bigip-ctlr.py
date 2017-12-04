@@ -1049,6 +1049,9 @@ def get_arg_parser():
                         env_var='F5_CC_VERIFY_INTERVAL',
                         default=30, help="Interval at which to verify "
                         "the BIG-IP configuration.")
+    parser.add_argument("--version",
+                        help="Print out version information and exit",
+                        action="store_true")
 
     parser = set_logging_args(parser)
     parser = set_marathon_auth_args(parser)
@@ -1082,7 +1085,7 @@ def process_sse_events(processor, events):
             raise
 
 
-def parse_args():
+def parse_args(version_data):
     """Entry point for parsing command-line args."""
     # Process arguments
     arg_parser = get_arg_parser()
@@ -1094,6 +1097,10 @@ def parse_args():
         sys.exit()
     # otherwise make sure that a Marathon URL was specified
     else:
+        if args.version:
+            print('Version: ', version_data['version'],
+                  '\nBuild: ', version_data['build'])
+            sys.exit()
         if args.marathon is None:
             arg_parser.error('argument --marathon/-m is required')
         if len(args.partition) == 0:
@@ -1133,11 +1140,24 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    # Read version/build info
+    version_data = {}
+    try:
+        with open('VERSION_BUILD.json', 'r') as version_file:
+            version_data = json.load(version_file)
+    except Exception as e:
+        version_data['version'] = 'UNKNOWN_VERSION'
+        version_data['build'] = 'UNKNOWN_BUILD'
+
     # parse args
-    args = parse_args()
+    args = parse_args(version_data)
 
     # Setup logging
     setup_logging(logging.getLogger(), args.log_format, args.log_level)
+
+    # Version/build info
+    logger.info("Version: %s, Build: %s", version_data['version'],
+                version_data['build'])
 
     # BIG-IP to manage
     bigip = mgmt_root(
@@ -1146,6 +1166,11 @@ if __name__ == '__main__':
         args.password,
         args.port,
         "tmos")
+
+    # Set user-agent for ICR session
+    bigip.icrs.append_user_agent(
+        'marathon-bigip-ctlr-' + version_data['version'] + '-' +
+        version_data['build'])
 
     # Management for the BIG-IP partitions
     cccls = []
