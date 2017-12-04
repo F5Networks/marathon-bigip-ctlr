@@ -90,11 +90,12 @@ author = u'F5 Networks'
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
-# The short X.Y version.
-version = u'v1.2'
-# The full version, including alpha/beta/rc tags.
-release = u'v1.2.0-dev'
+with open('../next-version.txt') as verfile:
+    v = verfile.readline().strip().split('.')
+    # The short X.Y version.
+    version = u'v{}.{}'.format(v[0], v[1])
+    # The full version, including alpha/beta/rc tags.
+    release = u'v{}.{}.{}-dev'.format(v[0], v[1], v[2])
 
 # Substitutions
 rst_epilog = '''

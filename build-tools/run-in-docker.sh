@@ -12,9 +12,11 @@ RUN_ARGS=( \
   --rm
   -v $PWD:$PWD
   --workdir $PWD
-  -e CLEAN_BUILD="${CLEAN_BUILD}"
-  -e IMG_TAG="${IMG_TAG}"
-  -e BUILD_IMG_TAG="${BUILD_IMG_TAG}"
+  -e CLEAN_BUILD
+  -e IMG_TAG
+  -e BUILD_IMG_TAG
+  -e BUILD_VERSION
+  -e BUILD_INFO
   -e LOCAL_USER_ID=$(id -u)
   -e COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
 )

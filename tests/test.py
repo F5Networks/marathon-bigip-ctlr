@@ -71,6 +71,9 @@ args_env = ['F5_CC_SYSLOG_SOCKET',
             'F5_CC_DCOS_AUTH_TOKEN']
 
 
+version_data = {'version': '1.1.0', 'build': 'abcdef'}
+
+
 class ArgTest(unittest.TestCase):
     """Test marathon-bigip-ctlr arg parsing."""
 
@@ -100,7 +103,7 @@ class ArgTest(unittest.TestCase):
     def test_no_args(self):
         """Test: No command-line args."""
         sys.argv[0:] = self._args_app_name
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         expected = \
             "usage: marathon-bigip-ctlr.py [-h] [--longhelp]\n" \
@@ -110,7 +113,7 @@ class ArgTest(unittest.TestCase):
                               [--health-check]
                               [--marathon-ca-cert MARATHON_CA_CERT]
                               [--sse-timeout SSE_TIMEOUT]
-                              [--verify-interval VERIFY_INTERVAL]
+                              [--verify-interval VERIFY_INTERVAL] [--version]
                               [--log-format LOG_FORMAT]
                               [--log-level LOG_LEVEL]
                               [--marathon-auth-credential-file""" \
@@ -125,7 +128,7 @@ class ArgTest(unittest.TestCase):
     def test_all_mandatory_args(self):
         """Test: All mandatory command-line args."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos'])
         self.assertEqual(args.hostname, 'https://10.10.1.145')
@@ -145,7 +148,7 @@ class ArgTest(unittest.TestCase):
         os.environ['F5_CC_BIGIP_HOSTNAME'] = '10.10.1.145'
         os.environ['F5_CC_BIGIP_USERNAME'] = 'admin'
         os.environ['F5_CC_BIGIP_PASSWORD'] = 'default'
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon, ['http://10.0.0.10:8080'])
         self.assertEqual(args.partition, ['mesos', 'mesos2'])
         self.assertEqual(args.hostname, 'https://10.10.1.145')
@@ -156,7 +159,7 @@ class ArgTest(unittest.TestCase):
         """Test: Long help."""
         args = ['--longhelp']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         expected = "marathon-bigip-ctlr.\n\nmarathon-bigip-ctlr is a service" \
             " discovery and load balancing tool\nfor Marathon to configure" \
@@ -179,7 +182,7 @@ class ArgTest(unittest.TestCase):
                 '--hostname', 'scheme://10.10.1.145',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
     def test_no_password(self):
         """Test: No password arg."""
@@ -189,7 +192,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--hostname', 'scheme://10.10.1.145']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
     def test_hostname_arg(self):
         """Test: Hostname arg."""
@@ -199,7 +202,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         # Invalid scheme
         args = ['--marathon', 'http://10.0.0.10:8080',
@@ -208,7 +211,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         # No scheme
         args = ['--marathon', 'http://10.0.0.10:8080',
@@ -217,7 +220,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 443)
 
@@ -228,7 +231,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 443)
 
@@ -239,7 +242,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.host, '10.10.1.145')
         self.assertEqual(args.port, 555)
 
@@ -250,7 +253,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
     def test_partition_arg(self):
         """Test: Wildcard partition arg."""
@@ -260,7 +263,7 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.partition, ['test'])
 
         # No partition specified
@@ -269,13 +272,13 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         # test via env var
         partitions_env = 'test'
         sys.argv[0:] = self._args_app_name + self._args_without_partition
         os.environ['F5_CC_PARTITIONS'] = partitions_env
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.partition, ['test'])
 
     def test_multiple_partition_arg(self):
@@ -288,41 +291,41 @@ class ArgTest(unittest.TestCase):
                 '--username', 'admin',
                 '--password', 'default']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.partition, ['mesos-1', 'mesos-2', 'mesos-3'])
 
         # test via env var
         partitions_env = '[mesos7, mesos8]'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         os.environ['F5_CC_PARTITIONS'] = partitions_env
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         # command-line overrides env var
         self.assertEqual(args.partition, ['mesos'])
 
         sys.argv[0:] = self._args_app_name + self._args_without_partition
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.partition, ['mesos7', 'mesos8'])
 
     def test_health_check_arg(self):
         """Test: 'Health Check' arg."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.health_check, False)
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--health-check']
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.health_check, True)
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + ['-H']
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.health_check, True)
 
         # test via env var
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.health_check, False)
         os.environ['F5_CC_USE_HEALTHCHECK'] = 'True'
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.health_check, True)
 
     def test_log_format_arg(self):
@@ -330,14 +333,14 @@ class ArgTest(unittest.TestCase):
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--log-format', log_format]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.log_format, log_format)
 
         # test via env var
         env_log_format = '%(asctime)s - %(message)s'
         os.environ['F5_CC_LOG_FORMAT'] = env_log_format
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.log_format, env_log_format)
 
     def test_log_level_arg(self):
@@ -347,29 +350,29 @@ class ArgTest(unittest.TestCase):
         for level in levels:
             sys.argv[0:] = self._args_app_name + self._args_mandatory + \
                 ['--log-level', level]
-            args = ctlr.parse_args()
+            args = ctlr.parse_args(version_data)
             self.assertEqual(args.log_level, getattr(logging, level))
 
         # Test default
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.log_level, getattr(logging, 'INFO'))
 
         # Test invalid
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--log-level', 'INCONCEIVABLE']
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         # Test invalid (via env)
         os.environ['F5_CC_LOG_LEVEL'] = 'INCONCEIVABLE'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         # Test all valid levels (via env)
         for level in levels:
             os.environ['F5_CC_LOG_LEVEL'] = level
             sys.argv[0:] = self._args_app_name + self._args_mandatory
-            args = ctlr.parse_args()
+            args = ctlr.parse_args(version_data)
             self.assertEqual(args.log_level, getattr(logging, level))
 
     def test_marathon_cred_arg(self):
@@ -377,14 +380,14 @@ class ArgTest(unittest.TestCase):
         auth_file = '/tmp/auth'
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-auth-credential-file', auth_file]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon_auth_credential_file, auth_file)
 
         # test via env var
         env_auth_file = '/tmp/auth_from_env'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         os.environ['F5_CC_MARATHON_AUTH'] = env_auth_file
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon_auth_credential_file, env_auth_file)
 
         # Test auth file
@@ -408,22 +411,22 @@ class ArgTest(unittest.TestCase):
         timeout = 0
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--sse-timeout', str(timeout)]
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--sse-timeout', str(timeout)]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.sse_timeout, timeout)
 
         # test default value
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.sse_timeout, 30)
 
         # test via env var
         os.environ['F5_CC_SSE_TIMEOUT'] = str(timeout)
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.sse_timeout, timeout)
 
     def test_verify_interval_arg(self):
@@ -431,24 +434,24 @@ class ArgTest(unittest.TestCase):
         timeout = 45
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--verify-interval', str(timeout)]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.verify_interval, timeout)
 
         # test default value
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.verify_interval, 30)
 
         # test via env var
         os.environ['F5_CC_VERIFY_INTERVAL'] = str(timeout)
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.verify_interval, timeout)
 
         # Invalid interval
         timeout = 0
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--verify-interval', str(timeout)]
-        self.assertRaises(SystemExit, ctlr.parse_args)
+        self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
     def test_marathon_ca_cert_arg(self):
         """Test: 'Marathon CA Cert' arg."""
@@ -456,14 +459,14 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--marathon-ca-cert', cert]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon_ca_cert, cert)
 
         # test via env var
         env_cert = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         os.environ['F5_CC_MARATHON_CA_CERT'] = env_cert
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.marathon_ca_cert, env_cert)
 
     def test_auth_credentials_arg(self):
@@ -507,7 +510,7 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--dcos-auth-credentials', creds] + ['--marathon-ca-cert', cert]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.dcos_auth_credentials, creds)
 
         auth = get_marathon_auth_params(args)
@@ -531,7 +534,7 @@ class ArgTest(unittest.TestCase):
         env_creds = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         os.environ['F5_CC_DCOS_AUTH_CREDENTIALS'] = env_creds
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.dcos_auth_credentials, env_creds)
 
     def test_auth_token_arg(self):
@@ -546,7 +549,7 @@ class ArgTest(unittest.TestCase):
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory + \
             ['--dcos-auth-token', token]
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.dcos_auth_token, token)
 
         url = 'http://dcos.com/acs/api/v1/auth/login'
@@ -565,7 +568,7 @@ class ArgTest(unittest.TestCase):
         env_token = 'It will now be a different value'
         sys.argv[0:] = self._args_app_name + self._args_mandatory
         os.environ['F5_CC_DCOS_AUTH_TOKEN'] = env_token
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         self.assertEqual(args.dcos_auth_token, env_token)
 
     def request_response(self, token):
@@ -597,7 +600,7 @@ class ArgTest(unittest.TestCase):
                 '--password', 'default',
                 '--marathon-ca-cert', '/this/is/a/path/to/a/cert.crt']
         sys.argv[0:] = self._args_app_name + args
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
 
         marathon = ctlr.Marathon(args.marathon,
                                  args.health_check,
@@ -619,7 +622,7 @@ class ArgTest(unittest.TestCase):
         self.assertRaises(requests.HTTPError, marathon.list)
 
         sys.argv[0:] = self._args_app_name + self._args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         marathon = ctlr.Marathon(args.marathon,
                                  args.health_check,
                                  get_marathon_auth_params(args),
@@ -640,7 +643,7 @@ class ArgTest(unittest.TestCase):
         """Test logging set up."""
         sys.argv[0:] = self._args_app_name + self._args_mandatory \
             + ['--log-level', 'DEBUG']
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         logger = logging.getLogger('tests')
         setup_logging(logger, args.log_format, args.log_level)
         self.assertEqual(args.log_level, getattr(logging, 'DEBUG'))
@@ -1189,7 +1192,7 @@ class MarathonTest(unittest.TestCase):
                           '--username', 'admin',
                           '--password', 'default']
         sys.argv[0:] = args_app_name + args_mandatory
-        args = ctlr.parse_args()
+        args = ctlr.parse_args(version_data)
         marathon = ctlr.Marathon(args.marathon,
                                  args.health_check,
                                  get_marathon_auth_params(args))

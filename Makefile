@@ -19,6 +19,7 @@ devel-image:
 	./build-tools/build-devel-image.sh
 
 python-lint:
+	flake8 ./build-tools/version-tool
 	flake8 --exclude=docs/,src/ ./
 	./build-tools/lint.sh
 
