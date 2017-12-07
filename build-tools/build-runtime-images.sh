@@ -26,6 +26,7 @@ ls -la $WKDIR
 VERSION_BUILD_ARGS=$(${CURDIR}/version-tool docker-build-args)
 docker build --force-rm ${NO_CACHE_ARGS} \
   -t $IMG_TAG \
+  --label BUILD_STAMP=$BUILD_STAMP
   ${VERSION_BUILD_ARGS} \
   -f $WKDIR/Dockerfile.runtime \
   $WKDIR
