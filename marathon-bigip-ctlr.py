@@ -549,7 +549,7 @@ class Marathon(object):
 def get_health_check(app, portIndex):
     """Get the healthcheck for the app."""
     checks = []
-    for check in app['healthChecks']:
+    for check in app.get('healthChecks', []):
         if check.get('port') or check.get('portIndex') == portIndex:
             checks.append(check)
     if len(checks) > 0:
@@ -575,16 +575,22 @@ def get_apps(apps, health_check):
                 marathon_app.app['labels']['F5_PARTITION']
         marathon_apps.append(marathon_app)
 
-        # Address nonexistent 'ports' for application when DC/OS Virtual
+        # 'ports' does not exist in Marathon v1.5.2 and when DC/OS Virtual
         # Networking is used.
-        try:
-            service_ports = app['ports']
-            logger.debug("Application service ports = %s",
-                         (repr(service_ports)))
-            logger.debug("Labels for app %s: %s", app['id'],
-                         marathon_app.app['labels'])
-        except KeyError:
-            service_ports = {}
+        service_ports = app.get('ports', [])
+
+        if len(service_ports) == 0:
+            # If 'ports' doesn't exist, check 'portMappings'
+            portMappings = app.get('container', {}).get('portMappings', [])
+            for port in portMappings:
+                if 'servicePort' in port:
+                    service_ports.append(port['servicePort'])
+
+        logger.debug("Application service ports = %s", (repr(service_ports)))
+        logger.debug("Labels for app %s: %s", app['id'],
+                     marathon_app.app['labels'])
+
+        if len(service_ports) == 0:
             logger.warning("Warning, no service ports found for " + appId)
 
         for i, servicePort in enumerate(service_ports):
