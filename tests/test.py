@@ -670,9 +670,12 @@ class MarathonTest(unittest.TestCase):
                 bigip,
                 'mesos',
                 prefix='')
+
         self.cccl._service_manager._service_deployer._bigip.refresh_ltm = \
             Mock()
         self.cccl._service_manager._service_deployer.deploy_ltm = \
+            Mock(return_value=0)
+        self.cccl._bigip_proxy.get_default_route_domain = \
             Mock(return_value=0)
 
     def raiseSystemExit(self):
