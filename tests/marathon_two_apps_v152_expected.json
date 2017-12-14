@@ -1,0 +1,135 @@
+{
+    "iapps": [],
+    "l7Policies": [],
+    "monitors": [
+        {
+            "delaySeconds": 15,
+            "gracePeriodSeconds": 300,
+            "ignoreHttp1xx": false,
+            "interval": 60,
+            "intervalSeconds": 60,
+            "maxConsecutiveFailures": 3,
+            "name": "nginx-app_8070_0_http",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 141,
+            "timeoutSeconds": 20,
+            "type": "http"
+        },
+        {
+            "delaySeconds": 15,
+            "gracePeriodSeconds": 30,
+            "ignoreHttp1xx": false,
+            "interval": 60,
+            "intervalSeconds": 60,
+            "maxConsecutiveFailures": 3,
+            "name": "nginx-app_8070_1_http",
+            "path": "/",
+            "portIndex": 0,
+            "protocol": "HTTP",
+            "timeout": 141,
+            "timeoutSeconds": 20,
+            "type": "http"
+        }
+    ],
+    "pools": [
+        {
+            "loadBalancingMode": "least-sessions",
+            "members": [
+                {
+                    "address": "172.16.1.6",
+                    "connectionLimit": 0,
+                    "port": 11329,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "172.16.1.7",
+                    "connectionLimit": 0,
+                    "port": 9158,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [
+                "/mesos/nginx-app_8070_0_http",
+                "/mesos/nginx-app_8070_1_http"
+            ],
+            "name": "nginx-app_8070"
+        },
+        {
+            "loadBalancingMode": "round-robin",
+            "members": [
+                {
+                    "address": "172.16.1.6",
+                    "connectionLimit": 0,
+                    "port": 31042,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                },
+                {
+                    "address": "172.16.1.7",
+                    "connectionLimit": 0,
+                    "port": 16709,
+                    "priorityGroup": 0,
+                    "rateLimit": 0,
+                    "ratio": 1,
+                    "session": "user-enabled"
+                }
+            ],
+            "monitors": [],
+            "name": "nginx-app-nohm_8080"
+        }
+    ],
+    "virtualServers": [
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:8070",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "nginx-app_8070",
+            "pool": "/mesos/nginx-app_8070",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        },
+        {
+            "connectionLimit": 0,
+            "destination": "/mesos/10.128.10.240:8080",
+            "enabled": true,
+            "ipProtocol": "tcp",
+            "name": "nginx-app-nohm_8080",
+            "pool": "/mesos/nginx-app-nohm_8080",
+            "profiles": [
+                {
+                    "name": "http",
+                    "partition": "Common"
+                },
+                {
+                    "name": "tcp",
+                    "partition": "Common"
+                }
+            ],
+            "sourceAddressTranslation": {
+                "type": "automap"
+            }
+        }
+    ]
+}
