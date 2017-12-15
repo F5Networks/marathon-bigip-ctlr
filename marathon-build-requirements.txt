@@ -6,5 +6,5 @@ flake8==3.2.1
 #flake8_docstrings==1.0.2
 mock
 coverage
-pylint
+pylint==1.8.1
 coveralls==1.1
