@@ -591,7 +591,7 @@ def get_apps(apps, health_check):
                      marathon_app.app['labels'])
 
         if len(service_ports) == 0:
-            logger.warning("Warning, no service ports found for " + appId)
+            logger.warning("Warning, no service ports found for %s", appId)
 
         for i, servicePort in enumerate(service_ports):
             try:
@@ -628,7 +628,7 @@ def get_apps(apps, health_check):
         for task in app['tasks']:
             # Marathon 0.7.6 bug workaround
             if len(task['host']) == 0:
-                logger.warning("Ignoring Marathon task without host " +
+                logger.warning("Ignoring Marathon task without host %s",
                                task['id'])
                 continue
 
