@@ -17,6 +17,13 @@ Limitations
   This version is available in the package iapps-1.0.0.492.0.  Note that
   installing a new version of an iapp does not replace the existing version.
 
+v1.1.1
+------
+
+Bug Fixes
+`````````
+* Supports API changes introduced with Marathon v1.5.2 `[#244] <https://github.com/F5Networks/marathon-bigip-ctlr/issues/244>`_
+
 v1.1.0
 ------
 
