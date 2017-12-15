@@ -1,6 +1,13 @@
 Release Notes for F5 BIG-IP Controller for Marathon
 ===================================================
 
+v1.1.1
+------
+
+Bug Fixes
+`````````
+* Supports API changes introduced with Marathon v1.5.2 `[#244] <https://github.com/F5Networks/marathon-bigip-ctlr/issues/244>`_
+
 v1.1.0
 ------
 
