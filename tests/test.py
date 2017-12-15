@@ -52,7 +52,8 @@ marathon_test_data = [
     'tests/marathon_one_app_zero_instances.json',
     'tests/marathon_one_app_https.json',
     'tests/marathon_one_app_two_health_checks.json',
-    'tests/marathon_one_app_pool_only.json'
+    'tests/marathon_one_app_pool_only.json',
+    'tests/marathon_two_apps_v152.json'
 ]
 
 args_env = ['F5_CC_SYSLOG_SOCKET',
