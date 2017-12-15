@@ -1,0 +1,272 @@
+[
+    {
+        "backoffFactor": 1.15,
+        "backoffSeconds": 1,
+        "container": {
+            "docker": {
+                "forcePullImage": true,
+                "image": "user/test-app",
+                "parameters": [],
+                "privileged": false
+            },
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 0,
+                    "labels": {},
+                    "protocol": "tcp",
+                    "servicePort": 10000
+                }
+            ],
+            "type": "DOCKER",
+            "volumes": []
+        },
+        "cpus": 0.5,
+        "deployments": [],
+        "disk": 0,
+        "executor": "",
+        "gpus": 0,
+        "healthChecks": [
+            {
+                "delaySeconds": 15,
+                "gracePeriodSeconds": 300,
+                "ignoreHttp1xx": false,
+                "intervalSeconds": 60,
+                "maxConsecutiveFailures": 3,
+                "path": "/",
+                "portIndex": 0,
+                "protocol": "HTTP",
+                "timeoutSeconds": 20
+            },
+            {
+                "delaySeconds": 15,
+                "gracePeriodSeconds": 30,
+                "ignoreHttp1xx": false,
+                "intervalSeconds": 60,
+                "maxConsecutiveFailures": 3,
+                "path": "/",
+                "portIndex": 0,
+                "protocol": "HTTP",
+                "timeoutSeconds": 20
+            }
+        ],
+        "id": "/nginx-app",
+        "instances": 2,
+        "killSelection": "YOUNGEST_FIRST",
+        "labels": {
+            "F5_0_BALANCE": "least-sessions",
+            "F5_0_BIND_ADDR": "10.128.10.240",
+            "F5_0_MODE": "http",
+            "F5_0_PORT": "8070",
+            "F5_PARTITION": "mesos"
+        },
+        "maxLaunchDelaySeconds": 3600,
+        "mem": 32,
+        "networks": [
+            {
+                "mode": "container/bridge"
+            }
+        ],
+        "requirePorts": false,
+        "tasks": [
+            {
+                "appId": "/nginx-app",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2017-12-14T20:53:51.796Z",
+                        "instanceId": "nginx-app.marathon-bd2cb77e-e110-11e7-81be-5a889b68a509",
+                        "lastFailure": null,
+                        "lastFailureCause": null,
+                        "lastSuccess": "2017-12-14T20:58:51.895Z"
+                    },
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2017-12-14T20:53:51.796Z",
+                        "instanceId": "nginx-app.marathon-bd2cb77e-e110-11e7-81be-5a889b68a509",
+                        "lastFailure": null,
+                        "lastFailureCause": null,
+                        "lastSuccess": "2017-12-14T20:58:51.895Z"
+                    }
+                ],
+                "host": "172.16.1.6",
+                "id": "nginx-app.bd2cb77e-e110-11e7-81be-5a889b68a509",
+                "ipAddresses": [
+                    {
+                        "ipAddress": "172.17.0.3",
+                        "protocol": "IPv4"
+                    }
+                ],
+                "ports": [
+                    11329
+                ],
+                "slaveId": "024c109b-a0e5-443f-8d45-1b4d66bc9f59-S0",
+                "stagedAt": "2017-12-14T20:52:46.765Z",
+                "startedAt": "2017-12-14T20:53:11.159Z",
+                "state": "TASK_RUNNING",
+                "version": "2017-12-14T20:52:46.742Z"
+            },
+            {
+                "appId": "/nginx-app",
+                "healthCheckResults": [
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2017-12-14T20:53:51.807Z",
+                        "instanceId": "nginx-app.marathon-bd2cde8f-e110-11e7-81be-5a889b68a509",
+                        "lastFailure": null,
+                        "lastFailureCause": null,
+                        "lastSuccess": "2017-12-14T20:58:51.895Z"
+                    },
+                    {
+                        "alive": true,
+                        "consecutiveFailures": 0,
+                        "firstSuccess": "2017-12-14T20:53:51.797Z",
+                        "instanceId": "nginx-app.marathon-bd2cde8f-e110-11e7-81be-5a889b68a509",
+                        "lastFailure": null,
+                        "lastFailureCause": null,
+                        "lastSuccess": "2017-12-14T20:58:51.895Z"
+                    }
+                ],
+                "host": "172.16.1.7",
+                "id": "nginx-app.bd2cde8f-e110-11e7-81be-5a889b68a509",
+                "ipAddresses": [
+                    {
+                        "ipAddress": "172.17.0.3",
+                        "protocol": "IPv4"
+                    }
+                ],
+                "ports": [
+                    9158
+                ],
+                "slaveId": "024c109b-a0e5-443f-8d45-1b4d66bc9f59-S1",
+                "stagedAt": "2017-12-14T20:52:46.766Z",
+                "startedAt": "2017-12-14T20:53:29.442Z",
+                "state": "TASK_RUNNING",
+                "version": "2017-12-14T20:52:46.742Z"
+            }
+        ],
+        "tasksHealthy": 2,
+        "tasksRunning": 2,
+        "tasksStaged": 0,
+        "tasksUnhealthy": 0,
+        "unreachableStrategy": {
+            "expungeAfterSeconds": 0,
+            "inactiveAfterSeconds": 0
+        },
+        "upgradeStrategy": {
+            "maximumOverCapacity": 1,
+            "minimumHealthCapacity": 1
+        },
+        "version": "2017-12-14T20:52:46.742Z",
+        "versionInfo": {
+            "lastConfigChangeAt": "2017-12-14T20:52:46.742Z",
+            "lastScalingAt": "2017-12-14T20:52:46.742Z"
+        }
+    },
+    {
+        "backoffFactor": 1.15,
+        "backoffSeconds": 1,
+        "container": {
+            "docker": {
+                "forcePullImage": true,
+                "image": "user/test-app2",
+                "parameters": [],
+                "privileged": false
+            },
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 0,
+                    "labels": {},
+                    "protocol": "tcp",
+                    "servicePort": 10001
+                }
+            ],
+            "type": "DOCKER",
+            "volumes": []
+        },
+        "cpus": 0.5,
+        "deployments": [],
+        "disk": 0,
+        "executor": "",
+        "gpus": 0,
+        "id": "/nginx-app-nohm",
+        "instances": 2,
+        "killSelection": "YOUNGEST_FIRST",
+        "labels": {
+            "F5_0_BALANCE": "round-robin",
+            "F5_0_BIND_ADDR": "10.128.10.240",
+            "F5_0_MODE": "http",
+            "F5_0_PORT": "8080",
+            "F5_PARTITION": "mesos"
+        },
+        "maxLaunchDelaySeconds": 3600,
+        "mem": 32,
+        "networks": [
+            {
+                "mode": "container/bridge"
+            }
+        ],
+        "requirePorts": false,
+        "tasks": [
+            {
+                "appId": "/nginx-app-nohm",
+                "host": "172.16.1.6",
+                "id": "nginx-app-nohm.c6261480-e110-11e7-81be-5a889b68a509",
+                "ipAddresses": [
+                    {
+                        "ipAddress": "172.17.0.2",
+                        "protocol": "IPv4"
+                    }
+                ],
+                "ports": [
+                    31042
+                ],
+                "slaveId": "024c109b-a0e5-443f-8d45-1b4d66bc9f59-S0",
+                "stagedAt": "2017-12-14T20:53:01.821Z",
+                "startedAt": "2017-12-14T20:53:11.139Z",
+                "state": "TASK_RUNNING",
+                "version": "2017-12-14T20:52:59.998Z"
+            },
+            {
+                "appId": "/nginx-app-nohm",
+                "host": "172.16.1.7",
+                "id": "nginx-app-nohm.c6263b91-e110-11e7-81be-5a889b68a509",
+                "ipAddresses": [
+                    {
+                        "ipAddress": "172.17.0.2",
+                        "protocol": "IPv4"
+                    }
+                ],
+                "ports": [
+                    16709
+                ],
+                "slaveId": "024c109b-a0e5-443f-8d45-1b4d66bc9f59-S1",
+                "stagedAt": "2017-12-14T20:53:01.821Z",
+                "startedAt": "2017-12-14T20:53:29.423Z",
+                "state": "TASK_RUNNING",
+                "version": "2017-12-14T20:52:59.998Z"
+            }
+        ],
+        "tasksHealthy": 0,
+        "tasksRunning": 2,
+        "tasksStaged": 0,
+        "tasksUnhealthy": 0,
+        "unreachableStrategy": {
+            "expungeAfterSeconds": 0,
+            "inactiveAfterSeconds": 0
+        },
+        "upgradeStrategy": {
+            "maximumOverCapacity": 1,
+            "minimumHealthCapacity": 1
+        },
+        "version": "2017-12-14T20:52:59.998Z",
+        "versionInfo": {
+            "lastConfigChangeAt": "2017-12-14T20:52:59.998Z",
+            "lastScalingAt": "2017-12-14T20:52:59.998Z"
+        }
+    }
+]
