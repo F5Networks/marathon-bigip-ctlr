@@ -361,7 +361,7 @@ def healthcheck_sendstring(data):
     Args:
         data: Health Monitor dict
     """
-    if data['protocol'] == "http":
+    if 'type' in data and data['type'] == "http":
         send_string = 'GET / HTTP/1.0\\r\\n\\r\\n'
         if 'path' in data:
             send_string = 'GET %s HTTP/1.0\\r\\n\\r\\n' % data['path']

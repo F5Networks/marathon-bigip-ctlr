@@ -9,9 +9,10 @@
             "intervalSeconds": 60,
             "maxConsecutiveFailures": 3,
             "name": "server-app_80_0_http",
-            "path": "/",
+            "path": "/this/is/a/nondefault/path",
             "portIndex": 0,
             "protocol": "HTTP",
+            "send": "GET /this/is/a/nondefault/path HTTP/1.0\\r\\n\\r\\n",
             "timeout": 141,
             "timeoutSeconds": 20,
             "type": "http"
