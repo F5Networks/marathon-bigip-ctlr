@@ -116,7 +116,7 @@
         "executor": "",
         "healthChecks": [
             {
-                "path": "/",
+                "path": "/this/is/a/nondefault/path",
                 "protocol": "HTTP",
                 "portIndex": 0,
                 "gracePeriodSeconds": 300,

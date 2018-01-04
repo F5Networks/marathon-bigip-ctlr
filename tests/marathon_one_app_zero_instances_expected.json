@@ -12,6 +12,7 @@
             "path": "/my_healthcheck",
             "portIndex": 0,
             "protocol": "HTTP",
+            "send": "GET /my_healthcheck HTTP/1.0\\r\\n\\r\\n",
             "timeout": 21,
             "timeoutSeconds": 20,
             "type": "http"
