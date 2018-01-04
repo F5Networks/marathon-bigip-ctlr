@@ -334,7 +334,7 @@ Run the command below on the BIG-IP to view the newly-created objects.
 
 
 .. _Enterprise DC/OS: https://mesosphere.com/product/
-.. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/iam-api/
+.. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/oss/iam-api/
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
 .. _route domain: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-routing-administration-12-0-0/9.html

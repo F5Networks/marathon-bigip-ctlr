@@ -8,6 +8,10 @@ Added Functionality
 ```````````````````
 * Support for BIG-IP partitions with non-zero default route domains.
 
+Bug Fixes
+`````````
+* Adds correct Marathon healthCheck path to BIG-IP Health Monitor Send String  `[#256] <https://github.com/F5Networks/marathon-bigip-ctlr/issues/256>`_
+
 Limitations
 ```````````
 * If you are using F5-supported iapps, you must first install the
@@ -23,6 +27,9 @@ v1.1.1
 Bug Fixes
 `````````
 * Supports API changes introduced with Marathon v1.5.2 `[#244] <https://github.com/F5Networks/marathon-bigip-ctlr/issues/244>`_
+* Gracefully handle the case when an app has no service ports (applies to DC/OS Virtual Networks)
+* Removed immutable parameters from update operations, as BIG-IP v11.6.1 does not allow immutable parameters to be present in update operations.
+* Added enhanced exception handling to catch invalid input configurations in CCCL.
 
 v1.1.0
 ------
