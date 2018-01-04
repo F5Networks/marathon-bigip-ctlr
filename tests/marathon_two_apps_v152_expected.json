@@ -13,6 +13,7 @@
             "path": "/",
             "portIndex": 0,
             "protocol": "HTTP",
+            "send": "GET / HTTP/1.0\\r\\n\\r\\n",
             "timeout": 141,
             "timeoutSeconds": 20,
             "type": "http"
@@ -28,6 +29,7 @@
             "path": "/",
             "portIndex": 0,
             "protocol": "HTTP",
+            "send": "GET / HTTP/1.0\\r\\n\\r\\n",
             "timeout": 141,
             "timeoutSeconds": 20,
             "type": "http"
