@@ -27,6 +27,9 @@ v1.1.1
 Bug Fixes
 `````````
 * Supports API changes introduced with Marathon v1.5.2 `[#244] <https://github.com/F5Networks/marathon-bigip-ctlr/issues/244>`_
+* Gracefully handle the case when an app has no service ports (applies to DC/OS Virtual Networks)
+* Removed immutable parameters from update operations, as BIG-IP v11.6.1 does not allow immutable parameters to be present in update operations.
+* Added enhanced exception handling to catch invalid input configurations in CCCL.
 
 v1.1.0
 ------
