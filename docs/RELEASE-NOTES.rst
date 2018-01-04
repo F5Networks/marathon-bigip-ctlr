@@ -7,6 +7,8 @@ Release Notes for F5 BIG-IP Controller for Marathon
 Added Functionality
 ```````````````````
 * Support for BIG-IP partitions with non-zero default route domains.
+* Added build and version information to the User-Agent header of iControl REST requests to BIG-IP.
+* Build and version information logged upon container startup.
 
 Bug Fixes
 `````````
