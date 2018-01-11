@@ -841,10 +841,16 @@ def create_config_marathon(cccl, apps):
                 # BIG-IP will automatically add the tcp profile for http
                 # because it is an inherited profile. Explictly add the tcp
                 # profile so that we don't fail comparison matches later.
-                profiles.append({'partition': 'Common', 'name': 'http'})
-                profiles.append({'partition': 'Common', 'name': 'tcp'})
+                profiles.append({'partition': 'Common',
+                                 'name': 'http',
+                                 'context': 'all'})
+                profiles.append({'partition': 'Common',
+                                 'name': 'tcp',
+                                 'context': 'all'})
             elif get_protocol(app.mode) == 'tcp':
-                profiles.append({'partition': 'Common', 'name': 'tcp'})
+                profiles.append({'partition': 'Common',
+                                 'name': 'tcp',
+                                 'context': 'all'})
 
             if app.bindAddr:
                 virtual = {

@@ -118,11 +118,13 @@
             "profiles": [
                 {
                     "name": "http",
-                    "partition": "Common"
+                    "partition": "Common",
+                    "context": "all"
                 },
                 {
                     "name": "tcp",
-                    "partition": "Common"
+                    "partition": "Common",
+                    "context": "all"
                 }
             ],
             "sourceAddressTranslation": {
@@ -139,11 +141,13 @@
             "profiles": [
                 {
                     "name": "http",
-                    "partition": "Common"
+                    "partition": "Common",
+                    "context": "all"
                 },
                 {
                     "name": "tcp",
-                    "partition": "Common"
+                    "partition": "Common",
+                    "context": "all"
                 }
             ],
             "sourceAddressTranslation": {
