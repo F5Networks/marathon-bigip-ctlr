@@ -3,8 +3,15 @@
 all:
 	@printf "\n\nAvailable targets:\n"
 	@printf "  devel-image - build development ready docker container\n"
+	@printf "  doc-preview - Use docs image to build docs\n"
 	@printf "  doc-preview - Use docs image to build local preview of docs\n"
 	@printf "  test-docs - Use docs image to build and test docs\n"
+
+# one-time html build using a docker container
+.PHONY: docker-html
+docker-html:
+	rm -rf docs/_build
+	./build-tools/docker-docs.sh make -C docs/ html
 
 doc-preview:
 	rm -rf docs/_build
