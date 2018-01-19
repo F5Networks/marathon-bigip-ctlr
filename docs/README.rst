@@ -23,14 +23,12 @@ Features
 
 - Dynamically create, manage, and destroy BIG-IP objects.
 - Authenticate to `Enterprise DC/OS`_ via the `Identity and Access Management API`_.
-- Deploy F5 `iApps <https://devcentral.f5.com/iapps>`_ on the BIG-IP.
-
+- Deploy F5 `iApps`_ on the BIG-IP.
 
 Guides
 ------
 
-See the `F5 Marathon Container Connector user documentation </containers/v1/marathon/>`_.
-
+See the |mctlr-long| `user documentation`_.
 
 Overview
 --------
@@ -38,7 +36,7 @@ Overview
 The |mctlr-long| is a Docker container that runs as a `Marathon Application`_. It watches the Marathon API for the creation/destruction of Marathon Apps; when it discovers an App with the F5 labels applied, it automatically updates the BIG-IP as follows:
 
 - matches the Marathon App to the specified BIG-IP partition;
-- creates a virtual server and pool for each `port-mapping <https://mesosphere.github.io/marathon/docs/ports.html>`_ ;
+- creates a virtual server and pool for each `port-mapping`_;
 - creates a pool member for each App task and adds the member to the default pool;
 - creates health monitors on the BIG-IP for pool members if the Marathon App has health checks configured.
 
@@ -47,6 +45,8 @@ The |mctlr-long| is a Docker container that runs as a `Marathon Application`_. I
    The |mctlr-long| monitors the BIG-IP partition it manages for configuration changes. If it discovers changes, the Controller reapplies its own configuration to the BIG-IP system.
    
    F5 does not recommend making configuration changes to objects in any partition managed by the |mctlr-long| via any other means (for example, the configuration utility, TMOS, or by syncing configuration with another device or service group). Doing so may result in disruption of service or unexpected behavior.
+
+.. _config parameters:
 
 Configuration Parameters
 ------------------------
@@ -96,19 +96,24 @@ Configuration Parameters
 | F5_CC_DCOS_AUTH_TOKEN             | string    | Optional  | n/a           | DC/OS ACS Token               |                   |
 +-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
 
-.. [#username] The controller requires the BIG-IP user account to have a defined role of ``Administrator``, ``Resource Administrator``, or ``Manager``. See `BIG-IP Users <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-concepts-11-5-0/10.html>`_ for further details.
-
+.. _app labels:
 
 Application Labels
 ------------------
 
 F5 application labels are key-value pairs that correspond to BIG-IP configuration options.
 
-To configure virtual servers on the BIG-IP for specific application service ports, define a port index in the configuration parameter.
+To configure virtual servers on the BIG-IP device for specific application service ports, define a port index in the configuration parameter.
 In the table below, ``{n}`` refers to an index into the service-port mapping array, starting at 0.
 
 |mctlr-long| supports two BIG-IP configuration modes (normal and iApp), with a different set of application labels for each mode. Normal mode directly configures the virtual servers via the application labels, whereas iApp mode configures virtual servers via an iApp template.
 
+The Controller uses the following naming structure when creating BIG-IP objects:
+
+``<marathon_application_path>_<application-port>``
+
+
+.. _app labels normal:
 
 Application Labels for Normal Mode
 ``````````````````````````````````
@@ -138,28 +143,16 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example: ``"F5_0_MODE": "http"``          |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BALANCE       | string    | Optional  | round-robin   | Load-balancing algorithm                  | - dynamic-ratio-member            |
-|                       |           |           |               |                                           | - least-connections-member        |
-|                       |           |           |               | Example:                                  | - observed-node                   |
-|                       |           |           |               |                                           | - ratio-least-connections-node    |
-|                       |           |           |               | ``"F5_0_BALANCE":``                       | - round-robin                     |
-|                       |           |           |               | ``"least-connections-member"``            | - dynamic-ratio-node              |
-|                       |           |           |               |                                           | - least-connections-node          |
-|                       |           |           |               |                                           | - predictive-member               |
-|                       |           |           |               |                                           | - ratio-member                    |
-|                       |           |           |               |                                           | - weighted-least-connections-     |
-|                       |           |           |               |                                           |   member                          |
-|                       |           |           |               |                                           | - fastest-app-response            |
-|                       |           |           |               |                                           | - least-sessions                  |
-|                       |           |           |               |                                           | - predictive-node                 |
-|                       |           |           |               |                                           | - ratio-node                      |
-|                       |           |           |               |                                           | - weighted-least-connections-node |
-|                       |           |           |               |                                           | - fastest-node                    |
-|                       |           |           |               |                                           | - observed-member                 |
-|                       |           |           |               |                                           | - ratio-least-connections-member  |
-|                       |           |           |               |                                           | - ratio-session                   |
+| \F5_{n}_BALANCE       | string    | Optional  | round-robin   | Load-balancing algorithm                  | Any BIG-IP supported mode [#lb]_  |
+|                       |           |           |               |                                           |                                   |
+|                       |           |           |               | Example:                                  |                                   |
+|                       |           |           |               |                                           |                                   |
+|                       |           |           |               | ``"F5_0_BALANCE":``                       |                                   |
+|                       |           |           |               | ``"least-connections-member"``            |                                   |
+|                       |           |           |               |                                           |                                   |
+|                       |           |           |               |                                           |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to apply to an         |                                   |
+| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to apply to an         | Any BIG-IP client SSL profile     |
 |                       |           |           |               | HTTPS virtual server                      |                                   |
 |                       |           |           |               |                                           |                                   |
 |                       |           |           |               | Example:                                  |                                   |
@@ -167,15 +160,14 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                       |           |           |               | ``"F5_0_SSL_PROFILE": "Common/clientssl"``|                                   |
 |                       |           |           |               |                                           |                                   |
 +-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-.. [#ba] The controller supports BIG-IP `route domain`_ specific addresses.
 
-You can set the ``F5_{n}_BIND_ADDR`` label via an IPAM system. You can configure your IPAM system to set this label with a chosen IP address, and the controller
-will configure the BIG-IP virtual server when it sees a valid ``F5_{n}_BIND_ADDR``. Virtual server deployment requires the ``F5_{n}_BIND_ADDR`` label, but it is not
-necessary to set it in your initial config, if you are relying on an IPAM system to set the field for you.
+.. note::
 
-If ``F5_{n}_BIND_ADDR`` is not provided as a label, then the controller will configure and manage pools, pool members, and healthchecks for the application without a virtual server on the BIG-IP.
-In this case you should already have a BIG-IP virtual server that handles client connections and has an irule or traffic policy to forward the request to the correct pool. The stable name of the pool will
-be the full path of the Marathon application with underscores substituted for forward slashes followed by an underscore followed by the port of the application.
+   If you don't define ``F5_{n}_BIND_ADDR``, the Controller will create BIG-IP `pools without virtual servers`_. In such cases, **you should already have a BIG-IP virtual server** that handles client connections configured with an iRule or local traffic policy that can forward the request to the correct pool.
+
+   You can `use an IPAM system`_ to populate the ``F5_{n}_BIND_ADDR`` label. When the Controller discovers a valid ``F5_{n}_BIND_ADDR`` for an Application, it creates a BIG-IP virtual server for the App with the specified the IP address.
+
+.. _app labels iapp:
 
 Application Labels for iApp Mode
 ````````````````````````````````
@@ -196,14 +188,14 @@ Use iApp application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               | ``"F5_0_IAPP_TEMPLATE": "/Common/f5.http"``                       |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | \F5_{n}_IAPP_OPTION_*                 | string    | iApp      | n/a           | Define iApp configuration options to apply to the Application     |
-|                                       |           | template  |               | Service.                                                          |
+|                                       |           | template- |               | Service.                                                          |
 |                                       |           | specific  |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_OPTION_description": "This is a test iApp"``         |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | \F5_{n}_IAPP_TABLE_*                  | JSON      | iApp      | n/a           | Define iApp tables to apply to the Application Service.           |
-|                                       | string    | template  |               |                                                                   |
+|                                       | string    | template- |               |                                                                   |
 |                                       |           | specific  |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_TABLE_monitor__Monitors":``                          |
@@ -211,7 +203,7 @@ Use iApp application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               |  ``"rows": [[0, "mon1", "tcp", "" ],[1, "mon2", "http", ""]]}"``  |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | \F5_{n}_IAPP_VARIABLE_*               | string    | iApp      | n/a           | Define the variables the iApp needs to create the Service.        |
-|                                       |           | template  |               |                                                                   |
+|                                       |           | template- |               |                                                                   |
 |                                       |           | specific  |               | Use an existing resource,or tell the service to create a new one  |
 |                                       |           |           |               | using ``#create_new#``.                                           |
 |                                       |           |           |               |                                                                   |
@@ -224,18 +216,20 @@ Use iApp application labels to deploy iApp templates on the BIG-IP.
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | This entry can vary from iApp to iApp.                            |
 |                                       |           |           |               |                                                                   |
-|                                       |           |           |               | See F5_{n}_IAPP_POOL_MEMBER_TABLE section below.                  |
+|                                       |           |           |               | See \F5_{n}_IAPP_POOL_MEMBER_TABLE section below.                 |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
 | \F5_{n}_IAPP_POOL_MEMBER_TABLE_NAME   | string    | Required  | n/a           | The iApp table entry containing pool member definitions.          |
-|                                       |           | if F5_{n} |               |                                                                   |
+|                                       |           | if \F5_{n}|               |                                                                   |
 |                                       |           | _IAPP_POOL|               | This entry can vary from iApp to iApp.                            |
 |                                       |           | _MEMBER_  |               |                                                                   |
-|                                       |           | TABLE is  |               | DEPRECATED: Use F5_{n}_IAPP_POOL_MEMBER_TABLE instead.            |
-|                                       |           | not set   |               |                                                                   |
+|                                       |           | TABLE is  |               | DEPRECATED: Use \F5_{n}_IAPP_POOL_MEMBER_TABLE instead.           |
+|                                       |           | unset     |               |                                                                   |
 |                                       |           |           |               | Example:                                                          |
 |                                       |           |           |               |                                                                   |
 |                                       |           |           |               | ``"F5_0_IAPP_POOL_MEMBER_TABLE_NAME": "pool__members"``           |
 +---------------------------------------+-----------+-----------+---------------+-------------------------------------------------------------------+
+
+.. _iapp pool member table:
 
 F5_{n}_IAPP_POOL_MEMBER_TABLE
 `````````````````````````````
@@ -292,52 +286,55 @@ This would configure the following table on BIG-IP::
 
 You will need to adjust this for the particular iApp template that you are using.  One way to discover the format is to configure an iApp manually from a template, and then check its configuration using ``tmsh list sys app service <appname>``.
 
+.. _conf examples:
+
 Example Configuration Files
-```````````````````````````
-- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_
-- `sample-iapp-marathon-application.json <./_static/config_examples/sample-iapp-marathon-application.json>`_
+---------------------------
+
+- :fonticon:`fa fa-download` :download:`sample-marathon-application.json </_static/config_examples/sample-marathon-application.json>`
+- :fonticon:`fa fa-download` :download:`sample-iapp-marathon-application.json </_static/config_examples/sample-iapp-marathon-application.json>`
 
 Usage Example
 -------------
 
-The |mctlr-long| configures objects on the BIG-IP in response to Marathon Applications and Tasks. For our example App -- `sample-marathon-application.json <./_static/config_examples/sample-marathon-application.json>`_ -- starting the |mctlr-long| with the following JSON in Marathon creates objects in the ``/mesos`` partition on the BIG-IP.
+The |mctlr-long| configures objects on the BIG-IP in response to Marathon Applications and Tasks.
+For the example App -- :ref:`sample-marathon-application.json <sample-marathon-app>` -- starting the |mctlr-long| with the following JSON creates objects in the ``/mesos`` partition on the BIG-IP device.
 
-::
+.. code-block:: JSON
 
-    {
-      "id": "marathon-bigip-ctlr",
-      "cpus": 0.5,
-      "mem": 128.0,
-      "instances": 1,
-      "container": {
-        "type": "DOCKER",
-        "forcePullImage": true,
-        "docker": {
-          "image": "<path to Docker image>",
-          "network": "BRIDGE"
-        }
-      },
-      "env": {
-        "MARATHON_URL": "<URL for Marathon API Service>",
-        "F5_CC_PARTITIONS": "mesos",
-        "F5_CC_BIGIP_HOSTNAME": "1.2.3.4",
-        "F5_CC_BIGIP_USERNAME": "admin",
-        "F5_CC_BIGIP_PASSWORD": "admin"
-      }
-    }
+   {
+     "id": "marathon-bigip-ctlr",
+     "cpus": 0.5,
+     "mem": 128.0,
+     "instances": 1,
+     "container": {
+       "type": "DOCKER",
+       "forcePullImage": true,
+       "docker": {
+         "image": "<path to Docker image>",
+         "network": "BRIDGE"
+       }
+     },
+     "env": {
+       "MARATHON_URL": "<URL for Marathon API Service>",
+       "F5_CC_PARTITIONS": "mesos",
+       "F5_CC_BIGIP_HOSTNAME": "1.2.3.4",
+       "F5_CC_BIGIP_USERNAME": "admin",
+       "F5_CC_BIGIP_PASSWORD": "admin"
+     }
+   }
 
 Run the command below on the BIG-IP to view the newly-created objects.
 
-::
+.. code-block:: console
 
-    user@(my-bigip)(Active)(/mesos)(tmos)# show ltm
+   user@(my-bigip)(Active)(/mesos)(tmos)# show ltm
 
+.. rubric:: **Footnotes:**
+.. [#username] The controller requires the BIG-IP user account to have a defined role of ``Administrator``, ``Resource Administrator``, or ``Manager``. See `BIG-IP Users <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-concepts-11-5-0/10.html>`_ for further details.
+.. [#ba] The controller supports BIG-IP `route domain`_ specific addresses.
+.. [#lb] See "BIG-IP system load balancing methods" in the `BIG-IP Local Traffic Management Basics user guide <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/4.html>`_.
 
-.. _Enterprise DC/OS: https://mesosphere.com/product/
-.. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/oss/iam-api/
-.. _Marathon: https://mesosphere.github.io/marathon/
-.. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
-.. _route domain: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-routing-administration-12-0-0/9.html
 .. |Slack| image:: https://f5cloudsolutions.herokuapp.com/badge.svg
    :target: https://f5cloudsolutions.herokuapp.com
    :alt: Slack
