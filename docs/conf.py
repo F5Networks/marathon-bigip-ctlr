@@ -101,6 +101,8 @@ with open('../next-version.txt') as verfile:
 # External links
 # Lets you reference GitHub issues in release notes, e.g. :issues:`214`
 extlinks = {'issues': ('https://github.com/F5Networks/marathon-bigip-ctlr/issues/%s',
+                      'issue '),
+                      'cccl-issue': ('https://github.com/f5devcentral/f5-cccl/issues/%s',
                       'issue ')}
 
 # Substitutions

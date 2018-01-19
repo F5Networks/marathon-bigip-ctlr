@@ -1,7 +1,7 @@
 Release Notes for F5 BIG-IP Controller for Marathon
 ===================================================
 
-|release|
+v1.2.0
 ----------
 
 Added Functionality
@@ -13,6 +13,7 @@ Added Functionality
 Bug Fixes
 `````````
 * Adds correct Marathon healthCheck path to BIG-IP Health Monitor Send String :issues:`256`
+* Corrected a comparison problem in CCCL that caused unnecessary updates for BIG-IP Virtual Server resources :cccl_issue:`198`
 
 Limitations
 ```````````
