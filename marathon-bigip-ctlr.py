@@ -57,30 +57,6 @@ from f5_cccl.exceptions import F5CcclError
 from f5_cccl.utils.mgmt import mgmt_root
 
 
-# BIG-IP load-balancing methods
-lb_methods = [
-    "dynamic-ratio-member",
-    "dynamic-ratio-node",
-    "fastest-app-response",
-    "fastest-node",
-    "least-connections-member",
-    "least-connections-node",
-    "least-sessions",
-    "observed-member",
-    "observed-node",
-    "predictive-member",
-    "predictive-node",
-    "ratio-least-connections-member",
-    "ratio-least-connections-node",
-    "ratio-member",
-    "ratio-node",
-    "round-robin",
-    "ratio-session",
-    "weighted-least-connections-member",
-    "weighted-least-connections-node"
-]
-
-
 class InvalidServiceDefinitionError(ValueError):
     """Parser or validator encountered error in user's service definition.
 
@@ -346,11 +322,6 @@ def is_label_data_valid(app):
         if not validate_bigip_address(app.bindAddr):
             logger.error(msg.format('F5_BIND_ADDR', app.appId, app.bindAddr))
             is_valid = False
-
-    # Validate load-balancing method
-    if app.balance is not None and app.balance not in lb_methods:
-        logger.error(msg.format('F5_BALANCE', app.appId, app.balance))
-        is_valid = False
 
     return is_valid
 

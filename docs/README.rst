@@ -119,47 +119,47 @@ Application Labels for Normal Mode
 ``````````````````````````````````
 Use the following application labels to deploy virtual servers on the BIG-IP.
 
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| Parameter             | Type      | Required  | Default       | Description                               | Allowed Values                    |
-+=======================+===========+===========+===============+===========================================+===================================+
-| F5_PARTITION          | string    | Required  | n/a           | BIG-IP partition in which to create       |                                   |
-|                       |           |           |               | objects; cannot be "Common"               |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service [#ba]_      |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Example:                                  |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | ``"F5_0_BIND_ADDR": "10.0.0.42"``         |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_PORT          | string    | Required  | n/a           | Service port to use for communications    |                                   |
-|                       |           |           |               | with the BIG-IP                           |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Overrides the ``servicePort``             |                                   |
-|                       |           |           |               | configuration parameter.                  |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Example: ``"F5_0_PORT": "80"``            |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_MODE          | string    | Optional  | tcp           | Connection mode                           | http, tcp                         |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Example: ``"F5_0_MODE": "http"``          |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_BALANCE       | string    | Optional  | round-robin   | Load-balancing algorithm                  | Any BIG-IP supported mode [#lb]_  |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Example:                                  |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | ``"F5_0_BALANCE":``                       |                                   |
-|                       |           |           |               | ``"least-connections-member"``            |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               |                                           |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
-| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to apply to an         | Any BIG-IP client SSL profile     |
-|                       |           |           |               | HTTPS virtual server                      |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | Example:                                  |                                   |
-|                       |           |           |               |                                           |                                   |
-|                       |           |           |               | ``"F5_0_SSL_PROFILE": "Common/clientssl"``|                                   |
-|                       |           |           |               |                                           |                                   |
-+-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------+
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| Parameter             | Type      | Required  | Default       | Description                               | Allowed Values                          |
++=======================+===========+===========+===============+===========================================+=========================================+
+| F5_PARTITION          | string    | Required  | n/a           | BIG-IP partition in which to create       |                                         |
+|                       |           |           |               | objects; cannot be "Common"               |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| \F5_{n}_BIND_ADDR     | string    | Optional  | n/a           | IP address of the App service [#ba]_      |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | Example:                                  |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | ``"F5_0_BIND_ADDR": "10.0.0.42"``         |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| \F5_{n}_PORT          | string    | Required  | n/a           | Service port to use for communications    |                                         |
+|                       |           |           |               | with the BIG-IP                           |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | Overrides the ``servicePort``             |                                         |
+|                       |           |           |               | configuration parameter.                  |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | Example: ``"F5_0_PORT": "80"``            |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| \F5_{n}_MODE          | string    | Optional  | tcp           | Connection mode                           | http, tcp                               |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | Example: ``"F5_0_MODE": "http"``          |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| \F5_{n}_BALANCE       | string    | Optional  | round-robin   | Load-balancing algorithm [#lb]_           | See supported                           |
+|                       |           |           |               |                                           | `loadBalancingMode options in f5-cccl`_ |
+|                       |           |           |               | Example:                                  |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | ``"F5_0_BALANCE":``                       |                                         |
+|                       |           |           |               | ``"least-connections-member"``            |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               |                                           |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
+| \F5_{n}_SSL_PROFILE   | string    | Optional  | n/a           | BIG-IP SSL profile to apply to an         | Any BIG-IP client SSL profile           |
+|                       |           |           |               | HTTPS virtual server                      |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | Example:                                  |                                         |
+|                       |           |           |               |                                           |                                         |
+|                       |           |           |               | ``"F5_0_SSL_PROFILE": "Common/clientssl"``|                                         |
+|                       |           |           |               |                                           |                                         |
++-----------------------+-----------+-----------+---------------+-------------------------------------------+-----------------------------------------+
 
 .. note::
 
@@ -333,8 +333,9 @@ Run the command below on the BIG-IP to view the newly-created objects.
 .. rubric:: **Footnotes:**
 .. [#username] The controller requires the BIG-IP user account to have a defined role of ``Administrator``, ``Resource Administrator``, or ``Manager``. See `BIG-IP Users <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-concepts-11-5-0/10.html>`_ for further details.
 .. [#ba] The controller supports BIG-IP `route domain`_ specific addresses.
-.. [#lb] See "BIG-IP system load balancing methods" in the `BIG-IP Local Traffic Management Basics user guide <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/4.html>`_.
+.. [#lb] The f5-cccl schema provides support for a subset of the BIG-IP system load balancing methods. See the `BIG-IP Local Traffic Management Basics user guide <https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/4.html>`_ for information about each mode.
 
 .. |Slack| image:: https://f5cloudsolutions.herokuapp.com/badge.svg
    :target: https://f5cloudsolutions.herokuapp.com
    :alt: Slack
+.. _loadBalancingMode options in f5-cccl: https://github.com/f5devcentral/f5-cccl/blob/master/f5_cccl/schemas/cccl-ltm-api-schema.yml
