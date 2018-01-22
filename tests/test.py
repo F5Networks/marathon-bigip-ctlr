@@ -1442,7 +1442,6 @@ class IsLabelDataValidTest(unittest.TestCase):
                 unicode('string'), unicode(''), unicode(' '), 'string', True,
                 [], {}, unicode('1.1.1.1%cow'), unicode('1.1.1.1%')]
         valid_balance = 'round-robin'
-        balance = ['string', '', ' ', 123, False, [], {}]
         for i in range(0, len(proto)):
             app = self.MockAppLabelData(proto[i], valid_port,
                                         valid_addr, valid_balance)
@@ -1456,11 +1455,6 @@ class IsLabelDataValidTest(unittest.TestCase):
         for i in range(0, len(addr)):
             app = self.MockAppLabelData(valid_proto, valid_port,
                                         addr[i], valid_balance)
-            res = ctlr.is_label_data_valid(app)
-            self.assertFalse(res)
-        for i in range(0, len(balance)):
-            app = self.MockAppLabelData(valid_proto, valid_port,
-                                        valid_addr, balance[i])
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
 
