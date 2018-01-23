@@ -96,7 +96,7 @@ with open('../next-version.txt') as verfile:
     # The short X.Y version.
     version = u'v{}.{}'.format(v[0], v[1])
     # The full version, including alpha/beta/rc tags.
-    release = u'v{}.{}.{}-dev'.format(v[0], v[1], v[2])
+    release = u'v{}.{}.{}'.format(v[0], v[1], v[2])
 
 # External links
 # Lets you reference GitHub issues in release notes, e.g. :issues:`214`
