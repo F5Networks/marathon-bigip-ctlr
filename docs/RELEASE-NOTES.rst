@@ -17,12 +17,16 @@ Bug Fixes
 
 Limitations
 ```````````
-* If you are using F5-supported iapps, you must first install the
-  latest release candidate of the iapp available at downloads.f5.com and
-  manually switch to using the new version of the iapp.  For instance,
-  the minimum version you need to use for the f5.http iapp is f5.http.v1.3.0rc3.
-  This version is available in the package iapps-1.0.0.492.0.  Note that
-  installing a new version of an iapp does not replace the existing version.
+* If you are deploying services using the F5-supported iApps, you must upgrade to a version that supports
+  route domain 0 for non-Common partitions. The minimum versions required for the F5 iapps are:
+
+  - f5.http: ``f5.http.v1.3.0rc3``
+  - f5.tcp: ``f5.tcp.v1.0.0rc3``
+
+  You can find these versions in the iapp package ``iapps-1.0.0.492.0``. To upgrade, you must perform the following:
+
+  - `Download and install the latest iApps templates`_.
+  - `Set the service to use the newer iApp template`_.
 
 v1.1.1
 ------
@@ -72,3 +76,7 @@ Limitations
 * The deployment of the controller will fail if the BIG-IP is not available when the controller starts.
 * Parameters other than IPAddress and Port (e.g. Connection Limit) specified in the iApp Pool Member Table apply to all members of the pool.
 * Health monitor timeout is not described in documentation
+
+
+.. _Download and install the latest iApps templates: https://support.f5.com/csp/article/K13422
+.. _Set the service to use the newer iApp template: https://support.f5.com/csp/article/K17001
