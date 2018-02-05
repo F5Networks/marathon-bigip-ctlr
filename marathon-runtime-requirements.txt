@@ -1,4 +1,8 @@
 -e git+https://github.com/f5devcentral/f5-cccl.git@03e22c4779ceb88f529337ade3ca31ddcd57e4c8#egg=f5-cccl
+cryptography==1.3.2
+idna==2.2
+pyasn1==0.2.2
+pycparser==2.17
 requests==2.9.1
 sseclient==0.0.14
 configargparse==0.10.0
