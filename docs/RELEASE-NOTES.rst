@@ -1,6 +1,14 @@
 Release Notes for F5 BIG-IP Controller for Marathon
 ===================================================
 
+v1.2.1
+------
+
+Bug Fixes
+`````````
+* :issues:`284` - Added python modules necessary to perform authentication for DC/OS Enterprise.
+* :cccl-issue:`208` - Address compatibility for BIG-IP v13.0 Health Monitor interval and timeout.
+
 v1.2.0
 ------
 
