@@ -1,5 +1,5 @@
 pytest==3.0.2
--e git+https://github.com/f5devcentral/f5-cccl.git@03e22c4779ceb88f529337ade3ca31ddcd57e4c8#egg=f5-cccl
+-e git+https://github.com/f5devcentral/f5-cccl.git@d55c2d24b03a50ecd71803501ea2db1dfed5efb5#egg=f5-cccl
 cryptography==1.3.2
 flake8==3.2.1
 # Cannot use flake8_docstrings until https://gitlab.com/pycqa/flake8-docstrings/issues/19 is fixed.
