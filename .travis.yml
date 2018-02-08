@@ -61,7 +61,7 @@ deploy:
     on:
       all_branches: true
       repo: F5Networks/marathon-bigip-ctlr
-      condition: $TRAVIS_BRANCH == *"-stable"
+      condition: $TRAVIS_BRANCH == *"-stable" || "$TRAVIS_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]*
     script:
       - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr v$CTLR_VERSION
 
