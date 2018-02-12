@@ -29,7 +29,15 @@ script:
   - export BUILD_IMG_TAG="${BASE_PUSH_TARGET}-devel:${TRAVIS_COMMIT}"
   - export BUILD_STAMP=devel-$TRAVIS_BRANCH-n-$TRAVIS_BUILD_NUMBER-id-$TRAVIS_BUILD_ID-$(date +%s)
   - export COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN
-  - export CTLR_VERSION=$(echo $TRAVIS_BRANCH | sed s/-stable//g)
+  - |
+    if [[ "$TRAVIS_BRANCH" == *"-stable" ]]; then
+      export CTLR_VERSION=v$(echo $TRAVIS_BRANCH | sed s/-stable//g)
+    elif [[ "$TRAVIS_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]* ]]; then
+      va=( ${TRAVIS_BRANCH//./ } ) # replace decimals and split into array
+      export CTLR_VERSION="${va[0]}.${va[1]}"
+    else
+      export CTLR_VERSION=$TRAVIS_BRANCH
+    fi
   - ./build-tools/build-devel-image.sh
   - ./build-tools/run-in-docker.sh make python-sanity
   - ./build-tools/build-runtime-images.sh
@@ -63,7 +71,7 @@ deploy:
       repo: F5Networks/marathon-bigip-ctlr
       condition: $TRAVIS_BRANCH == *"-stable" || "$TRAVIS_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]*
     script:
-      - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr v$CTLR_VERSION
+      - ./build-tools/deploy-docs.sh publish-product-docs-to-prod connectors/marathon-bigip-ctlr $CTLR_VERSION
 
 notifications:
   slack:
