@@ -1,12 +1,12 @@
 Release Notes for F5 BIG-IP Controller for Marathon
 ===================================================
 
-v1.2.2
-------
+next-release
+------------
 
 Bug Fixes
 `````````
-* :cccl-issue: Memory leak in f5-cccl submodule.
+* :cccl-issue:`211` - Memory leak in f5-cccl submodule.
 
 v1.2.1
 ------
