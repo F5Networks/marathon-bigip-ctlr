@@ -14,7 +14,7 @@ COPY common.py $APPPATH
 COPY marathon-bigip-ctlr.py $APPPATH
 COPY VERSION_BUILD.json $APPPATH
     
-RUN apk --no-cache --update add libffi
+RUN apk --no-cache --update add libffi libssl1.0
 RUN apk --no-cache --update add --virtual pip-install-deps \
     git \
     gcc \
