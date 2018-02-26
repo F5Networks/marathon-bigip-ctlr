@@ -6,6 +6,12 @@ next-release
 
 Bug Fixes
 `````````
+
+v1.2.2
+------
+
+Bug Fixes
+`````````
 * :cccl-issue:`211` - Memory leak in f5-cccl submodule.
 
 v1.2.1
