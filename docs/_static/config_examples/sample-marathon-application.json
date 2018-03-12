@@ -27,9 +27,11 @@
     "F5_0_BIND_ADDR": "10.128.10.240",
     "F5_0_MODE": "http",
     "F5_0_PORT": "8080",
+    "F5_0_SOURCE_ADDR_TRANSLATION": "{\"type\":\"none\"}",
     "F5_1_BIND_ADDR": "10.128.10.242",
     "F5_1_MODE": "http",
-    "F5_1_PORT": "8090"
+    "F5_1_PORT": "8090",
+    "F5_1_SOURCE_ADDR_TRANSLATION": "{\"type\":\"snat\",\"pool\":\"snat-pool\"}"
   },
   "healthChecks": [
     {

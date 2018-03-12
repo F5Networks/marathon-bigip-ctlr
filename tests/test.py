@@ -1375,19 +1375,34 @@ class GetProtocolTest(unittest.TestCase):
             self.assertEqual(res, None)
 
 
+class GetSourceAddrTranslationTest(unittest.TestCase):
+    """Test marathon-bigip-controller get_source_addr_translation function."""
+
+    def test_get_source_addr_translation_valid_input(self):
+        """Test get_source_addr_translation with valid input."""
+        valid = ["{\"type\":\"automap\"}", "{\"type\":\"none\"}",
+                 "{\"type\":\"snat\",\"pool\":\"test-snat-pool\"}"]
+        exp_res = [{'type': 'automap'}, {'type': 'none'},
+                   {'type': 'snat', 'pool': 'test-snat-pool'}]
+        for i in range(0, len(valid)):
+            res = ctlr.get_source_addr_translation(valid[i])
+            self.assertEqual(res, exp_res[i])
+
+
 class IsLabelDataValidTest(unittest.TestCase):
     """Test marathon-bigip-ctlr is_label_data_valid method."""
 
     class MockAppLabelData():
         """Mock marathon label data."""
 
-        def __init__(self, proto, port, addr, balance):
+        def __init__(self, proto, port, addr, balance, sat):
             """Initialize a MockAppLabelData object."""
             self.appId = 'mockApp'
             self.mode = proto
             self.servicePort = port
             self.bindAddr = addr
             self.balance = balance
+            self.source_addr_translation = sat
 
     def test_is_label_data_valid_valid_input(self):
         """Test is_label_data_valid with valid input."""
@@ -1414,20 +1429,36 @@ class IsLabelDataValidTest(unittest.TestCase):
                    'observed-member',
                    'ratio-least-connections-member',
                    'ratio-session']
+        sat = ["{\"type\":\"automap\"}", "{\"type\":\"none\"}",
+               "{\"type\":\"snat\",\"pool\":\"test-snat-pool\"}"]
         for i in range(0, len(proto)):
-            app = self.MockAppLabelData(proto[i], port[0], addr[0], balance[0])
+            app = self.MockAppLabelData(
+                proto[i], port[0], addr[0], balance[0], sat[0]
+            )
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(port)):
-            app = self.MockAppLabelData(proto[0], port[i], addr[0], balance[0])
+            app = self.MockAppLabelData(
+                proto[0], port[i], addr[0], balance[0], sat[0]
+            )
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(addr)):
-            app = self.MockAppLabelData(proto[0], port[0], addr[i], balance[0])
+            app = self.MockAppLabelData(
+                proto[0], port[0], addr[i], balance[0], sat[0]
+            )
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(balance)):
-            app = self.MockAppLabelData(proto[0], port[0], addr[0], balance[i])
+            app = self.MockAppLabelData(
+                proto[0], port[0], addr[0], balance[i], sat[0]
+            )
+            res = ctlr.is_label_data_valid(app)
+            self.assertTrue(res)
+        for i in range(0, len(sat)):
+            app = self.MockAppLabelData(
+                proto[0], port[0], addr[0], balance[0], sat[i]
+            )
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
 
@@ -1441,22 +1472,28 @@ class IsLabelDataValidTest(unittest.TestCase):
         addr = [unicode('258.0.0.1'), unicode('2001:dg8::1'),
                 unicode('string'), unicode(''), unicode(' '), 'string', True,
                 [], {}, unicode('1.1.1.1%cow'), unicode('1.1.1.1%')]
+        valid_sat = 'automap'
+        sat = ["", "garbage", "1", 1, "---\ntype: snat\npool: snat-pool"]
         valid_balance = 'round-robin'
         for i in range(0, len(proto)):
-            app = self.MockAppLabelData(proto[i], valid_port,
-                                        valid_addr, valid_balance)
+            app = self.MockAppLabelData(
+                proto[i], valid_port, valid_addr, valid_balance, valid_sat)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(port)):
-            app = self.MockAppLabelData(valid_proto, port[i],
-                                        valid_addr, valid_balance)
+            app = self.MockAppLabelData(
+                valid_proto, port[i], valid_addr, valid_balance, valid_sat)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(addr)):
-            app = self.MockAppLabelData(valid_proto, valid_port,
-                                        addr[i], valid_balance)
+            app = self.MockAppLabelData(
+                valid_proto, valid_port, addr[i], valid_balance, valid_sat)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
+        for i in range(0, len(sat)):
+            app = self.MockAppLabelData(
+                valid_proto, valid_port, valid_addr, valid_balance, sat[i]
+            )
 
 
 if __name__ == '__main__':
