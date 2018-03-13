@@ -211,7 +211,7 @@
         "container": {
             "docker": {
                 "forcePullImage": false,
-                "image": "docker-registry.pdbld.f5net.com/user/marathon-bigip-ctlr:latest",
+                "image": "f5networks/marathon-bigip-ctlr:latest",
                 "network": "BRIDGE",
                 "parameters": [],
                 "privileged": false
