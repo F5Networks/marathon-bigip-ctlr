@@ -7,6 +7,16 @@ next-release
 Bug Fixes
 `````````
 
+v1.3.0
+------
+
+Added Functionality
+```````````````````
+* Support for virtual server source address translation configuration.
+
+Bug Fixes
+`````````
+
 v1.2.2
 ------
 

@@ -112,6 +112,15 @@ def set_profile(x, v):
     x.profile = v
 
 
+def set_source_addr_translation(x, v):
+    """App label callback.
+
+    Set the Virtual Server Source Address Translation from label
+    F5_n_SOURCE_ADDR_TRANSLATION
+    """
+    x.source_addr_translation = v
+
+
 def set_iapp(x, v):
     """App label callback.
 
@@ -213,6 +222,7 @@ exact_label_keys = {
     'F5_{0}_MODE': set_mode,
     'F5_{0}_BALANCE': set_balance,
     'F5_{0}_SSL_PROFILE': set_profile,
+    'F5_{0}_SOURCE_ADDR_TRANSLATION': set_source_addr_translation,
     'F5_{0}_IAPP_TEMPLATE': set_iapp,
     'F5_{0}_IAPP_POOL_MEMBER_TABLE_NAME': set_iapp_pool_member_table_name,
     'F5_{0}_IAPP_POOL_MEMBER_TABLE': set_iapp_pool_member_table,
@@ -298,6 +308,15 @@ def get_protocol(protocol):
     return None
 
 
+def get_source_addr_translation(source_addr_translation):
+    """Return the source address translation type.
+
+    This configures virtual server source address translation based on app
+    label or from default.
+    """
+    return json.loads(source_addr_translation)
+
+
 def is_label_data_valid(app):
     """Validate the Marathon app's label data.
 
@@ -322,6 +341,16 @@ def is_label_data_valid(app):
         if not validate_bigip_address(app.bindAddr):
             logger.error(msg.format('F5_BIND_ADDR', app.appId, app.bindAddr))
             is_valid = False
+
+    # Validate source address translation
+    try:
+        json.loads(app.source_addr_translation)
+    except ValueError:
+        logger.error(msg.format(
+            'F5_SOURCE_ADDR_TRANSLATION', app.appId,
+            app.source_addr_translation
+        ))
+        is_valid = False
 
     return is_valid
 
@@ -389,6 +418,7 @@ class MarathonService(object):
         self.iappOptions = {}
         self.mode = 'tcp'
         self.balance = 'round-robin'
+        self.source_addr_translation = '{\"type\":\"automap\"}'
         self.profile = None
         self.healthCheck = healthCheck
         self.labels = {}
@@ -832,7 +862,8 @@ def create_config_marathon(cccl, apps):
                     "/%s/%s:%d" % (app.partition, app.bindAddr,
                                    app.servicePort),
                     'pool': "/%s/%s" % (app.partition, frontend_name),
-                    'sourceAddressTranslation': {'type': 'automap'},
+                    'sourceAddressTranslation': get_source_addr_translation(
+                        app.source_addr_translation),
                     'profiles': profiles
                 }
                 services['virtualServers'].append(virtual)
