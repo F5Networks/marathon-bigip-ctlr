@@ -4,6 +4,10 @@ Release Notes for F5 BIG-IP Controller for Marathon
 next-release
 ------------
 
+Added Functionality
+```````````````````
+* Added controller name and version to the metadata of certain BIG-IP LTM resources managed by the controller.
+
 Bug Fixes
 `````````
 
