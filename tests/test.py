@@ -114,8 +114,9 @@ class ArgTest(unittest.TestCase):
                               [--health-check]
                               [--marathon-ca-cert MARATHON_CA_CERT]
                               [--sse-timeout SSE_TIMEOUT]
-                              [--verify-interval VERIFY_INTERVAL] [--version]
-                              [--log-format LOG_FORMAT]
+                              [--verify-interval VERIFY_INTERVAL]
+                              [--vs-snat-pool-name VS_SNAT_POOL_NAME]
+                              [--version] [--log-format LOG_FORMAT]
                               [--log-level LOG_LEVEL]
                               [--marathon-auth-credential-file""" \
         """ MARATHON_AUTH_CREDENTIAL_FILE]\n \
@@ -454,6 +455,24 @@ class ArgTest(unittest.TestCase):
             + ['--verify-interval', str(timeout)]
         self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
+    def test_vs_snat_pool_name_arg(self):
+        """Test: 'VS SNAT Pool Name' arg."""
+        name = 'test-snat-pool'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--vs-snat-pool-name', name]
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, name)
+
+        # test default value
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, "")
+
+        # test via env var
+        os.environ['F5_CC_VS_SNAT_POOL_NAME'] = name
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, name)
+
     def test_marathon_ca_cert_arg(self):
         """Test: 'Marathon CA Cert' arg."""
         cert = "/this/is/a/path/to/a/cert.crt"
@@ -717,7 +736,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -783,7 +802,7 @@ class MarathonTest(unittest.TestCase):
                     partition,
                     prefix='')
 
-                cfg = ctlr.create_config_marathon(cccl, apps)
+                cfg = ctlr.create_config_marathon(cccl, apps, "")
                 if len(cfg['virtualServers']) > 0:
                     if expected_name1 == cfg['virtualServers'][0]['name'] and \
                             expected_partition1 == cccl.get_partition():
@@ -831,7 +850,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -888,7 +907,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1021,7 +1040,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1136,7 +1155,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1153,7 +1172,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1205,7 +1224,7 @@ class MarathonTest(unittest.TestCase):
         ctlr.Marathon.health_check = Mock(return_value=True)
         ctlr.MarathonEventProcessor.start_checkpoint_timer = Mock()
         ctlr.MarathonEventProcessor.retry_backoff = Mock()
-        ep = ctlr.MarathonEventProcessor(marathon, 100, [self.cccl])
+        ep = ctlr.MarathonEventProcessor(marathon, 100, [self.cccl], "")
 
         event_empty = Event(data='')
         event_app = Event(data='{"eventType": "app_terminated_event"}')
@@ -1243,7 +1262,7 @@ class MarathonTest(unittest.TestCase):
     def test_backoff_timer(self):
         """Test tight loop backoff."""
         cb = Mock()
-        ep = ctlr.MarathonEventProcessor({}, 1, {})
+        ep = ctlr.MarathonEventProcessor({}, 1, {}, "")
         # Set our times for fast unit testing
         ep._max_backoff_time = 0.1
         ep._backoff_timer = 0.025
@@ -1270,7 +1289,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1282,7 +1301,7 @@ class MarathonTest(unittest.TestCase):
                                              unicode('F5_0_BIND_ADDR'):
                                              unicode('10.128.10.240')})
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
         self.check_labels(self.cloud_data, apps)
         self.assertEqual(len(cfg['virtualServers']), 1)
@@ -1298,7 +1317,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1308,12 +1327,31 @@ class MarathonTest(unittest.TestCase):
         self.cloud_data[1]['labels'].pop(unicode('F5_0_MODE'))
         self.cloud_data[1]['labels'].pop(unicode('F5_0_BIND_ADDR'))
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
 
         self.assertEqual(len(cfg['virtualServers']), 0)
+
+    def test_virtual_server_snat_config(
+        self, cloud_state='tests/marathon_one_app.json'
+    ):
+        """Test: Marathon app with SNAT pool configured virtual server."""
+        # Get the test data
+        self.read_test_vectors(cloud_state)
+
+        # Do the BIG-IP configuration
+        name = "test-snat-pool"
+        apps = ctlr.get_apps(self.cloud_data, True)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, name)
+        self.cccl.apply_ltm_config(cfg)
+
+        self.check_labels(self.cloud_data, apps)
+        self.assertEquals(
+            cfg['virtualServers'][0]['sourceAddressTranslation'],
+            {'type': 'snat', 'pool': name}
+        )
 
     def test_cccl_exceptions(self, cloud_state='tests/marathon_one_app.json'):
         """Test: CCCL exceptions."""
@@ -1345,7 +1383,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
 
         # Corrupt the config
         del cfg['virtualServers'][0]['name']
@@ -1375,34 +1413,19 @@ class GetProtocolTest(unittest.TestCase):
             self.assertEqual(res, None)
 
 
-class GetSourceAddrTranslationTest(unittest.TestCase):
-    """Test marathon-bigip-controller get_source_addr_translation function."""
-
-    def test_get_source_addr_translation_valid_input(self):
-        """Test get_source_addr_translation with valid input."""
-        valid = ["{\"type\":\"automap\"}", "{\"type\":\"none\"}",
-                 "{\"type\":\"snat\",\"pool\":\"test-snat-pool\"}"]
-        exp_res = [{'type': 'automap'}, {'type': 'none'},
-                   {'type': 'snat', 'pool': 'test-snat-pool'}]
-        for i in range(0, len(valid)):
-            res = ctlr.get_source_addr_translation(valid[i])
-            self.assertEqual(res, exp_res[i])
-
-
 class IsLabelDataValidTest(unittest.TestCase):
     """Test marathon-bigip-ctlr is_label_data_valid method."""
 
     class MockAppLabelData():
         """Mock marathon label data."""
 
-        def __init__(self, proto, port, addr, balance, sat):
+        def __init__(self, proto, port, addr, balance):
             """Initialize a MockAppLabelData object."""
             self.appId = 'mockApp'
             self.mode = proto
             self.servicePort = port
             self.bindAddr = addr
             self.balance = balance
-            self.source_addr_translation = sat
 
     def test_is_label_data_valid_valid_input(self):
         """Test is_label_data_valid with valid input."""
@@ -1429,36 +1452,20 @@ class IsLabelDataValidTest(unittest.TestCase):
                    'observed-member',
                    'ratio-least-connections-member',
                    'ratio-session']
-        sat = ["{\"type\":\"automap\"}", "{\"type\":\"none\"}",
-               "{\"type\":\"snat\",\"pool\":\"test-snat-pool\"}"]
         for i in range(0, len(proto)):
-            app = self.MockAppLabelData(
-                proto[i], port[0], addr[0], balance[0], sat[0]
-            )
+            app = self.MockAppLabelData(proto[i], port[0], addr[0], balance[0])
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(port)):
-            app = self.MockAppLabelData(
-                proto[0], port[i], addr[0], balance[0], sat[0]
-            )
+            app = self.MockAppLabelData(proto[0], port[i], addr[0], balance[0])
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(addr)):
-            app = self.MockAppLabelData(
-                proto[0], port[0], addr[i], balance[0], sat[0]
-            )
+            app = self.MockAppLabelData(proto[0], port[0], addr[i], balance[0])
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
         for i in range(0, len(balance)):
-            app = self.MockAppLabelData(
-                proto[0], port[0], addr[0], balance[i], sat[0]
-            )
-            res = ctlr.is_label_data_valid(app)
-            self.assertTrue(res)
-        for i in range(0, len(sat)):
-            app = self.MockAppLabelData(
-                proto[0], port[0], addr[0], balance[0], sat[i]
-            )
+            app = self.MockAppLabelData(proto[0], port[0], addr[0], balance[i])
             res = ctlr.is_label_data_valid(app)
             self.assertTrue(res)
 
@@ -1472,28 +1479,22 @@ class IsLabelDataValidTest(unittest.TestCase):
         addr = [unicode('258.0.0.1'), unicode('2001:dg8::1'),
                 unicode('string'), unicode(''), unicode(' '), 'string', True,
                 [], {}, unicode('1.1.1.1%cow'), unicode('1.1.1.1%')]
-        valid_sat = 'automap'
-        sat = ["", "garbage", "1", 1, "---\ntype: snat\npool: snat-pool"]
         valid_balance = 'round-robin'
         for i in range(0, len(proto)):
             app = self.MockAppLabelData(
-                proto[i], valid_port, valid_addr, valid_balance, valid_sat)
+                proto[i], valid_port, valid_addr, valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(port)):
             app = self.MockAppLabelData(
-                valid_proto, port[i], valid_addr, valid_balance, valid_sat)
+                valid_proto, port[i], valid_addr, valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
         for i in range(0, len(addr)):
             app = self.MockAppLabelData(
-                valid_proto, valid_port, addr[i], valid_balance, valid_sat)
+                valid_proto, valid_port, addr[i], valid_balance)
             res = ctlr.is_label_data_valid(app)
             self.assertFalse(res)
-        for i in range(0, len(sat)):
-            app = self.MockAppLabelData(
-                valid_proto, valid_port, valid_addr, valid_balance, sat[i]
-            )
 
 
 if __name__ == '__main__':

@@ -125,8 +125,8 @@ rst_epilog = '''
 .. _Marathon Application: https://mesosphere.github.io/marathon/docs/application-basics.html
 .. _port-mapping: https://mesosphere.github.io/marathon/docs/ports.html
 .. _iApps: https://devcentral.f5.com/iapps
+.. _Overview of SNAT features: https://support.f5.com/csp/article/K7820
 .. _route domain: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/tmos-routing-administration-12-0-0/9.html
-.. _Source Address Translation Overview: https://support.f5.com/csp/article/K7820
 ''' % {
     'url_version': version,
     'base_url': 'http://clouddocs.f5.com'
