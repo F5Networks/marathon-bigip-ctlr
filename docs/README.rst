@@ -51,50 +51,60 @@ The |mctlr-long| is a Docker container that runs as a `Marathon Application`_. I
 Configuration Parameters
 ------------------------
 
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| Parameter                         | Type      | Required  | Default       | Description                   | Allowed Values    |
-+===================================+===========+===========+===============+===============================+===================+
-| MARATHON_URL                      | string    | Required  | n/a           | the Marathon URL              |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_BIGIP_HOSTNAME              | string    | Required  | n/a           | BIG-IP hostname / IP address  |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username [#username]_  |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_BIGIP_PASSWORD              | bar       | Required  | n/a           | BIG-IP password               |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_PARTITIONS                  | bar       | Required  | n/a           | BIG-IP partition to create    |                   |
-|                                   |           |           |               | objects in                    |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_USE_HEALTHCHECK             | boolean   | Optional  | False         | Respect Marathon's health     | True, False       |
-|                                   |           |           |               | check status when adding app  |                   |
-|                                   |           |           |               | instance to backend pool      |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_SSE_TIMEOUT                 | integer   | Optional  | 30            | Marathon event stream timeout |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_MARATHON_CA_CERT            | integer   | Optional  | n/a           | CA certificate for Marathon   |                   |
-|                                   |           |           |               | HTTPS connections             |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_VERIFY_INTERVAL             | integer   | Optional  | 30            | Inteval at which to verify    |                   |
-|                                   |           |           |               | BIG-IP configurations         |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_LOG_FORMAT                  | string    | Optional  | %(asctime)s   | log message format            |                   |
-|                                   |           |           | %(name)s:     |                               |                   |
-|                                   |           |           | %(levelname)  |                               |                   |
-|                                   |           |           | -8s:          |                               |                   |
-|                                   |           |           | %(message)s   |                               |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_LOG_LEVEL                   | string    | Optional  | INFO          | log level                     | INFO, DEBUG,      |
-|                                   |           |           |               |                               | ERROR             |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_MARATHON_AUTH               | string    | Optional  | n/a           | Path to file containing a     |                   |
-|                                   |           |           |               | ``'user:pass'`` definition    |                   |
-|                                   |           |           |               | for the Marathon HTTP API.    |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_DCOS_AUTH_CREDENTIALS       | string    | Optional  | n/a           | DC/OS service account         |                   |
-|                                   |           |           |               | credentials                   |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
-| F5_CC_DCOS_AUTH_TOKEN             | string    | Optional  | n/a           | DC/OS ACS Token               |                   |
-+-----------------------------------+-----------+-----------+---------------+-------------------------------+-------------------+
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| Parameter                         | Type      | Required  | Default       | Description                             | Allowed Values    |
++===================================+===========+===========+===============+=========================================+===================+
+| MARATHON_URL                      | string    | Required  | n/a           | the Marathon URL                        |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_BIGIP_HOSTNAME              | string    | Required  | n/a           | BIG-IP hostname / IP address            |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_BIGIP_USERNAME              | bar       | Required  | n/a           | BIG-IP username [#username]_            |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_BIGIP_PASSWORD              | bar       | Required  | n/a           | BIG-IP password                         |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_PARTITIONS                  | bar       | Required  | n/a           | BIG-IP partition to create              |                   |
+|                                   |           |           |               | objects in                              |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_USE_HEALTHCHECK             | boolean   | Optional  | False         | Respect Marathon's health               | True, False       |
+|                                   |           |           |               | check status when adding app            |                   |
+|                                   |           |           |               | instance to backend pool                |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_SSE_TIMEOUT                 | integer   | Optional  | 30            | Marathon event stream timeout           |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_MARATHON_CA_CERT            | integer   | Optional  | n/a           | CA certificate for Marathon             |                   |
+|                                   |           |           |               | HTTPS connections                       |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_VERIFY_INTERVAL             | integer   | Optional  | 30            | Inteval at which to verify              |                   |
+|                                   |           |           |               | BIG-IP configurations                   |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5F5_CC_VS_SNAT_POOL_NAME         | string    | Optional  | n/a           | Name of the SNAT pool that all virtual  |                   |
+|                                   |           |           |               | servers will reference. If it is not    |                   |
+|                                   |           |           |               | set virtual servers will have source    |                   |
+|                                   |           |           |               | address translation of type automap     |                   |
+|                                   |           |           |               | configured                              |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_LOG_FORMAT                  | string    | Optional  | %(asctime)s   | log message format                      |                   |
+|                                   |           |           | %(name)s:     |                                         |                   |
+|                                   |           |           | %(levelname)  |                                         |                   |
+|                                   |           |           | -8s:          |                                         |                   |
+|                                   |           |           | %(message)s   |                                         |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_LOG_LEVEL                   | string    | Optional  | INFO          | log level                               | INFO, DEBUG,      |
+|                                   |           |           |               |                                         | ERROR             |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_MARATHON_AUTH               | string    | Optional  | n/a           | Path to file containing a               |                   |
+|                                   |           |           |               | ``'user:pass'`` definition              |                   |
+|                                   |           |           |               | for the Marathon HTTP API.              |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_DCOS_AUTH_CREDENTIALS       | string    | Optional  | n/a           | DC/OS service account                   |                   |
+|                                   |           |           |               | credentials                             |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+| F5_CC_DCOS_AUTH_TOKEN             | string    | Optional  | n/a           | DC/OS ACS Token                         |                   |
++-----------------------------------+-----------+-----------+---------------+-----------------------------------------+-------------------+
+
+.. note::
+  Use the ``vs-snat-pool-name`` if you want virtual servers to reference a preconfigured SNAT pool by name in the Common partition on the BIG-IP device.
+  See `Overview of SNAT features`_ if you would like more details on this configuration option.
 
 .. _app labels:
 
@@ -160,25 +170,12 @@ Use the following application labels to deploy virtual servers on the BIG-IP.
 |                                 |           |           |               | ``"F5_0_SSL_PROFILE": "Common/clientssl"``                             |                                         |
 |                                 |           |           |               |                                                                        |                                         |
 +---------------------------------+-----------+-----------+---------------+------------------------------------------------------------------------+-----------------------------------------+
-| \F5_{n}_SOURCE_ADDR_TRANSLATION | string    | Optional  | automap       | JSON encoded string of a BIG-IP Source Address Translation type to     | automap, none, snat                     |
-|                                 |           |           |               | apply to a virtual server                                              |                                         |
-|                                 |           |           |               |                                                                        |                                         |
-|                                 |           |           |               | Example (automap or none):                                             |                                         |
-|                                 |           |           |               |                                                                        |                                         |
-|                                 |           |           |               | `"F5_0_SOURCE_ADDR_TRANSLATION": "{"type":"automap"}"`                 |                                         |
-|                                 |           |           |               |                                                                        |                                         |
-|                                 |           |           |               | Example (snat):                                                        |                                         |
-|                                 |           |           |               |                                                                        |                                         |
-|                                 |           |           |               | `"F5_0_SOURCE_ADDR_TRANSLATION": "{"type":"snat","pool":"snat-pool"}"` |                                         |
-+---------------------------------+-----------+-----------+---------------+------------------------------------------------------------------------+-----------------------------------------+
 
 .. note::
 
    If you don't define ``F5_{n}_BIND_ADDR``, the Controller will create BIG-IP `pools without virtual servers`_. In such cases, **you should already have a BIG-IP virtual server** that handles client connections configured with an iRule or local traffic policy that can forward the request to the correct pool.
 
    You can `use an IPAM system`_ to populate the ``F5_{n}_BIND_ADDR`` label. When the Controller discovers a valid ``F5_{n}_BIND_ADDR`` for an Application, it creates a BIG-IP virtual server for the App with the specified the IP address.
-
-   See `Source Address Translation Overview`_ on AskF5 for more information on configuring virtual server source address translation.
 
 .. _app labels iapp:
 
