@@ -11,7 +11,7 @@
             "name": "server-app_80_0_http",
             "path": "/this/is/a/nondefault/path",
             "portIndex": 0,
-            "protocol": "HTTP",
+            "protocol": "MESOS_HTTP",
             "send": "GET /this/is/a/nondefault/path HTTP/1.0\\r\\n\\r\\n",
             "timeout": 141,
             "timeoutSeconds": 20,
@@ -26,7 +26,7 @@
             "name": "server-app_80_1_tcp",
             "path": "/",
             "portIndex": 0,
-            "protocol": "TCP",
+            "protocol": "MESOS_TCP",
             "timeout": 141,
             "timeoutSeconds": 20,
             "type": "tcp"
