@@ -10,6 +10,7 @@ Added Functionality
 
 Bug Fixes
 `````````
+* :issues:`314` - Support new health-check protocols (MESOS_HTTP, MESOS_HTTPS, and MESOS_TCP) introduced in DC/OS 1.10.
 
 v1.3.0
 ------
