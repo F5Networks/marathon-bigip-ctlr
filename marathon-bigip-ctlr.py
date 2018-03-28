@@ -779,6 +779,10 @@ def create_config_marathon(cccl, apps):
                     # normalize healthcheck protocol name to lowercase
                     if 'protocol' in hc:
                         hc['type'] = (hc['protocol']).lower()
+                        if 'http' in hc['type']:
+                            hc['type'] = 'http'
+                        if 'tcp' in hc['type']:
+                            hc['type'] = 'tcp'
                     hc.update({
                         'interval': hc['intervalSeconds'],
                         'timeout': healthcheck_timeout_calculate(hc)
