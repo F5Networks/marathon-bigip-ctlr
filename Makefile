@@ -46,7 +46,7 @@ att-gen-backends:
 att-gen-frontend:
 	docker run -v $(PWD):$(PWD) --rm -it \
 		f5devcentral/attributions-generator \
-		node /frontEnd/frontEnd.js $(PWD)
+		node /frontEnd/frontEnd.js --pd $(PWD)
 
 att-gen: att-gen-backends att-gen-frontend
 
