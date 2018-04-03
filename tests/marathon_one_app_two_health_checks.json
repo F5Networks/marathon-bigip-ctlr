@@ -117,7 +117,7 @@
         "healthChecks": [
             {
                 "path": "/this/is/a/nondefault/path",
-                "protocol": "HTTP",
+                "protocol": "MESOS_HTTP",
                 "portIndex": 0,
                 "gracePeriodSeconds": 300,
                 "intervalSeconds": 60,
@@ -127,7 +127,7 @@
             },
             {
                 "path": "/",
-                "protocol": "TCP",
+                "protocol": "MESOS_TCP",
                 "portIndex": 0,
                 "gracePeriodSeconds": 300,
                 "intervalSeconds": 60,
