@@ -4,23 +4,20 @@ Release Notes for F5 BIG-IP Controller for Marathon
 next-release
 ------------
 
-Added Functionality
-```````````````````
-* Added controller name and version to the metadata of certain BIG-IP LTM resources managed by the controller.
-
 Bug Fixes
 `````````
-* :issues:`314` - Support new health-check protocols (MESOS_HTTP, MESOS_HTTPS, and MESOS_TCP) introduced in DC/OS 1.10.
 
 v1.3.0
 ------
 
 Added Functionality
 ```````````````````
+* Added controller name and version to the metadata of certain BIG-IP LTM resources managed by the controller.
 * Support for virtual server source address translation configuration.
 
 Bug Fixes
 `````````
+* :issues:`314` - Support new health-check protocols (MESOS_HTTP, MESOS_HTTPS, and MESOS_TCP) introduced in DC/OS 1.10.
 
 v1.2.2
 ------
