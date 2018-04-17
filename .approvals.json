@@ -326,6 +326,20 @@
    "version": "1.11.5",
    "license": "MIT",
    "category": 3,
+   "status": "approved"
+ },
+ {
+   "name": "jsonpatch",
+   "version": "1.16",
+   "license": "Modified BSD License",
+   "category": 3,
+   "status": "pending"
+ },
+ {
+   "name": "jsonpointer",
+   "version": "2.0",
+   "license": "BSD License",
+   "category": 3,
    "status": "pending"
  }
 ]
