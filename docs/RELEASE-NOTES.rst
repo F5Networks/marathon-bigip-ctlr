@@ -1,12 +1,6 @@
 Release Notes for F5 BIG-IP Controller for Marathon
 ===================================================
 
-next-release
-------------
-
-Bug Fixes
-`````````
-
 v1.3.0
 ------
 
