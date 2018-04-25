@@ -117,7 +117,7 @@ rst_epilog = '''
 .. |mctlr| replace:: :code:`marathon-bigip-ctlr`
 .. |mctlr-long| replace:: F5 BIG-IP Controller for Marathon
 .. _user documentation: %(base_url)s/containers/latest/marathon/
-.. _pools without virtual servers: %(base_url)s/containers/latest/marathon/mctlr-manage-bigip-objects.html#manage-pools-without-virtual-servers
+.. _pools without virtual servers: %(base_url)s/containers/latest/marathon/mctlr-manage-bigip-objects.html#pools-without-virtual-servers
 .. _use an IPAM system: %(base_url)s/containers/latest/marathon/mctlr-manage-bigip-objects.html#use-ipam-to-assign-ip-addresses-to-big-ip-virtual-servers
 .. _Enterprise DC/OS: https://mesosphere.com/product/
 .. _Identity and Access Management API: https://docs.mesosphere.com/1.8/administration/id-and-access-mgt/oss/iam-api/

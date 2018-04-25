@@ -1,3 +1,12 @@
+# This is for builds not triggered through Travis CI
+LICENSE_STRICT ?= false
+
+# If strict license approval check is desired, pass the corresponding flag
+# to Attributions Generator on command line
+ifeq ($(LICENSE_STRICT), true)
+        LIC_FLAG=--al release
+endif
+
 .PHONY: all doc-preview test-docs devel-image python-lint python-unit python-sanity
 
 all:
@@ -46,8 +55,6 @@ att-gen-backends:
 att-gen-frontend:
 	docker run -v $(PWD):$(PWD) --rm -it \
 		f5devcentral/attributions-generator \
-		node /frontEnd/frontEnd.js --pd $(PWD)
+		node /frontEnd/frontEnd.js --pd $(PWD) $(LIC_FLAG)
 
 att-gen: att-gen-backends att-gen-frontend
-
-
