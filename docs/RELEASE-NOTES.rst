@@ -4,8 +4,12 @@ Release Notes for F5 BIG-IP Controller for Marathon
 next-release
 ------------
 
+v1.3.1
+-----
+
 Bug Fixes
 `````````
+* :issues:`339` - Controller upgrades properly with new metadata field.
 
 v1.3.0
 ------
@@ -18,6 +22,11 @@ Added Functionality
 Bug Fixes
 `````````
 * :issues:`314` - Support new health-check protocols (MESOS_HTTP, MESOS_HTTPS, and MESOS_TCP) introduced in DC/OS 1.10.
+
+Limitations
+```````````
+* If an older controller created resources, upgrading to the new version could result in a python exception when
+  adding metadata to virtuals: :issues:`339`
 
 v1.2.2
 ------
