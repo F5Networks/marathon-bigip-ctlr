@@ -8,7 +8,6 @@ Bug Fixes
 `````````
 * Fix to Alpine linux vulnerability CVE-2018-18074.
 
->>>>>>> 8b0faeb... Merge pull request #343 from trinaths/master
 v1.3.1
 -----
 
