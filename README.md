@@ -2,6 +2,7 @@
 
 F5 BIG-IP Controller for Marathon
 =================================
+**This GitHub repository has been archived and is read-only. This project is no longer actively maintained.**
 
 The F5 BIG-IP Controller for Marathon makes F5 BIG-IP
 [Local Traffic Manager](https://f5.com/products/big-ip/local-traffic-manager-ltm)
